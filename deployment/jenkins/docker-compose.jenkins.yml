@@ -1,6 +1,7 @@
 services:
   jenkins:
     image: jenkins/jenkins:lts
+    container_name: ems-jenkins
     user: root # Ensure Jenkins runs with sufficient privileges
     build:
       context: .
