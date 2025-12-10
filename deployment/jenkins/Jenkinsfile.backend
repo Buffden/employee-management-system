@@ -27,7 +27,7 @@ pipeline {
         stage('Clone Repository') {
             steps {
                 echo 'Cloning Repository...'
-                git branch: 'main', url: 'https://github.com/Buffden/ems-api'
+                git branch: 'main', url: 'https://github.com/Buffden/employee-management-system.git'
             }
         }
 

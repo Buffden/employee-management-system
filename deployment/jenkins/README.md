@@ -4,7 +4,7 @@ This folder contains all Jenkins-related files for CI/CD pipelines.
 
 ## Files
 
-- **`docker-compose.yml`** - Jenkins container setup with Docker support
+- **`docker-compose.jenkins.yml`** - Jenkins container setup with Docker support
 - **`Dockerfile`** - Custom Jenkins image with Docker CLI and Docker Compose
 - **`Jenkinsfile.backend`** - Backend CI/CD pipeline (Spring Boot)
 - **`Jenkinsfile.frontend`** - Frontend CI/CD pipeline (Angular)
@@ -15,7 +15,7 @@ This folder contains all Jenkins-related files for CI/CD pipelines.
 
 ```bash
 cd deployment/jenkins
-docker-compose up -d --build
+docker-compose -f docker-compose.jenkins.yml up -d --build
 ```
 
 Access Jenkins at: **http://localhost:8085**
@@ -65,7 +65,7 @@ Access Jenkins at: **http://localhost:8085**
 
 ## Docker Compose
 
-The `docker-compose.yml` in this folder sets up:
+The `docker-compose.jenkins.yml` in this folder sets up:
 - Jenkins LTS container
 - Custom Jenkins image with Docker support
 - Docker socket mounted for Docker-in-Docker
@@ -86,7 +86,7 @@ Jenkins container needs access to database credentials from `../../db/.env`:
 - `DB_USER`
 - `DB_PWD`
 
-These are passed via environment variables in `docker-compose.yml`.
+These are passed via environment variables in `docker-compose.jenkins.yml`.
 
 ## Notes
 
