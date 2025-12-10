@@ -13,7 +13,7 @@ RUN npm run build
 FROM nginx:alpine
 
 # Copy built Angular app (browser files only - SSR creates browser/ subdirectory)
-COPY --from=build /app/dist/employee-management-system-gui/browser /usr/share/nginx/html
+COPY --from=build /app/dist/employee-management-system/browser /usr/share/nginx/html
 
 # Angular SSR builds index.csr.html as the main entry point, copy it to index.html
 RUN if [ -f /usr/share/nginx/html/index.csr.html ]; then \

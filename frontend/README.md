@@ -164,7 +164,7 @@ function isProject(value: unknown): value is Project {
 1. Clone the frontend repository:
    ```bash
    git clone <frontend-repo-url>
-   cd employee-management-system-gui
+   cd employee-management-system
    ```
 
 2. Install dependencies:

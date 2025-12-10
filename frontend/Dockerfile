@@ -14,7 +14,7 @@ RUN npm run build
 FROM nginx:alpine
 
 # Copy built app
-COPY --from=build /app/dist/employee-management-system-gui /usr/share/nginx/html
+COPY --from=build /app/dist/employee-management-system /usr/share/nginx/html
 
 # Copy nginx configuration for standalone frontend
 # This serves Angular app and proxies /api to gateway
