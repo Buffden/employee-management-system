@@ -44,36 +44,41 @@ A full-stack monorepo application for managing employees, departments, projects,
 - **UI Library**: Angular Material 19.0.4
 - **Build Tool**: Angular CLI
 - **State Management**: RxJS
+- **SSR**: Angular Server-Side Rendering
 
 ### DevOps & Infrastructure
 - **Containerization**: Docker & Docker Compose
+- **Web Server**: Nginx (Gateway)
 - **CI/CD**: Jenkins
 - **Version Control**: Git
 
 ## 🏗 Architecture
 
-The application follows a **local development architecture**:
+The application follows a **local development architecture** with a unified gateway:
 
 ```
 ┌─────────────────────────────────────────────┐
-│         Local Development                  │
+│         Local Development                    │
 ├─────────────────────────────────────────────┤
 │                                             │
-│  ┌──────────────┐      ┌──────────────┐   │
-│  │  Angular App │──────▶│ API Gateway │   │
-│  │  :4200       │      │  :8000       │   │
-│  └──────────────┘      └──────┬───────┘   │
-│                                │           │
-│                         ┌──────▼──────┐   │
-│                         │ Spring Boot │   │
-│                         │  :8080      │   │
-│                         └──────┬──────┘   │
-│                                │           │
-│                         ┌──────▼──────┐   │
-│                         │ PostgreSQL  │   │
-│                         │ (Docker)    │   │
-│                         │ :5433       │   │
-│                         └─────────────┘   │
+│  ┌──────────────────────────────────────┐  │
+│  │     Gateway (Nginx) :80              │  │
+│  │  ┌──────────────┐  ┌──────────────┐ │  │
+│  │  │  Angular App │  │  API Routes  │ │  │
+│  │  │  (Frontend)  │  │  /api/*      │ │  │
+│  │  └──────────────┘  └──────┬───────┘ │  │
+│  └───────────────────────────┼──────────┘  │
+│                              │             │
+│                       ┌──────▼──────┐     │
+│                       │ Spring Boot │     │
+│                       │  :8080      │     │
+│                       └──────┬──────┘     │
+│                              │             │
+│                       ┌──────▼──────┐     │
+│                       │ PostgreSQL  │     │
+│                       │ (Docker)    │     │
+│                       │ :5432       │     │
+│                       └─────────────┘     │
 └─────────────────────────────────────────────┘
 ```
 
@@ -99,19 +104,21 @@ employee-management-system/
 │   └── Dockerfile
 │
 ├── gateway/          # API Gateway (Nginx)
-│   ├── nginx.conf   # Gateway configuration
-│   └── Dockerfile
+│   ├── nginx.conf   # Unified gateway configuration
+│   └── Dockerfile   # Multi-stage build (Angular + Nginx)
 │
-├── deployment/      # Deployment files
-│   ├── docker-compose.yml  # Main compose file
-│   ├── start.sh     # Start all services
-│   ├── stop.sh      # Stop all services
-│   ├── restart.sh   # Restart services
-│   └── status.sh    # Check status
+├── deployment/       # Deployment & CI/CD files
+│   ├── docker-compose.yml           # Main deployment
+│   ├── docker-compose.backend.yml  # Backend CI/CD testing
+│   ├── docker-compose.frontend.yml # Frontend CI/CD testing
+│   └── jenkins/                     # Jenkins CI/CD
+│       ├── docker-compose.yml
+│       ├── Dockerfile
+│       ├── Jenkinsfile.backend
+│       └── Jenkinsfile.frontend
 │
 └── db/              # Database configuration
     ├── .env.example # Environment template
-    ├── connect_db.sh # Database connection script
     └── init/        # Database initialization scripts
 ```
 
@@ -121,6 +128,7 @@ employee-management-system/
 - **DTO Pattern**: Data transfer objects for API communication
 - **Mapper Pattern**: Entity-DTO conversion
 - **Module Pattern**: Feature-based Angular modules
+- **Gateway Pattern**: Unified entry point for frontend and API
 
 ## 📦 Prerequisites
 
@@ -130,8 +138,7 @@ Before you begin, ensure you have the following installed:
 - **Maven 3.6+**
 - **Node.js** (LTS version)
 - **npm** or **yarn**
-- **PostgreSQL** 12+ (or use Docker)
-- **Docker** and **Docker Compose** (optional, for containerized deployment)
+- **Docker** and **Docker Compose** (required for deployment)
 - **Git**
 
 ## 🚀 Getting Started
@@ -143,85 +150,55 @@ git clone <repository-url>
 cd employee-management-system
 ```
 
-### 2. Backend Setup
+### 2. Configure Database
 
-#### Option A: Quick Start with Docker (Recommended)
-
-The easiest way to get started is using the unified deployment:
+Create the database environment file:
 
 ```bash
-# From the root directory
-./start.sh
+cd db
+cp .env.example .env
+# Edit .env with your database credentials
+```
 
-# Or from deployment directory:
+Required environment variables:
+- `DB_HOST` - Database host (default: postgres)
+- `DB_PORT` - Database port (default: 5432)
+- `DB_NAME` - Database name
+- `DB_USER` - Database username
+- `DB_PWD` - Database password
+
+### 3. Start the Application
+
+The easiest way to get started is using Docker Compose:
+
+```bash
 cd deployment
-./start.sh
+docker-compose up -d --build
 ```
 
 This will:
-- Start a PostgreSQL database in Docker
-- Start the Spring Boot application
-- Automatically configure connections
-- Backend available at `http://localhost:8080`
-- Database available at `localhost:5432`
+- Start PostgreSQL database (internal only)
+- Build and start Spring Boot backend (internal only)
+- Build and start Gateway with Angular frontend (exposed on port 80)
+- Automatically configure all connections
+- Set up health checks and dependencies
 
-#### Option B: Local Development (PostgreSQL in Docker, App on Host)
+### 4. Access the Application
 
-If you prefer to run the app locally but use Docker for PostgreSQL:
+- **Frontend Application**: http://localhost
+- **API Endpoints**: http://localhost/api/*
+  - Departments: `http://localhost/api/departments`
+  - Employees: `http://localhost/api/employees`
+  - Projects: `http://localhost/api/projects`
+  - Tasks: `http://localhost/api/tasks`
+- **Health Check**: http://localhost/health
 
-```bash
-cd backend
-
-# Start only PostgreSQL
-docker-compose -f docker-compose.local.yml up -d postgres
-
-# Wait for PostgreSQL to be ready (about 10 seconds)
-sleep 10
-
-# Run the application locally
-./start_backend_local.sh
-```
-
-#### Option C: Fully Local (PostgreSQL installed locally)
-
-If you have PostgreSQL installed locally:
+### 5. Stop the Application
 
 ```bash
-cd backend
-
-# Create .env file for local PostgreSQL
-cat > .env << 'EOF'
-DB_HOST=localhost
-DB_NAME=ems_db
-DB_USER=postgres
-DB_PWD=postgres
-SPRING_PROFILES_ACTIVE=local
-EOF
-
-# Create database (if not exists)
-createdb ems_db
-
-# Run the application
-./start_backend_local.sh
+cd deployment
+docker-compose down
 ```
-
-The backend API will be available at `http://localhost:8080`
-
-### 3. Frontend Setup
-
-```bash
-cd frontend
-
-# Install dependencies
-npm install
-
-# Start development server
-npm start
-# or
-npm run start:local
-```
-
-The frontend will be available at `http://localhost:4200`
 
 ## 📁 Project Structure
 
@@ -300,26 +277,13 @@ frontend/src/app/
 
 ## 🐳 Docker Deployment
 
-### Start All Services
-
-```bash
-cd deployment
-docker-compose up -d --build
-```
-
-This starts all services:
-- PostgreSQL database (internal only)
-- Spring Boot backend (internal only)
-- API Gateway (internal only)
-- Angular frontend with Nginx (exposed on port 80)
-
 ### Architecture
 
 ```
-Host → Nginx (Port 80) → Gateway → Backend → Database
+Host → Gateway (Port 80) → Backend → Database
 ```
 
-**Only Nginx is exposed** on port 80. All other services are internal and not directly accessible from the host.
+**Only the Gateway is exposed** on port 80. All other services (PostgreSQL, Backend) are internal and not directly accessible from the host.
 
 ### Docker Compose Commands
 
@@ -336,20 +300,30 @@ docker-compose down
 docker-compose logs -f
 
 # View logs for specific service
-docker-compose logs -f frontend
+docker-compose logs -f gateway
 docker-compose logs -f backend
+docker-compose logs -f postgres
 
 # Restart services
 docker-compose restart
 
 # Check service status
 docker-compose ps
+
+# Rebuild specific service
+docker-compose up -d --build gateway
 ```
+
+### Service Details
+
+- **PostgreSQL**: Internal only, accessible only from backend container
+- **Backend**: Internal only, accessible only from gateway container
+- **Gateway**: Exposed on port 80, serves Angular app and routes API requests
 
 ### Access
 
 - **Application**: http://localhost
-- **API requests**: http://localhost/api/* (routed through nginx)
+- **API requests**: http://localhost/api/* (routed through gateway → backend)
 
 ## 🔄 CI/CD
 
@@ -360,19 +334,41 @@ The project includes Jenkins configuration for continuous integration and deploy
 #### Start Jenkins
 
 ```bash
-cd backend
-docker-compose -f docker-compose.jenkins.yml up
+cd deployment/jenkins
+docker-compose up -d --build
 ```
 
 Access Jenkins at `http://localhost:8085`
 
-#### Jenkinsfile
+#### Jenkins Pipelines
 
-The project includes a `Jenkinsfile` for pipeline automation:
-- Build and test backend
-- Build frontend
-- Docker image creation
-- Deployment automation
+The project includes Jenkinsfiles for automated pipelines:
+
+- **Backend Pipeline** (`deployment/jenkins/Jenkinsfile.backend`):
+  - Build and test backend
+  - Docker image creation
+  - Deployment automation
+
+- **Frontend Pipeline** (`deployment/jenkins/Jenkinsfile.frontend`):
+  - Build Angular application
+  - Docker image creation
+  - Gateway deployment
+
+#### CI/CD Testing
+
+For testing individual services:
+
+```bash
+# Test backend only
+cd deployment
+docker-compose -f docker-compose.backend.yml up -d --build
+
+# Test frontend/gateway only
+cd deployment
+docker-compose -f docker-compose.frontend.yml up -d --build
+```
+
+See `deployment/jenkins/README.md` for detailed CI/CD setup instructions.
 
 ## 💻 Development
 
@@ -387,14 +383,22 @@ mvn test
 # Build without tests
 mvn clean package -DskipTests
 
-# Check application health
-curl http://localhost:8080/actuator/health
+# Check application health (when running)
+curl http://localhost:8080/api/departments
 ```
 
 ### Frontend Development
 
 ```bash
 cd frontend
+
+# Install dependencies
+npm install
+
+# Start development server
+npm start
+# or
+npm run start:local
 
 # Run linter
 npm run lint
@@ -406,16 +410,18 @@ npm test
 npm run build
 ```
 
+The frontend development server will be available at `http://localhost:4200`
+
 ### Environment Configuration
 
 #### Backend
-- Development: `application.properties`
-- Test: `application-test.properties`
-- Production: Use environment variables
+- Configuration: `backend/src/main/resources/application.properties`
+- Environment variables loaded from `db/.env`
+- Database connection configured via environment variables
 
 #### Frontend
-- Local: `proxy.conf.local.json`
-- Production: `proxy.conf.prod.json`
+- Local development: `proxy.conf.local.json`
+- Production: Uses gateway for API routing
 
 ## 🐛 Troubleshooting
 
@@ -423,26 +429,47 @@ npm run build
 
 | Problem | Solution |
 |---------|----------|
-| CORS errors | Update `spring.web.cors.allowed-origins` in `application.properties` |
-| Database connection timeout | Verify DB credentials and ensure PostgreSQL is running |
-| Port already in use | Change port in `application.properties` or kill existing process |
+| CORS errors | CORS is configured in gateway/nginx.conf |
+| Database connection timeout | Verify DB credentials in `db/.env` and ensure PostgreSQL is running |
+| Port already in use | Stop existing containers: `docker-compose down` |
 | Angular build errors | Clear `node_modules` and reinstall: `rm -rf node_modules && npm install` |
 | Maven build failures | Clean and rebuild: `mvn clean install` |
+| Gateway shows default nginx page | Rebuild gateway: `docker-compose up -d --build gateway` |
+| API returns 404 | Check gateway nginx.conf routing configuration |
 
 ### Logs
 
-- **Backend logs**: Check `backend/app.log` or console output
-- **Docker logs**: `docker logs <container-id>`
-- **Jenkins logs**: Access via Jenkins UI
+- **Docker logs**: `docker-compose logs -f <service-name>`
+- **Backend logs**: `docker-compose logs -f backend`
+- **Gateway logs**: `docker-compose logs -f gateway`
+- **Database logs**: `docker-compose logs -f postgres`
+- **Jenkins logs**: Access via Jenkins UI at `http://localhost:8085`
+
+### Health Checks
+
+All services include health checks:
+
+```bash
+# Check all services
+docker-compose ps
+
+# Check gateway health
+curl http://localhost/health
+
+# Check backend health (from within container)
+docker exec ems-backend wget -qO- http://localhost:8080/api/departments
+```
 
 ## 📝 Additional Notes
 
 - The application uses UUID for entity IDs
 - Database schema is auto-generated via Hibernate (`ddl-auto=update`)
-- CORS is configured for localhost development
-- Health check endpoint available at `/actuator/health`
+- CORS is configured in the gateway nginx configuration
+- Health check endpoint available at `/health`
 - Connection pooling configured with HikariCP
 - All configuration is local-first - no cloud dependencies
+- Angular SSR (Server-Side Rendering) is configured and used in production builds
+- Gateway serves both Angular app and routes API requests through a single Nginx instance
 
 ## 🤝 Contributing
 
@@ -467,3 +494,6 @@ npm run build
 For more detailed information, refer to:
 - [Backend README](backend/README.md)
 - [Frontend README](frontend/README.md)
+- [Deployment README](deployment/README.md)
+- [Gateway README](gateway/README.md)
+- [Database README](db/README.md)
