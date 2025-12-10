@@ -1,0 +1,62 @@
+.project-list-container {
+  padding: 24px;
+}
+h2 {
+  margin-bottom: 16px;
+}
+
+.container {
+  padding: 20px;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.task-chips {
+  display: flex;
+  gap: 8px;
+}
+
+.clickable {
+  cursor: pointer;
+  color: #1976d2;
+}
+
+.clickable:hover {
+  text-decoration: underline;
+}
+
+table {
+  width: 100%;
+}
+
+.mat-column-actions {
+  width: 80px;
+  text-align: center;
+}
+
+.mat-column-taskStatus {
+  width: 300px;
+}
+
+.mat-column-name {
+  width: 200px;
+}
+
+.mat-column-department,
+.mat-column-projectManager {
+  width: 150px;
+}
+
+.mat-column-startDate,
+.mat-column-endDate {
+  width: 120px;
+}
+
+.mat-column-status {
+  width: 100px;
+} 

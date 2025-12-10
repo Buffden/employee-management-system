@@ -1,0 +1,224 @@
+/* Card Container */
+.table-card {
+    /* margin: 16px;
+    padding: 20px; */
+    background-color: #ffffff; /* White background for better contrast */
+    box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.1); /* Subtle shadow for depth */
+    border-radius: 8px; /* Rounded corners */
+    overflow: hidden; /* Prevent content from spilling out */
+  }
+  
+  /* Generic Table Container */
+  .generic-table-container {
+    display: flex;
+    flex-direction: column;
+  }
+  
+  .generic-buttons {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-bottom: 10px;
+    gap: 10px;
+    
+  }
+
+  .generic-buttons--no-data {
+    opacity: 0.5;
+    pointer-events: none;
+  }
+
+  .left-generic-buttons {
+    display: flex;
+    justify-content: flex-start;
+    align-items: center;
+    padding: 20px 0px;
+    gap: 10px;
+  }
+
+  .right-generic-buttons {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    padding: 20px 0px;
+    gap: 10px;
+  }
+
+  .buttons {
+    padding: 5px 10px;
+    background-color: #F0F0F0;
+    border-color: white;
+    border-radius: 8px;
+    font-weight: 500;
+  }
+  /* Table Header */
+  .table-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px 10px;
+  }
+  
+  .table-title {
+    font-size: 22px;
+    font-weight: bold;
+    color: #333333;
+    margin: 0;
+  }
+  
+  /* Table Wrapper */
+  .table-wrapper {
+    overflow-x: auto; /* Horizontal scrolling for smaller screens */
+    max-width: 100%; /* Ensure it fits within the card */
+  }
+  
+  /* Material Table */
+  .mat-table {
+    width: 100%; /* Ensure the table spans the available width */
+    padding: 10px;
+    border-collapse: collapse;
+  }
+  
+  .mat-header-row {
+    background-color: #f5f5f5; /* Light gray background */
+    font-weight: bold; /* Bold text */
+    text-align: left; /* Align text to the left */
+    padding: 10px; /* Padding for spacing */
+    border-bottom: 1px solid #ddd; /* Bottom border */
+  }
+  
+  .mat-row:hover {
+    background-color: #f9f9f9; /* Subtle hover effect */
+    cursor: pointer;
+  }
+  
+  /* Pagination */
+  mat-paginator {
+    border-radius: 4px;
+    padding: 8px;
+    display: flex;
+    justify-content: right;
+  }
+  
+  /* General Styling */
+  td, th {
+    padding: 12px;
+    text-align: left;
+    font-size: 14px;
+  }
+  
+  th.mat-header-cell {
+    text-transform: uppercase; /* Capitalize headers */
+  }
+  
+  .sticky-column-left,
+  .sticky-column-right,
+  .sticky-left-0 {
+    position: sticky;
+    z-index: 1;
+    background-color: #f0f0f0; /* Change background color when sticky */
+  }
+  
+  .sticky-column-left {
+    left: 0;
+  }
+  
+  .sticky-column-right {
+    right: 0;
+  }
+  
+  .sticky-left-0 {
+    left: 0;
+  }
+  
+  /* Ensure the background color is applied to both header and body cells */
+  th.sticky-column-left,
+  td.sticky-column-left,
+  th.sticky-column-right,
+  td.sticky-column-right {
+    background-color: #f0f0f0; /* Change background color when sticky */
+  }
+  /* Base styles for all table cells */
+.td-content {
+    padding: 8px 16px;
+    display: inline-block;
+    font-size: 14px;
+    line-height: 1.5;
+    text-align: left;
+    color: #333;
+}
+
+/* Specific styles for data types */
+.td-number {
+    text-align: right;
+    color: #0d47a1; /* Blue color for numbers */
+}
+
+.td-email a {
+    color: #1a73e8; /* Standard link color */
+    text-decoration: none;
+}
+
+.td-email a:hover {
+    text-decoration: underline;
+}
+
+.td-date {
+    font-style: italic;
+    color: #6c757d; /* Muted color for dates */
+}
+
+.td-currency {
+    font-weight: bold;
+    color: #28a745; /* Green for currency */
+}
+
+.td-link a {
+    color: #007bff; /* Link blue */
+    text-decoration: none;
+    cursor: pointer;
+}
+
+.td-link a:hover {
+    text-decoration: underline;
+}
+
+.td-actions button {
+    margin: 0 4px;
+    padding: 4px 8px;
+    font-size: 12px;
+    background-color: #007bff;
+    color: white;
+    border: none;
+    border-radius: 3px;
+    cursor: pointer;
+}
+
+.td-actions button:hover {
+    background-color: #0056b3;
+}
+
+/* Default styling */
+.td-default {
+    color: #dc3545; /* Red for unhandled cases */
+    font-style: italic;
+}
+
+.no-data-container {
+  padding: 20px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+/* Optional: Responsive tweaks */
+@media (max-width: 768px) {
+    .td-content {
+        font-size: 12px;
+        padding: 4px 8px;
+    }
+
+    .td-actions button {
+        font-size: 10px;
+    }
+}

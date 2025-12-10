@@ -1,0 +1,144 @@
+.container {
+  padding: 20px;
+}
+
+.project-overview {
+  margin-top: 20px;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.project-details {
+  background: white;
+  padding: 20px;
+  border-radius: 4px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.detail-row {
+  display: flex;
+  gap: 40px;
+  margin-bottom: 20px;
+}
+
+.detail-item {
+  flex: 1;
+}
+
+.detail-item h3 {
+  color: #666;
+  margin-bottom: 8px;
+  font-size: 14px;
+}
+
+.detail-item p {
+  margin: 0;
+  font-size: 16px;
+}
+
+.description {
+  margin-top: 20px;
+}
+
+.description h3 {
+  color: #666;
+  margin-bottom: 8px;
+  font-size: 14px;
+}
+
+.description p {
+  margin: 0;
+  line-height: 1.5;
+}
+
+.tasks-section {
+  margin-top: 40px;
+}
+
+.tasks-section h2 {
+  margin-bottom: 20px;
+}
+
+table {
+  width: 100%;
+}
+
+.clickable {
+  cursor: pointer;
+  color: #1976d2;
+}
+
+.clickable:hover {
+  text-decoration: underline;
+}
+
+.mat-column-actions {
+  width: 80px;
+  text-align: center;
+}
+
+.mat-column-name {
+  width: 250px;
+}
+
+.mat-column-status,
+.mat-column-priority {
+  width: 120px;
+}
+
+.mat-column-assignedTo {
+  width: 150px;
+}
+
+.mat-column-dueDate {
+  width: 120px;
+}
+
+/* Breadcrumb styles */
+nav[mat-tab-nav-bar] {
+  margin-bottom: 20px;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.mat-tab-link {
+  min-width: 120px;
+  padding: 0 24px;
+  height: 48px;
+  line-height: 48px;
+}
+
+.mat-tab-link.active {
+  opacity: 1;
+}
+
+.breadcrumb-nav {
+  margin-bottom: 20px;
+  font-size: 16px;
+  display: flex;
+  align-items: center;
+}
+
+.breadcrumb-link {
+  color: #1976d2;
+  text-decoration: none;
+  margin-right: 8px;
+}
+
+.breadcrumb-link:hover {
+  text-decoration: underline;
+}
+
+.breadcrumb-separator {
+  margin: 0 8px;
+  color: #888;
+}
+
+.breadcrumb-current {
+  color: #333;
+  font-weight: bold;
+} 

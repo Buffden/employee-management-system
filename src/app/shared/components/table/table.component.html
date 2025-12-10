@@ -1,0 +1,118 @@
+<mat-card class="table-card">
+    <mat-card-content>
+        <div class="generic-table-container">
+            <div class="table-header">
+                <h2 class="table-title">{{ tableConfig.tableTitle }}</h2>
+            </div>
+            <!--Enhancement: Shift to a dedicated component-->
+            <div *ngIf="tableConfig.allowGenericButtons"
+                 class="generic-buttons">
+                <div [ngClass]="{'left-generic-buttons': true, 'generic-buttons--no-data': noData()}">
+                    <button class="buttons"
+                            *ngIf="tableConfig.allowCustomize">Customize Table**</button>
+                </div>
+                <div class="right-generic-buttons">
+                    <button class="buttons"
+                            *ngIf="tableConfig.allowAddButton"
+                            (click)="onAddClick()">{{tableConfig.additionCardTitle}} + </button>
+                    <button class="buttons"
+                            [ngClass]="{'generic-buttons--no-data': noData()}"
+                            *ngIf="tableConfig.allowExport">Export Table</button>
+                </div>
+            </div>
+            <div *ngIf="!noData(); else noDataTemplate"
+                 class="table-wrapper">
+                <table mat-table
+                       [dataSource]="dataSource"
+                       matSort
+                       class="mat-table">
+                    <ng-container *ngFor="let col of tableConfig.columns; let i = index"
+                                  [matColumnDef]="col.key">
+                        <th mat-header-cell
+                            *matHeaderCellDef
+                            [ngClass]="getColClass(col, i)"
+                            mat-sort-header>{{ col.header }}</th>
+                        <td mat-cell
+                            *matCellDef="let row"
+                            [ngClass]="getColClass(col, i)">
+
+                            <ng-container [ngSwitch]="col.type">
+                                <!-- Text -->
+                                <span class="td-content"
+                                      *ngSwitchCase="'text'">{{ row[col.key] !== null && row[col.key] !== undefined && row[col.key] !== '' ? row[col.key] : '-' }}</span>
+
+                                <!-- Number -->
+                                <span class="td-content td-number"
+                                      *ngSwitchCase="'number'">{{ row[col.key] !== null && row[col.key] !== undefined && row[col.key] !== '' ? row[col.key] : '-' }}</span>
+
+                                <!-- Email -->
+                                <span class="td-content td-email"
+                                      *ngSwitchCase="'email'">
+                                    <a [href]="'mailto:' + row[col.key]">{{ row[col.key] }}</a>
+                                </span>
+
+                                <!-- Date -->
+                                <span class="td-content td-date"
+                                      *ngSwitchCase="'date'">
+                                    {{ row[col.key] | date: 'shortDate' }}
+                                </span>
+
+                                <!-- department -->
+                                <span class="td-content td-department"
+                                      *ngSwitchCase="'department'">
+                                    {{ (row[col.key]?.firstName || row[col.key]?.lastName) ? (row[col.key]?.firstName + ' ' + row[col.key]?.lastName) : '-' }}
+                                </span>
+
+                                <!-- Currency -->
+                                <span class="td-content td-currency"
+                                      *ngSwitchCase="'currency'">
+                                    {{ row[col.key] | currency }}
+                                </span>
+
+                                <!-- Link -->
+                                <span class="td-content td-link"
+                                      *ngSwitchCase="'link'">
+                                    <a (click)="handleLinkClick(row, col.key)"
+                                       href="javascript:void(0)">
+                                        {{ row[col.key] }}
+                                    </a>
+                                </span>
+
+                                <!-- Action Buttons -->
+                                <div class="td-content td-actions"
+                                     *ngSwitchCase="'actionButtons'">
+                                    <button (click)="onActionClick('Open Employee Details', row)">1</button>
+                                    <button (click)="onActionClick('Edit Employee', row)">2</button>
+                                    <button (click)="onActionClick('Delete Employee', row)">3</button>
+                                </div>
+
+                                <!-- Default -->
+                                <span class="td-content td-default"
+                                      *ngSwitchDefault>
+                                    {{ row[col.key] !== null && row[col.key] !== undefined && row[col.key] !== '' ? row[col.key] : '-' }}
+                                </span>
+                            </ng-container>
+
+
+                        </td>
+                    </ng-container>
+                    <tr mat-header-row
+                        *matHeaderRowDef="displayedColumns"></tr>
+                    <tr mat-row
+                        *matRowDef="let row; columns: displayedColumns"></tr>
+                </table>
+            </div>
+            <!--Enhancement: Shift to a dedicated component-->
+            <mat-paginator [pageSize]="pageSize"
+                           *ngIf="!noData()"
+                           [pageSizeOptions]="pageSizeOptions"
+                           aria-label="Select page">
+            </mat-paginator>
+        </div>
+    </mat-card-content>
+</mat-card>
+
+<ng-template class="no-data-container"
+             #noDataTemplate>
+    <app-no-data [noDataInfo]="tableConfig.noDataInfo"></app-no-data>
+</ng-template>

@@ -1,0 +1,93 @@
+.container {
+  max-width: 90%;
+  margin: 2rem auto;
+  padding: 2rem 2.5rem;
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(9, 30, 66, 0.08);
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+  h1 {
+    font-size: 2rem;
+    font-weight: 600;
+    margin: 0;
+  }
+}
+
+.status-chip {
+  margin-left: auto;
+}
+
+.project-details, .task-details {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.5rem 2rem;
+  margin-bottom: 2rem;
+}
+
+.detail-item h3 {
+  font-size: 1rem;
+  font-weight: 500;
+  color: #42526e;
+  margin-bottom: 0.25rem;
+}
+
+.detail-item p, .detail-item mat-chip {
+  font-size: 1rem;
+  color: #172b4d;
+}
+
+.description {
+  grid-column: 1 / -1;
+  margin-top: 1.5rem;
+  background: #f4f5f7;
+  border-radius: 4px;
+  padding: 1rem 1.5rem;
+}
+
+.tasks-section {
+  margin-top: 2.5rem;
+  background: #f4f5f7;
+  border-radius: 4px;
+  padding: 1.5rem;
+}
+
+.tasks-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1rem;
+}
+
+.mat-table {
+  background: #fff;
+  border-radius: 4px;
+  box-shadow: 0 1px 3px rgba(9, 30, 66, 0.04);
+}
+
+.breadcrumb-nav {
+  display: flex;
+  align-items: center;
+  margin-bottom: 1.5rem;
+  font-size: 1rem;
+  .breadcrumb-link {
+    color: #1976d2;
+    text-decoration: none;
+    &:hover {
+      text-decoration: underline;
+    }
+  }
+  .breadcrumb-separator {
+    margin: 0 0.5rem;
+    color: #888;
+  }
+  .breadcrumb-current {
+    font-weight: bold;
+    color: #333;
+  }
+}

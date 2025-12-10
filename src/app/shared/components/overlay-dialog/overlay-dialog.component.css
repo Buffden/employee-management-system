@@ -1,0 +1,269 @@
+/* General Overlay Styling */
+.overlay-container {
+    display: flex;
+    flex-direction: column;
+    background-color: #f9f9f9;
+    border: 1px solid #ddd;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+    padding: 16px;
+    font-family: Arial, sans-serif;
+}
+
+.overlay-main-title-header {
+    font-size: large;
+    background-color: #002855
+}
+
+.overlay-title {
+    color: white;
+    padding: 0px 20px;
+}
+
+/* Header Section */
+.overlay-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+    gap: 10px;
+}
+
+.photo-container,
+.profile-picture-placeholder-container,
+.profile-picture-placeholder {
+    width: 150px !important;
+    height: 150px !important;
+    min-width: 150px !important;
+    min-height: 150px !important;
+    max-width: 150px !important;
+    max-height: 150px !important;
+    border-radius: 50% !important;
+    margin: 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+}
+
+.photo-container {
+    position: relative;
+    width: 150px;
+    height: 150px;
+    margin: 0 auto;
+}
+
+.profile-picture-placeholder-container {
+    position: relative;
+    width: 100%;
+    height: 100%;
+}
+
+/* Circular placeholder for profile picture */
+.profile-picture-placeholder {
+    width: 100%;
+    height: 100%;
+    background-color: #d9f2d9;
+    border-radius: 50%;
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: box-shadow 0.3s ease;
+    overflow: hidden;
+}
+
+/* Add a ring on hover */
+.profile-picture-placeholder:hover {
+    box-shadow: 0 0 0 4px #4caf50;
+}
+
+/* Edit overlay (hidden by default) */
+.edit-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    background-color: rgba(0, 0, 0, 0.5);
+    /* Semi-transparent overlay */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+/* Show the overlay on hover */
+.profile-picture-placeholder:hover .edit-overlay {
+    opacity: 1;
+}
+
+/* Edit icon styling */
+.edit-icon {
+    font-size: 20px;
+    color: white;
+    background-color: #4caf50;
+    /* Green background for the icon */
+    border-radius: 50%;
+    padding: 5px;
+    position: absolute;
+    bottom: 10px;
+    right: 10px;
+    cursor: pointer;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    transition: transform 0.2s ease;
+}
+
+/* Icon hover effect */
+.edit-icon:hover {
+    transform: scale(1.2);
+}
+
+.close-button {
+    background: none;
+    border: none;
+    font-size: 16px;
+    font-weight: bold;
+    color: #333;
+    cursor: pointer;
+}
+
+/* Main Content Section */
+.overlay-content {
+    display: flex;
+    gap: 16px;
+    flex-grow: 1;
+}
+
+/* Left Column */
+.left-column {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.line-chart-placeholder {
+    /* flex: 1; */
+    background-color: #e0e0e0;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    height: 200px;
+}
+
+.details-section {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    gap: 16px;
+}
+
+.detail-item {
+    text-align: center;
+    flex: 1;
+}
+
+.icon-placeholder {
+    width: 50px;
+    height: 50px;
+    background-color: #d9f2d9;
+    margin: 0 auto;
+    border-radius: 50%;
+}
+
+.detail-title {
+    font-size: 14px;
+    font-weight: bold;
+    margin-top: 8px;
+}
+
+.stars-placeholder {
+    font-size: 16px;
+    color: #ffc107;
+}
+
+/* Right Column */
+.right-column {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.pie-chart-placeholder,
+.bar-chart-placeholder {
+    flex: 1;
+    background-color: #e0e0e0;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+}
+
+.text-details {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.text-placeholder {
+    background-color: #f0f0f0;
+    border-radius: 4px;
+    margin: 0;
+    gap: 2px;
+    text-align: left;
+    color: #5c5b5b;
+    padding: 2px 10px;
+}
+
+.text-placeholder-key {
+    color: rgb(32, 31, 31);
+}
+
+.text-placeholder:hover {
+    background-color: #c3c1c1;
+    color: white;
+}
+
+/* Footer Section */
+.overlay-footer {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    gap: 16px;
+    padding: 10px 20px;
+    background-color: #f9f9f9;
+    border-radius: 0 0 8px 8px;
+    border-top: 1px solid #ddd;
+}
+
+.btn {
+    border: none;
+    border-radius: 4px;
+    padding: 8px 16px;
+    font-size: 14px;
+    cursor: pointer;
+}
+
+.edit-btn {
+    background-color: #4caf50;
+    color: white;
+}
+
+.edit-btn:hover {
+    background-color: #45a049;
+}
+
+.fire-btn {
+    background-color: #f44336;
+    color: white;
+}
+
+.fire-btn:hover {
+    background-color: #d32f2f;
+}
