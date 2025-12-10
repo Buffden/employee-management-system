@@ -1,0 +1,169 @@
+<!-- eslint-disable @angular-eslint/template/interactive-supports-focus -->
+<!-- eslint-disable @angular-eslint/template/click-events-have-key-events -->
+<div class="overlay-main-title-header">
+    <h2 class="overlay-title">{{dialogData.title}}</h2>
+</div>
+<div class="overlay-container">
+    <!-- Header -->
+    <!-- Main Content -->
+    <!--Enhancement: Shift each types and their subelements into their dedicated components-->
+    <div [ngSwitch]="dialogData.viewController">
+        <div class="td-content"
+             *ngSwitchCase="overlayType.DISPLAYEMPLOYEE">
+            <div class="overlay-content">
+                <!-- Left Column -->
+                <div class="content-column left-column">
+                    <!-- Header Section -->
+                    <div class="overlay-header">
+                        <div class="photo-container">
+                            <div class="profile-picture-placeholder-container">
+                                <div class="profile-picture-placeholder">
+                                    <!-- Hover overlay -->
+                                    <div class="edit-overlay">
+                                        <i class="edit-icon"
+                                           (click)="triggerEdit()">✎</i>
+                                    </div>
+                                </div>
+
+                            </div>
+
+
+                        </div>
+                        <!-- Department and Manager Section -->
+                        <div class="details-section">
+                            <div class="detail-item">
+                                <div class="icon-placeholder department-icon"></div>
+                                <p class="detail-title">{{getDepartmentName()}}</p>
+                                <div class="stars-placeholder">⭐⭐⭐⭐⭐</div>
+                            </div>
+                            <div class="detail-item">
+                                <div class="icon-placeholder manager-icon"></div>
+                                <p class="detail-title">Manager</p>
+                                <div class="stars-placeholder">⭐⭐⭐⭐⭐</div>
+                            </div>
+                        </div>
+
+                    </div>
+                    <!-- Line Chart -->
+                    <div class="chart-placeholder line-chart-placeholder">
+                        <p>Line Chart Placeholder</p>
+                    </div>
+
+
+                </div>
+
+                <!-- Right Column -->
+                <div class="content-column right-column">
+
+                    <!-- Text Details -->
+                    <div class="text-details">
+                        <ng-container *ngFor="let field of textFields">
+                            <p class="text-placeholder">
+                                <span class="text-placeholder-key">{{ field.label }}:</span>
+                                &nbsp;{{ field.value }}
+                            </p>
+                        </ng-container>
+                    </div>
+                    <!-- Pie Chart -->
+                    <div class="chart-placeholder pie-chart-placeholder">
+                        <p>Pie Chart Placeholder</p>
+                    </div>
+
+                    <!-- Bar Chart -->
+                    <div class="chart-placeholder bar-chart-placeholder">
+                        <p>Bar Chart Placeholder</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="td-content"
+             *ngSwitchCase="overlayType.DISPLAYDEPARTMENT">Department-Placeholders
+            <div class="overlay-content">
+                <!-- Left Column -->
+                <div class="content-column left-column">
+                    <!-- Header Section -->
+                    <div class="overlay-header">
+                        <div class="photo-container">
+                            <div class="profile-picture-placeholder-container">
+                                <div class="profile-picture-placeholder">
+                                    <!-- Hover overlay -->
+                                    <div class="edit-overlay">
+                                        <i class="edit-icon"
+                                           (click)="triggerEdit()">✎</i>
+                                    </div>
+                                </div>
+
+                            </div>
+
+
+                        </div>
+                        <!-- Department and Manager Section -->
+                        <div class="details-section">
+                            <div class="detail-item">
+                                <div class="icon-placeholder department-icon"></div>
+                                <p class="detail-title">Department</p>
+                                <div class="stars-placeholder">⭐⭐⭐⭐⭐</div>
+                            </div>
+                            <div class="detail-item">
+                                <div class="icon-placeholder manager-icon"></div>
+                                <p class="detail-title">Manager</p>
+                                <div class="stars-placeholder">⭐⭐⭐⭐⭐</div>
+                            </div>
+                        </div>
+
+                    </div>
+                    <!-- Line Chart -->
+                    <div class="chart-placeholder line-chart-placeholder">
+                        <p>Line Chart Placeholder</p>
+                    </div>
+
+
+                </div>
+
+                <!-- Right Column -->
+                <div class="content-column right-column">
+
+                    <!-- Text Details -->
+                    <div class="text-details">
+                        <ng-container *ngFor="let field of textFields">
+                            <p class="text-placeholder">
+                                <span class="text-placeholder-key">{{ field.label }}:</span>
+                                &nbsp;{{ field.value }}
+                            </p>
+                        </ng-container>
+                    </div>
+                    <!-- Pie Chart -->
+                    <div class="chart-placeholder pie-chart-placeholder">
+                        <p>Pie Chart Placeholder</p>
+                    </div>
+
+                    <!-- Bar Chart -->
+                    <div class="chart-placeholder bar-chart-placeholder">
+                        <p>Bar Chart Placeholder</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="td-content"
+             *ngSwitchCase="overlayType.ADDEMPLOYEE">
+            <app-employee-form [employee]="dialogData"
+                               (employeeResponse)="employeeFormResponse($event)"></app-employee-form>
+        </div>
+        <div class="td-content"
+             *ngSwitchCase="overlayType.ADDDEPARTMENT">
+            <app-department-form [department]="dialogData"
+                                (departmentResponse)="departmentFormResponse($event)"></app-department-form>
+        </div>
+        <div class="td-content"
+             *ngSwitchCase="overlayType.EDITEMPLOYEE">
+            <app-employee-form [employee]="dialogData"></app-employee-form>
+        </div>
+        <div class="td-content"
+             *ngSwitchCase="overlayType.EDITDEPARTMENT">
+            <app-department-form [department]="dialogData"></app-department-form>
+        </div>
+        <div class="td-content"
+             *ngSwitchCase="overlayType.NODATA">NO-DATA-AVAILABLE-PLACEHOLDER</div>
+
+    </div>
+</div>

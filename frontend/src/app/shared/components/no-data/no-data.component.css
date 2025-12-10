@@ -1,0 +1,35 @@
+.no-data-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100%;
+    padding: 16px;
+    font-size: 1.5rem;
+    color: #6c757d;
+    gap: 30px;
+}
+
+.no-data-icon {
+    width: 100px;
+    height: 100px;
+    font-size: 90px;
+    color: #002855;
+    text-align: center;
+}
+
+.no-data-text {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    gap: 10px;
+}
+
+.no-data-title {
+    font-size: 1.5rem;
+    font-weight: bold;
+}
+
+.no-data-description {
+    font-size: 1rem;
+}

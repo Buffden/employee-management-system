@@ -1,0 +1,27 @@
+<header>
+     <nav class="navbar">
+          <div class="logo">
+               <img src="assets/images/logo/ems-logo.png"
+                    alt="EMS Logo" />
+               <h1>EMPLOYEE MANAGEMENT SYSTEM</h1>
+          </div>
+          <div class="navbar-buttons">
+               <ul class="nav-links">
+                    <li><a routerLink="/home"
+                            routerLinkActive="active">Home</a></li>
+                    <li><a routerLink="/employees"
+                            routerLinkActive="active">Employees</a></li>
+                    <li><a routerLink="/departments"
+                            routerLinkActive="active">Departments</a></li>
+                    <li><a routerLink="/projects"
+                            routerLinkActive="active">Projects</a></li>
+               </ul>
+               <div mat-icon-button
+                    class="profile-icon"
+                    matTooltip="Profile">
+                    <mat-icon routerLink="/profile"
+                              routerLinkActive="active">account_circle</mat-icon>
+               </div>
+          </div>
+     </nav>
+</header>

@@ -1,0 +1,31 @@
+<div class="form-container">
+    <form [formGroup]="departmentForm"
+          (ngSubmit)="onSubmit()">
+        <ng-container *ngFor="let field of FormFields;">
+            <mat-form-field appearance="outline">
+                <mat-label>{{ field.label }}</mat-label>
+                <input matInput
+                       [formControlName]="field.formControlName"
+                       [placeholder]="field.placeholder"
+                       required />
+                <mat-error *ngIf="isFieldInvalid(field)">
+                    {{ field.errorMessage }}
+                </mat-error>
+            </mat-form-field>
+        </ng-container>
+
+        <div class="form-actions">
+            <button mat-raised-button
+                    color="primary"
+                    type="submit"
+                    (click)="onSubmit()"
+                    [disabled]="isSubmitDisabled()">
+                {{ submitButtonText() }}
+            </button>
+            <button mat-raised-button
+                    color="warn"
+                    type="button"
+                    (click)="dialogClose()">Cancel</button>
+        </div>
+    </form>
+</div>
