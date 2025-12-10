@@ -12,11 +12,17 @@ RUN npm run build
 
 # Use a lightweight server to serve the app
 FROM nginx:alpine
+
+# Copy built app
 COPY --from=build /app/dist/employee-management-system-gui /usr/share/nginx/html
+
+# Copy nginx configuration for standalone frontend
+# This serves Angular app and proxies /api to gateway
+COPY nginx.conf /etc/nginx/conf.d/default.conf
 
 # Add a health check to monitor the app
 HEALTHCHECK --interval=30s --timeout=5s \
-  CMD curl -f http://localhost:80 || exit 1
+  CMD wget --quiet --tries=1 --spider http://localhost:80 || exit 1
 
 # Expose port 80
 EXPOSE 80

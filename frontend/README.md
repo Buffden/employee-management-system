@@ -172,22 +172,8 @@ function isProject(value: unknown): value is Project {
    npm install
    ```
 
-3. Verify proxy configuration (for local development to communicate with EC2 backend):
-   Create `proxy.conf.json` if not already present:
-   ```json
-   {
-     "/api/*": {
-       "target": "http://<EC2-PUBLIC-IP>:8080",
-       "secure": false,
-       "logLevel": "debug",
-       "changeOrigin": true,
-       "pathRewrite": {
-         "^/api": ""
-       }
-     }
-   }
-   ```
-   > Replace `<EC2-PUBLIC-IP>` with the actual public IP of your EC2 instance.
+3. Verify proxy configuration (for local development):
+   The proxy configuration is already set up in `proxy.conf.local.json` to connect to `http://localhost:8080`.
 
 4. Ensure `angular.json` includes:
    ```json
@@ -227,11 +213,11 @@ export const environment = {
 };
 ```
 
-#### environment.prod.ts (for future S3/Cloud deployment)
+#### environment.prod.ts (for production)
 ```ts
 export const environment = {
   production: true,
-  apibaseurl: 'http://<EC2-PUBLIC-IP>:8080' // Replace with your EC2 IP
+  apibaseurl: '/api' // Uses proxy configuration
 };
 ```
 
@@ -240,19 +226,18 @@ export const environment = {
 ## 🧪 API Testing
 Use Postman or curl:
 ```bash
-curl http://<EC2-PUBLIC-IP>:8080/departments
+curl http://localhost:8080/api/departments
+curl http://localhost:8080/api/employees
 ```
-
-Make sure EC2 security group allows port 8080 from your IP (or 0.0.0.0/0 for testing).
 
 ---
 
-## ☁️ Troubleshooting
+## 🐛 Troubleshooting
 | Issue | Reason | Fix |
 |-------|--------|-----|
-| CORS Error | CORS not configured properly in Spring Boot | Ensure EC2 IP & localhost are in `spring.web.cors.allowed-origins` |
-| Timeout | Security group blocking | Add port 8080 rule in inbound settings for your IP |
-| 500 Internal Server Error | Misconfigured backend or invalid payload | Check backend logs using `tail -f app.log` |
+| CORS Error | CORS not configured properly in Spring Boot | Ensure `http://localhost:4200` is in `spring.web.cors.allowed-origins` |
+| Connection refused | Backend not running | Start backend: `cd backend && ./start_backend_local.sh` |
+| 500 Internal Server Error | Misconfigured backend or invalid payload | Check backend logs in terminal or `app.log` |
 | NullInjectorError for HttpClient | Missing HttpClient provider in standalone components | Add `provideHttpClient(withFetch(), withInterceptorsFromDi())` to app.config.ts providers |
 | HTTP Client not working in standalone components | Incorrect HttpClient configuration | Ensure HttpClient is properly configured in app.config.ts and components |
 
@@ -262,7 +247,7 @@ Make sure EC2 security group allows port 8080 from your IP (or 0.0.0.0/0 for tes
 | Command | Description |
 |---------|-------------|
 | `npm start` | Runs `ng serve` with proxy config |
-| `npm run start:dev` | Development mode with proxy (to EC2 backend) |
+| `npm run start:dev` | Development mode with proxy (to localhost backend) |
 | `npm run clean` | Deletes `dist/` build |
 
 ---

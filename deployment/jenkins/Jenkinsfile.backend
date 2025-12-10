@@ -15,10 +15,12 @@ pipeline {
         stage('Cleanup') {
             steps {
                 echo 'Cleaning up any existing containers and volumes for app and postgres...'
-                sh '''
-                    # Stop and remove any conflicting containers
-                    docker-compose -f docker-compose.yml down --remove-orphans || echo "No existing containers to stop."
-                '''
+                dir('deployment') {
+                    sh '''
+                        # Stop and remove any conflicting containers
+                        docker-compose -f docker-compose.backend.yml down --remove-orphans || echo "No existing containers to stop."
+                    '''
+                }
             }
         }
 
@@ -32,7 +34,9 @@ pipeline {
         stage('Build Application') {
             steps {
                 echo 'Building the application...'
-                sh 'mvn clean package -DskipTests'
+                dir('backend') {
+                    sh 'mvn clean package -DskipTests'
+                }
             }
         }
 
@@ -66,7 +70,8 @@ pipeline {
                     docker ps || echo "Unable to execute Docker commands. Check Docker installation or permissions."
 
                     echo "Testing Docker Compose with 'docker-compose ls'..."
-                    docker-compose -f docker-compose.yml ls || echo "docker-compose failed. Check installation."
+                    cd deployment
+                    docker-compose -f docker-compose.backend.yml ls || echo "docker-compose failed. Check installation."
                 '''
             }
         }
@@ -74,25 +79,31 @@ pipeline {
         stage('Run Application with Docker Compose') {
             steps {
                 echo 'Starting PostgreSQL and Spring Boot...'
-                sh '''
-                    docker-compose -f docker-compose.yml up -d --build --no-recreate postgres app
-                '''
+                dir('deployment') {
+                    sh '''
+                        docker-compose -f docker-compose.backend.yml up -d --build postgres app
+                    '''
+                }
             }
         }
 
         stage('Run Tests') {
             steps {
                 echo 'Running tests...'
-                sh 'mvn test'
+                dir('backend') {
+                    sh 'mvn test'
+                }
             }
         }
 
         stage('Stop Services') {
             steps {
                 echo 'Stopping application services...'
-                sh '''
-                    docker-compose -f docker-compose.yml down --remove-orphans
-                '''
+                dir('deployment') {
+                    sh '''
+                        docker-compose -f docker-compose.backend.yml down --remove-orphans
+                    '''
+                }
             }
         }
     }

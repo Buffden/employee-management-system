@@ -1,0 +1,16 @@
+# Environment files
+db/.env
+db/.env.local
+db/.env.*
+deployment/.env
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db

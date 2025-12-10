@@ -1,0 +1,112 @@
+pipeline {
+    agent any
+
+    tools {
+        nodejs 'NodeJS-18' // Use the Node.js version configured in Jenkins
+    }
+
+    environment {
+        DOCKER_NETWORK = 'ems-network' // Docker network name
+    }
+
+    stages {
+        stage('Clone Repository') {
+            steps {
+                echo 'Cloning the repository...'
+                git branch: 'main', url: 'https://github.com/Buffden/employee-management-system-gui'
+            }
+        }
+
+        stage('Install Dependencies') {
+            steps {
+                echo 'Installing dependencies and Angular CLI...'
+                sh '''
+                    curl -fsSL https://deb.nodesource.com/setup_18.x | bash -
+                    apt-get install -y nodejs
+                    npm install -g @angular/cli
+                    npm install
+                '''
+            }
+        }
+
+        stage('Build Frontend') {
+            steps {
+                echo 'Building the Angular application...'
+                sh 'ng build --configuration production'
+            }
+        }
+
+        stage('Cleanup') {
+            steps {
+                echo 'Cleaning up any existing containers...'
+                dir('deployment') {
+                    sh '''
+                        # Stop and remove any conflicting containers
+                        docker-compose -f docker-compose.frontend.yml down --remove-orphans || echo "No existing containers to stop."
+                    '''
+                }
+            }
+        }
+
+        stage('Dockerize Gateway') {
+            steps {
+                echo 'Building Gateway (serves Angular + routes API)...'
+                dir('deployment') {
+                    sh '''
+                        # Build gateway which includes frontend build
+                        docker-compose -f docker-compose.frontend.yml build gateway
+                        docker images | grep gateway
+                    '''
+                }
+            }
+        }
+
+        stage('Deploy Application') {
+            steps {
+                echo 'Deploying Gateway application...'
+                dir('deployment') {
+                    sh '''
+                        # Use docker-compose for consistent deployment
+                        docker-compose -f docker-compose.frontend.yml up -d gateway || echo "Gateway deployment failed"
+                    '''
+                }
+            }
+        }
+
+        stage('Stop Services') {
+            steps {
+                echo 'Stopping application services...'
+                dir('deployment') {
+                    sh '''
+                        docker-compose -f docker-compose.frontend.yml down --remove-orphans
+                    '''
+                }
+            }
+        }
+
+        stage('Verify Deployment') {
+            steps {
+                echo 'Verifying the deployment...'
+                sh '''
+                    # Wait for frontend to be ready
+                    sleep 10
+                    # Verify the app
+                    curl -I http://localhost:80 || echo "Frontend not reachable"
+                '''
+            }
+        }
+    }
+
+    post {
+        always {
+            echo 'Cleaning up Docker artifacts...'
+            sh 'docker ps -a'
+        }
+        success {
+            echo 'Build and deployment completed successfully!'
+        }
+        failure {
+            echo 'Build or deployment failed. Check logs for errors.'
+        }
+    }
+}
