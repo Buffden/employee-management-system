@@ -1,0 +1,27 @@
+services:
+  jenkins:
+    image: jenkins/jenkins:lts
+    user: root # Ensure Jenkins runs with sufficient privileges
+    build:
+      context: .
+      dockerfile: Dockerfile.jenkins # Add Docker and Compose to Jenkins container
+    volumes:
+      - /var/jenkins_home:/var/jenkins_home # Persist Jenkins data
+      - /var/run/docker.sock:/var/run/docker.sock # Share Docker socket
+      - ~/.aws:/root/.aws  # Ensure Jenkins has AWS access
+    environment:
+      - DOCKER_HOST=unix:///var/run/docker.sock # Point Jenkins to the host's Docker daemon
+      - AWS_REGION=us-east-1
+      - DB_HOST=${DB_HOST}
+      - DB_NAME=${DB_NAME}
+      - DB_USER=${DB_USER}
+    ports:
+      - "8085:8080" # Expose Jenkins on localhost:8085
+    networks:
+      - app-network
+
+networks:
+  app-network:
+    name: app-network
+    driver: bridge
+    external: true
