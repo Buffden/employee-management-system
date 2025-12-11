@@ -94,6 +94,16 @@ State diagrams show **STATE TRANSITIONS** - how entities move between different 
 - Log state changes for audit trail
 - Update timestamps on state changes
 
+### RBAC Considerations
+
+**Role-Based State Transitions**:
+- Some state transitions may be restricted by role
+- Department Manager: Can update own department's project/task states
+- Employee: Can update assigned task status only
+- System Admin/HR Manager: Can update any state
+
+**See**: `docs/security/roles-and-permissions.md` for role permissions
+
 ## How to View
 
 See main diagrams README for viewing instructions.
