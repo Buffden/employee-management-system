@@ -188,6 +188,84 @@ public interface ProjectRepository extends JpaRepository<Project, UUID> {
 5. **Department Assignment**: Project must belong to exactly one department
 6. **Cascade Delete**: Deleting project deletes all associated tasks
 
+## 10.1 Role-Based Access Control
+
+| Operation | System Admin | HR Manager | Department Manager | Employee |
+|-----------|--------------|------------|-------------------|----------|
+| **View All Projects** | ✅ | ✅ | ✅ | ❌ |
+| **View Own Department Projects** | ✅ | ✅ | ✅ | ❌ |
+| **View Assigned Projects** | ✅ | ✅ | ✅ | ✅ |
+| **Create Project** | ✅ | ❌ | ✅ (own dept only) | ❌ |
+| **Update Any Project** | ✅ | ❌ | ❌ | ❌ |
+| **Update Own Department Projects** | ✅ | ❌ | ✅ | ❌ |
+| **Delete Project** | ✅ | ❌ | ✅ (own dept only) | ❌ |
+
+### 10.1.1 Implementation Details
+
+**Service Layer Authorization**:
+
+**Example - ProjectService**:
+```java
+@PreAuthorize("hasRole('SYSTEM_ADMIN') or " +
+              "(hasRole('DEPARTMENT_MANAGER') and @securityService.isProjectInOwnDepartment(#dto.departmentId))")
+public ProjectResponseDTO create(ProjectRequestDTO dto) {
+    // Validate department ownership for Department Manager
+    if (securityService.hasRole("DEPARTMENT_MANAGER")) {
+        UUID userDepartmentId = securityService.getCurrentUserDepartmentId();
+        if (!dto.getDepartmentId().equals(userDepartmentId)) {
+            throw new AccessDeniedException("Can only create projects in own department");
+        }
+    }
+    // ... create logic
+}
+
+@PreAuthorize("hasRole('SYSTEM_ADMIN') or " +
+              "(hasRole('DEPARTMENT_MANAGER') and @securityService.isProjectInOwnDepartmentByProjectId(#id))")
+public ProjectResponseDTO update(UUID id, ProjectRequestDTO dto) { ... }
+
+@PreAuthorize("hasAnyRole('SYSTEM_ADMIN', 'HR_MANAGER', 'DEPARTMENT_MANAGER', 'EMPLOYEE')")
+public Page<ProjectResponseDTO> getAll(Pageable pageable) {
+    String role = securityService.getCurrentUserRole();
+    UUID departmentId = securityService.getCurrentUserDepartmentId();
+    UUID userId = securityService.getCurrentUserId();
+    
+    // Filter by role: Department Manager sees own dept, Employee sees assigned
+    return projectRepository.findAllFilteredByRole(role, departmentId, userId, pageable)
+        .map(mapper::toResponseDTO);
+}
+```
+
+**Repository-Level Filtering**:
+```java
+@Query("SELECT p FROM Project p WHERE " +
+       "(:role = 'SYSTEM_ADMIN' OR :role = 'HR_MANAGER') OR " +
+       "(:role = 'DEPARTMENT_MANAGER' AND p.department.id = :departmentId) OR " +
+       "(:role = 'EMPLOYEE' AND EXISTS (SELECT ep FROM EmployeeProject ep WHERE ep.project.id = p.id AND ep.employee.id = :userId))")
+Page<Project> findAllFilteredByRole(@Param("role") String role,
+                                    @Param("departmentId") UUID departmentId,
+                                    @Param("userId") UUID userId,
+                                    Pageable pageable);
+```
+
+**Controller Layer**:
+```java
+@PostMapping
+@PreAuthorize("hasRole('SYSTEM_ADMIN') or hasRole('DEPARTMENT_MANAGER')")
+public ResponseEntity<ProjectResponseDTO> create(@Valid @RequestBody ProjectRequestDTO dto) { ... }
+
+@GetMapping
+@PreAuthorize("hasAnyRole('SYSTEM_ADMIN', 'HR_MANAGER', 'DEPARTMENT_MANAGER', 'EMPLOYEE')")
+public ResponseEntity<PaginatedResponseDTO<ProjectResponseDTO>> getAll(...) { ... }
+```
+
+**Department Manager Scope**:
+- Can only create/update/delete projects in their own department
+- Department determined by `user.employee.department`
+- Must have linked employee record
+- Validation: `@securityService.isProjectInOwnDepartment(departmentId)`
+
+**See**: `docs/security/roles-and-permissions.md` for complete permission matrix
+
 ## 11. State Machine
 
 See: `docs/diagrams/state/project-status-state.puml`

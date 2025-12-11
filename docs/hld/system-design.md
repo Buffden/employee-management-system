@@ -339,25 +339,173 @@ The Employee Management System follows a **layered architecture** with clear sep
 
 ## 5. Security Architecture
 
-### 5.1 Authentication (Future)
+### 5.1 Authentication
 
 **JWT-Based Authentication**:
 - **Stateless**: No server-side session storage
 - **Scalable**: Works with multiple backend instances
 - **Secure**: Signed tokens prevent tampering
 
-**Implementation Plan**:
-- User entity with username/password
-- BCrypt password hashing
-- JWT token generation and validation
-- Token refresh mechanism
+**Implementation**:
+- User entity with username/password (`users` table)
+- BCrypt password hashing (10 rounds)
+- JWT token generation and validation (HS512 algorithm)
+- Token refresh mechanism (24-hour access token, 7-day refresh token)
+- Role included in JWT claims for authorization
 
-### 5.2 Authorization (Future)
+**See**: `docs/lld/auth-module.md` for detailed authentication design
+
+### 5.2 Authorization
 
 **Role-Based Access Control (RBAC)**:
-- **Roles**: System Admin, HR Manager, Department Manager, Employee
-- **Permissions**: Feature-level permissions
-- **Implementation**: Spring Security with method-level security
+- **Roles**: 
+  - `SYSTEM_ADMIN`: Full system access
+  - `HR_MANAGER`: HR and employee management
+  - `DEPARTMENT_MANAGER`: Department-specific management
+  - `EMPLOYEE`: Limited access to own data
+- **Permissions**: Feature-level and field-level permissions
+- **Implementation**: Spring Security with method-level security (`@PreAuthorize`)
+- **Scope Control**: Department Managers limited to their department, Employees limited to own records
+
+**Detailed Permissions**: See `docs/security/roles-and-permissions.md` for complete permission matrix
+
+**Access Control Points**:
+1. **API Endpoints**: Role-based endpoint access
+2. **Service Methods**: Method-level authorization
+3. **Repository Queries**: Role-based data filtering
+4. **Frontend Routes**: Route guards for UI access
+5. **UI Components**: Conditional rendering based on role
+
+#### 5.2.1 Security Architecture Components
+
+**Backend Security Stack**:
+
+| Component | Technology | Purpose |
+|-----------|-----------|---------|
+| **Spring Security** | Framework | Authentication and authorization framework |
+| **JWT (JJWT)** | Library | Token generation and validation |
+| **BCrypt** | Algorithm | Password hashing |
+| **SecurityFilterChain** | Configuration | Request filtering and security rules |
+| **JwtAuthenticationFilter** | Custom Filter | JWT token extraction and validation |
+| **Method Security** | `@PreAuthorize` | Method-level role-based authorization |
+
+**Security Flow**:
+1. **Request Interception**: `JwtAuthenticationFilter` intercepts all requests
+2. **Token Extraction**: Extracts JWT from `Authorization: Bearer <token>` header
+3. **Token Validation**: Validates signature, expiration, and claims
+4. **Authentication Context**: Sets `Authentication` object in `SecurityContextHolder`
+5. **Authorization Check**: `@PreAuthorize` annotations check role permissions
+6. **Data Filtering**: Repository queries filter by role scope (department/own records)
+
+#### 5.2.2 Authorization Implementation Layers
+
+**Layer 1: Filter Chain (Request Level)**
+- **JwtAuthenticationFilter**: Validates JWT and sets authentication context
+- **SecurityFilterChain**: Configures public/private endpoints
+- **CORS Filter**: Handles cross-origin requests
+
+**Layer 2: Controller Level**
+- **@PreAuthorize on Class**: Default authorization for all endpoints
+- **@PreAuthorize on Method**: Endpoint-specific authorization
+- **SecurityService**: Helper methods for role checks
+
+**Layer 3: Service Level**
+- **@PreAuthorize on Methods**: Business logic authorization
+- **Role-based filtering**: Automatic data filtering by role
+- **Department scope validation**: Department Manager scope checks
+
+**Layer 4: Repository Level**
+- **Custom queries**: Role-based filtering in SQL/JPQL
+- **Query parameters**: Role and scope parameters
+- **Data isolation**: Automatic filtering by department/employee
+
+#### 5.2.3 Role-Based Data Filtering
+
+**Department Manager Scope**:
+- **Department Identification**: `user.employee.department.id`
+- **Query Filtering**: All queries automatically filtered by department
+- **Validation**: Additional checks ensure department ownership
+
+**Employee Scope**:
+- **Own Record**: `user.employee.id`
+- **Query Filtering**: All queries filtered to own records only
+- **Field Restrictions**: Limited to phone and address updates
+
+**Implementation Pattern**:
+```java
+// Service method automatically filters by role
+@PreAuthorize("hasAnyRole('SYSTEM_ADMIN', 'HR_MANAGER', 'DEPARTMENT_MANAGER', 'EMPLOYEE')")
+public Page<EmployeeResponseDTO> getAll(Pageable pageable) {
+    String role = securityService.getCurrentUserRole();
+    UUID departmentId = securityService.getCurrentUserDepartmentId();
+    UUID userId = securityService.getCurrentUserId();
+    
+    Page<Employee> employees = employeeRepository.findAllFilteredByRole(
+        role, departmentId, userId, pageable
+    );
+    return employees.map(mapper::toResponseDTO);
+}
+```
+
+**SecurityService Helper Methods**:
+- `getCurrentUserRole()`: Extract role from JWT token claims
+- `getCurrentUserDepartmentId()`: Get department ID for Department Manager scope
+- `getCurrentUserEmployeeId()`: Get employee ID for Employee scope
+- `isInOwnDepartment(employeeId)`: Check if employee belongs to user's department
+- `isOwnDepartment(departmentId)`: Check if department is user's department
+- `isOwnRecord(employeeId)`: Check if employee record belongs to current user
+- `isProjectInOwnDepartment(departmentId)`: Check project department ownership
+- `isTaskProjectInOwnDepartment(projectId)`: Check task's project department
+- `isTaskAssignedToUser(taskId)`: Check if task is assigned to current user
+
+**See**: `docs/lld/auth-module.md` Section 14.4.2 for complete SecurityService API
+
+#### 5.2.4 Frontend Authorization
+
+**Route Guards**:
+- **AuthGuard**: Requires authentication (all protected routes)
+- **RoleGuard**: Requires specific role(s)
+- **DepartmentGuard**: Requires department ownership
+
+**Component-Level Security**:
+- **Role-based visibility**: `*ngIf` directives based on user role
+- **Permission service**: `PermissionService.hasPermission(permission)`
+- **Conditional rendering**: Hide/show UI elements based on role
+
+**API Integration**:
+- **Token injection**: Automatically adds `Authorization: Bearer <token>` header
+- **401 handling**: Redirects to login on token expiration
+- **403 handling**: Shows access denied message for unauthorized actions
+
+**Frontend Security Service**:
+- **AuthService**: Manages authentication state and JWT token
+- **PermissionService**: Provides role and permission checks
+- **Role extraction**: Parses role from JWT token claims
+- **Department scope**: Extracts department ID for Department Manager role
+
+**Implementation Pattern**:
+```typescript
+// Route guard
+canActivate(route: ActivatedRouteSnapshot): boolean {
+  const requiredRoles = route.data['roles'];
+  return this.permissionService.hasAnyRole(requiredRoles);
+}
+
+// Component template
+<button *ngIf="permissionService.canCreate('employee') | async">
+  Add Employee
+</button>
+
+// Service method
+getEmployees(): Observable<Employee[]> {
+  const role = this.authService.getCurrentUserRole();
+  const departmentId = this.authService.getCurrentUserDepartmentId();
+  // Filter API calls based on role
+  return this.http.get(`/api/employees?role=${role}&departmentId=${departmentId}`);
+}
+```
+
+**See**: `docs/lld/frontend-components.md` Section 8.1.4 for detailed implementation examples
 
 ### 5.3 Network Security
 

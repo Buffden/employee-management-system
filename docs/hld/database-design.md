@@ -24,8 +24,9 @@ The Employee Management System uses **PostgreSQL 15** as the primary database. T
 See: `docs/diagrams/architecture/database-er-diagram.puml`
 
 The ER diagram shows all entities and their relationships:
-- **6 Core Entities**: Location, Employee, Department, Project, Task, EmployeeProject
+- **7 Core Entities**: Location, Employee, Department, Project, Task, EmployeeProject, User
 - **Relationships**: One-to-Many, Many-to-One, Many-to-Many (via EmployeeProject)
+- **Authentication**: User entity for RBAC and JWT authentication
 
 ---
 
@@ -395,6 +396,70 @@ CREATE INDEX idx_employee_project_role ON employee_project(role);
 
 ---
 
+### 3.7 User Table (Authentication & Authorization)
+
+**Purpose**: Stores user accounts for authentication and role-based access control.
+
+```sql
+CREATE TABLE users (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    username VARCHAR(100) NOT NULL UNIQUE,
+    password VARCHAR(255) NOT NULL, -- BCrypt hashed
+    email VARCHAR(255),
+    role VARCHAR(50) NOT NULL, -- SYSTEM_ADMIN, HR_MANAGER, DEPARTMENT_MANAGER, EMPLOYEE
+    employee_id UUID,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    last_login TIMESTAMP,
+    CONSTRAINT users_username_unique UNIQUE (username),
+    CONSTRAINT fk_user_employee FOREIGN KEY (employee_id) 
+        REFERENCES employee(id) ON DELETE SET NULL,
+    CONSTRAINT chk_user_role CHECK (
+        role IN ('SYSTEM_ADMIN', 'HR_MANAGER', 'DEPARTMENT_MANAGER', 'EMPLOYEE')
+    )
+);
+
+CREATE INDEX idx_users_username ON users(username);
+CREATE INDEX idx_users_email ON users(email);
+CREATE INDEX idx_users_role ON users(role);
+CREATE INDEX idx_users_employee_id ON users(employee_id);
+```
+
+**Columns**:
+- `id` (UUID, PK): Primary key
+- `username` (VARCHAR(100), UNIQUE, NOT NULL): Username for login
+- `password` (VARCHAR(255), NOT NULL): BCrypt hashed password
+- `email` (VARCHAR(255), NULLABLE): Email address
+- `role` (VARCHAR(50), NOT NULL): User role (SYSTEM_ADMIN, HR_MANAGER, DEPARTMENT_MANAGER, EMPLOYEE)
+- `employee_id` (UUID, FK, NULLABLE): Optional link to employee record
+- `created_at` (TIMESTAMP, NOT NULL): Account creation timestamp
+- `last_login` (TIMESTAMP, NULLABLE): Last login timestamp
+
+**Constraints**:
+- Username must be unique
+- Role must be one of the valid values (enforced by CHECK constraint)
+- Employee link is optional (for SYSTEM_ADMIN and HR_MANAGER who may not be employees)
+
+**Indexes**:
+- Primary key index (automatic)
+- Unique index on `username` (for login lookups)
+- Index on `email` (for email-based lookups)
+- Index on `role` (for role-based queries and filtering)
+- Index on `employee_id` (for employee-user relationship queries)
+
+**Relationships**:
+- `@ManyToOne` → Employee (optional, links user to employee record)
+- Used for Department Manager and Employee roles to determine department scope
+
+**RBAC Usage**:
+- Role stored in `role` column and included in JWT token claims
+- Department Manager scope: Determined by `user.employee.department`
+- Employee scope: Determined by `user.employee.id`
+- System Admin and HR Manager: May not have linked employee records
+
+**Note**: See `docs/security/roles-and-permissions.md` for detailed role definitions and permissions.
+
+---
+
 ## 4. Foreign Key Relationships
 
 ### 4.1 Relationship Summary
@@ -412,6 +477,7 @@ CREATE INDEX idx_employee_project_role ON employee_project(role);
 | `project` | `task` | One-to-Many | CASCADE |
 | `project` | `employee_project` | One-to-Many | CASCADE |
 | `employee` | `employee_project` | One-to-Many | CASCADE |
+| `employee` | `users` | One-to-Many (optional) | SET NULL |
 
 ### 4.2 Delete Strategies
 
@@ -431,6 +497,7 @@ All tables have automatic primary key indexes on `id` (UUID).
 - `employee.email` - Ensures unique email addresses
 - `department.name` - Ensures unique department names
 - `project.name` - Ensures unique project names
+- `users.username` - Ensures unique usernames for authentication
 
 ### 5.3 Foreign Key Indexes
 All foreign key columns are indexed for:
@@ -439,9 +506,10 @@ All foreign key columns are indexed for:
 - **Referential Integrity Checks**: Faster constraint validation
 
 ### 5.4 Query Optimization Indexes
-- **Filtering**: Indexes on frequently filtered columns (status, priority, designation)
-- **Sorting**: Indexes on frequently sorted columns (joining_date, start_date, due_date)
+- **Filtering**: Indexes on frequently filtered columns (status, priority, designation, role)
+- **Sorting**: Indexes on frequently sorted columns (joining_date, start_date, due_date, created_at)
 - **Search**: Composite indexes for name searches (last_name, first_name)
+- **Authentication**: Indexes on `users.username` and `users.role` for login and authorization queries
 
 ### 5.5 Index Maintenance
 - **Automatic Updates**: PostgreSQL automatically maintains indexes on INSERT/UPDATE/DELETE
@@ -652,30 +720,16 @@ ORDER BY priority DESC, due_date ASC;
 
 ## 12. Future Enhancements
 
-### 12.1 Authentication Table
-**Future**: Add `user` table for authentication:
-```sql
-CREATE TABLE user (
-    id UUID PRIMARY KEY,
-    username VARCHAR(100) UNIQUE NOT NULL,
-    password_hash VARCHAR(255) NOT NULL,
-    employee_id UUID REFERENCES employee(id),
-    role VARCHAR(50),
-    created_at TIMESTAMP,
-    last_login TIMESTAMP
-);
-```
-
-### 12.2 Audit Tables
+### 12.1 Audit Tables
 **Future**: Add audit tables for tracking changes:
 - `employee_audit` - Track employee changes
 - `department_audit` - Track department changes
 - `project_audit` - Track project changes
 
-### 12.3 Soft Deletes
+### 12.2 Soft Deletes
 **Future**: Add `deleted_at` timestamp for soft deletes instead of hard deletes.
 
-### 12.4 Full-Text Search
+### 12.3 Full-Text Search
 **Future**: Add PostgreSQL full-text search indexes for:
 - Employee name search
 - Project description search

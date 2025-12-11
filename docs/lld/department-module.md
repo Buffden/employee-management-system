@@ -183,6 +183,74 @@ public interface DepartmentRepository extends JpaRepository<Department, UUID> {
 4. **Deletion Validation**: Cannot delete department if it has employees
 5. **Location Sync**: `locationName` must be kept in sync with `location.name`
 
+## 10.1 Role-Based Access Control
+
+| Operation | System Admin | HR Manager | Department Manager | Employee |
+|-----------|--------------|------------|-------------------|----------|
+| **View All Departments** | ✅ | ✅ | ✅ | ❌ |
+| **View Own Department** | ✅ | ✅ | ✅ | ✅ |
+| **Create Department** | ✅ | ❌ | ❌ | ❌ |
+| **Update Any Department** | ✅ | ✅ | ❌ | ❌ |
+| **Update Own Department** | ✅ | ✅ | ✅ (limited fields) | ❌ |
+| **Delete Department** | ✅ | ❌ | ❌ | ❌ |
+| **View Budget** | ✅ | ✅ | ❌ | ❌ |
+
+### 10.1.1 Implementation Details
+
+**Service Layer Authorization**:
+
+**Example - DepartmentService**:
+```java
+@PreAuthorize("hasRole('SYSTEM_ADMIN')")
+public DepartmentResponseDTO create(DepartmentRequestDTO dto) { ... }
+
+@PreAuthorize("hasRole('SYSTEM_ADMIN') or hasRole('HR_MANAGER') or " +
+              "(hasRole('DEPARTMENT_MANAGER') and @securityService.isOwnDepartment(#id))")
+public DepartmentResponseDTO update(UUID id, DepartmentRequestDTO dto) {
+    // Field-level restrictions for Department Manager
+    if (securityService.hasRole("DEPARTMENT_MANAGER")) {
+        dto.setBudget(null); // Cannot modify budget
+        dto.setDepartmentHeadId(null); // Cannot modify head
+        dto.setLocationId(null); // Cannot modify location
+    }
+    // HR Manager cannot modify budget
+    if (securityService.hasRole("HR_MANAGER") && !securityService.hasRole("SYSTEM_ADMIN")) {
+        dto.setBudget(null);
+    }
+    // ... update logic
+}
+
+@PreAuthorize("hasAnyRole('SYSTEM_ADMIN', 'HR_MANAGER', 'DEPARTMENT_MANAGER', 'EMPLOYEE')")
+public DepartmentResponseDTO getById(UUID id) {
+    // Employee can only view own department
+    if (securityService.hasRole("EMPLOYEE")) {
+        UUID userDepartmentId = securityService.getCurrentUserDepartmentId();
+        if (!id.equals(userDepartmentId)) {
+            throw new AccessDeniedException("Access denied");
+        }
+    }
+    // ... get logic
+}
+```
+
+**Controller Layer**:
+```java
+@PostMapping
+@PreAuthorize("hasRole('SYSTEM_ADMIN')")
+public ResponseEntity<DepartmentResponseDTO> create(@Valid @RequestBody DepartmentRequestDTO dto) { ... }
+
+@PutMapping("/{id}")
+@PreAuthorize("hasAnyRole('SYSTEM_ADMIN', 'HR_MANAGER', 'DEPARTMENT_MANAGER')")
+public ResponseEntity<DepartmentResponseDTO> update(@PathVariable UUID id, 
+                                                     @Valid @RequestBody DepartmentRequestDTO dto) { ... }
+```
+
+**Field-Level Restrictions**:
+- **Department Manager** updating own department: Cannot modify budget, department head, or location
+- **HR Manager**: Can update all fields except budget (System Admin only)
+
+**See**: `docs/security/roles-and-permissions.md` for complete permission matrix
+
 ## 11. Sequence Diagram
 
 See: `docs/diagrams/sequence/department-create-flow.puml`

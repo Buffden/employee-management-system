@@ -14,6 +14,18 @@ This directory contains high-level design documentation including system design,
 - **Maintainability**: Clear separation of concerns
 - **Extensibility**: Easy to add new features
 - **Performance**: Optimized for performance
+- **Security**: Role-based access control (RBAC) with 4-layer security architecture
+
+## Security & Authorization
+
+All HLD documents include security architecture:
+- **system-design.md**: 4-layer security architecture (Filter → Controller → Service → Repository)
+- **api-design.md**: Authorization implementation patterns and error handling
+- **database-design.md**: User table schema with role-based relationships
+
+**See**: 
+- `docs/security/roles-and-permissions.md` for complete permission matrix
+- `docs/lld/auth-module.md` for detailed RBAC implementation
 
 ---
 

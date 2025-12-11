@@ -785,18 +785,170 @@
 
 ---
 
-## 9. Authentication/Authorization Flow (Future)
+## 9. Authentication/Authorization Flow
 
 ### 9.1 Authentication
 - **Method**: JWT (JSON Web Tokens)
 - **Endpoint**: `POST /api/auth/login`
 - **Token Expiration**: 24 hours
 - **Refresh Token**: 7 days
-
-### 9.2 Authorization
 - **Header**: `Authorization: Bearer <token>`
-- **Roles**: System Admin, HR Manager, Department Manager, Employee
-- **Permissions**: Role-based access control (RBAC)
+
+### 9.2 Authorization - Role-Based Access Control (RBAC)
+
+**Roles**: 
+- `SYSTEM_ADMIN`: Full system access
+- `HR_MANAGER`: HR and employee management
+- `DEPARTMENT_MANAGER`: Department-specific management
+- `EMPLOYEE`: Limited access to own data
+
+**Detailed Permissions**: See `docs/security/roles-and-permissions.md`
+
+**Implementation Approach**:
+- **JWT Token**: Role included in token claims (`role` claim)
+- **Spring Security**: `@PreAuthorize` annotations on controllers and services
+- **SecurityService**: Helper service for role-based checks (`@securityService.isInOwnDepartment()`, etc.)
+- **Automatic Filtering**: Repository queries automatically filter by role scope
+- **Field-Level Validation**: Service layer enforces field restrictions based on role
+
+**See**: `docs/lld/auth-module.md` Section 14.4 for detailed implementation examples
+
+### 9.3 Endpoint Access Control
+
+#### Employee Endpoints
+
+| Endpoint | System Admin | HR Manager | Department Manager | Employee |
+|----------|--------------|------------|-------------------|----------|
+| `GET /api/employees` | ✅ | ✅ | ❌ | ❌ |
+| `GET /api/employees/{id}` | ✅ | ✅ | ✅ (own dept) | ✅ (own) |
+| `POST /api/employees` | ✅ | ✅ | ❌ | ❌ |
+| `PUT /api/employees/{id}` | ✅ | ✅ | ✅ (own dept, limited) | ✅ (own, limited) |
+| `DELETE /api/employees/{id}` | ✅ | ✅ | ❌ | ❌ |
+
+#### Department Endpoints
+
+| Endpoint | System Admin | HR Manager | Department Manager | Employee |
+|----------|--------------|------------|-------------------|----------|
+| `GET /api/departments` | ✅ | ✅ | ✅ | ❌ |
+| `GET /api/departments/{id}` | ✅ | ✅ | ✅ | ✅ (own) |
+| `POST /api/departments` | ✅ | ❌ | ❌ | ❌ |
+| `PUT /api/departments/{id}` | ✅ | ✅ | ✅ (own, limited) | ❌ |
+| `DELETE /api/departments/{id}` | ✅ | ❌ | ❌ | ❌ |
+
+#### Location Endpoints
+
+| Endpoint | System Admin | HR Manager | Department Manager | Employee |
+|----------|--------------|------------|-------------------|----------|
+| `GET /api/locations` | ✅ | ✅ | ✅ | ❌ |
+| `GET /api/locations/{id}` | ✅ | ✅ | ✅ | ❌ |
+| `POST /api/locations` | ✅ | ✅ | ❌ | ❌ |
+| `PUT /api/locations/{id}` | ✅ | ✅ | ❌ | ❌ |
+| `DELETE /api/locations/{id}` | ✅ | ❌ | ❌ | ❌ |
+
+#### Project Endpoints
+
+| Endpoint | System Admin | HR Manager | Department Manager | Employee |
+|----------|--------------|------------|-------------------|----------|
+| `GET /api/projects` | ✅ | ✅ | ✅ | ❌ |
+| `GET /api/projects/{id}` | ✅ | ✅ | ✅ | ✅ (assigned) |
+| `POST /api/projects` | ✅ | ❌ | ✅ (own dept) | ❌ |
+| `PUT /api/projects/{id}` | ✅ | ❌ | ✅ (own dept) | ❌ |
+| `DELETE /api/projects/{id}` | ✅ | ❌ | ✅ (own dept) | ❌ |
+
+#### Task Endpoints
+
+| Endpoint | System Admin | HR Manager | Department Manager | Employee |
+|----------|--------------|------------|-------------------|----------|
+| `GET /api/tasks` | ✅ | ✅ | ✅ | ❌ |
+| `GET /api/tasks/{id}` | ✅ | ✅ | ✅ | ✅ (assigned) |
+| `POST /api/tasks` | ✅ | ❌ | ✅ (own dept) | ❌ |
+| `PUT /api/tasks/{id}` | ✅ | ❌ | ✅ (own dept) | ✅ (assigned, status only) |
+| `DELETE /api/tasks/{id}` | ✅ | ❌ | ✅ (own dept) | ❌ |
+
+#### Dashboard Endpoints
+
+| Endpoint | System Admin | HR Manager | Department Manager | Employee |
+|----------|--------------|------------|-------------------|----------|
+| `GET /api/dashboard/metrics` | ✅ (all) | ✅ (HR) | ✅ (dept) | ✅ (own) |
+| `GET /api/dashboard/graphs` | ✅ (all) | ✅ (HR) | ✅ (dept) | ❌ |
+
+**Note**: 
+- ✅ = Full access
+- ✅ (limited) = Limited access (specific fields only)
+- ✅ (own) = Only own record
+- ✅ (own dept) = Only own department's records
+- ✅ (assigned) = Only assigned records
+- ❌ = No access
+
+### 9.4 Authorization Implementation
+
+**Controller-Level Security**:
+- All endpoints protected by `@PreAuthorize` annotations
+- Role checks performed before method execution
+- Department/Employee scope validated via `SecurityService` helper methods
+
+**Example Implementation Pattern**:
+```java
+@GetMapping("/{id}")
+@PreAuthorize("hasAnyRole('SYSTEM_ADMIN', 'HR_MANAGER') or " +
+              "(hasRole('DEPARTMENT_MANAGER') and @securityService.isInOwnDepartment(#id)) or " +
+              "(hasRole('EMPLOYEE') and @securityService.isOwnRecord(#id))")
+public ResponseEntity<EmployeeResponseDTO> getById(@PathVariable UUID id) { ... }
+```
+
+**Service-Level Security**:
+- Additional `@PreAuthorize` annotations on service methods
+- Business logic validation for role-based operations
+- Field-level restrictions enforced in service layer
+
+**Repository-Level Filtering**:
+- Custom query methods with role-based filtering
+- Automatic data isolation by role scope
+- Department Manager: Filtered by `user.employee.department.id`
+- Employee: Filtered by `user.employee.id`
+
+**Error Responses**:
+- **401 Unauthorized**: Missing or invalid JWT token
+  ```json
+  {
+    "timestamp": "2024-12-10T10:30:00Z",
+    "status": 401,
+    "error": "Unauthorized",
+    "message": "JWT token is missing or invalid",
+    "path": "/api/employees"
+  }
+  ```
+- **403 Forbidden**: Valid token but insufficient permissions
+  ```json
+  {
+    "timestamp": "2024-12-10T10:30:00Z",
+    "status": 403,
+    "error": "Forbidden",
+    "message": "Access denied. Insufficient permissions for this operation",
+    "path": "/api/employees"
+  }
+  ```
+- **404 Not Found**: Resource not found or outside user's scope
+  ```json
+  {
+    "timestamp": "2024-12-10T10:30:00Z",
+    "status": 404,
+    "error": "Not Found",
+    "message": "Resource not found or outside your access scope",
+    "path": "/api/employees/550e8400-e29b-41d4-a716-446655440000"
+  }
+  ```
+
+**SecurityService Integration**:
+- All modules use `SecurityService` for role-based checks
+- Helper methods available in `@PreAuthorize` SpEL expressions
+- Automatic role extraction from JWT token claims
+- Department scope automatically determined for Department Managers
+
+**See**: 
+- `docs/lld/auth-module.md` Section 14.4 for detailed implementation examples
+- `docs/security/roles-and-permissions.md` for complete permission matrix
+- Module-specific LLDs for module-specific RBAC patterns
 
 ---
 
