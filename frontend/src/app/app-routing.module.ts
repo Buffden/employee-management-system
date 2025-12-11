@@ -1,6 +1,8 @@
 import { NgModule } from '@angular/core';
 import { RouterModule, Routes } from '@angular/router';
 import { AuthGuard } from './core/guards/auth.guard';
+import { RoleGuard } from './core/guards/role.guard';
+import { UserRole } from './shared/models/user-role.enum';
 
 export const routes: Routes = [
   // Landing page (public)
@@ -19,13 +21,15 @@ export const routes: Routes = [
         (m) => m.LoginComponent
       ),
   },
-  // Register route (public)
+  // Register route (System Admin only)
   {
     path: 'register',
     loadComponent: () =>
       import('./features/auth/components/register/register.component').then(
         (m) => m.RegisterComponent
       ),
+    canActivate: [AuthGuard, RoleGuard],
+    data: { roles: [UserRole.SYSTEM_ADMIN] }
   },
   // Protected routes
   {
