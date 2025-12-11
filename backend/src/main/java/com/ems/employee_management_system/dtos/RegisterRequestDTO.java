@@ -19,7 +19,7 @@ public class RegisterRequestDTO {
     @Size(min = 64, max = 64, message = "Password must be a valid hash (64 characters)")
     private String password;
 
-    // Role defaults to EMPLOYEE for new registrations
-    private String role = "EMPLOYEE";
+    @NotBlank(message = "Role is required")
+    private String role;
 }
 
