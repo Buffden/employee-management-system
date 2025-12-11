@@ -39,5 +39,9 @@ export class LandingPageComponent {
   get isAuthenticated(): boolean {
     return this.authService.isAuthenticated();
   }
+
+  get isAdmin(): boolean {
+    return this.authService.isAdmin();
+  }
 }
 
