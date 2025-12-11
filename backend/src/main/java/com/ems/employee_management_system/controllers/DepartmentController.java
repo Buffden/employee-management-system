@@ -1,9 +1,11 @@
 package com.ems.employee_management_system.controllers;
 
-import java.util.List;
 import java.util.UUID;
-import java.util.stream.Collectors;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -11,9 +13,11 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.ems.employee_management_system.dtos.DepartmentDTO;
+import com.ems.employee_management_system.dtos.DepartmentRequestDTO;
+import com.ems.employee_management_system.dtos.DepartmentResponseDTO;
 import com.ems.employee_management_system.mappers.DepartmentMapper;
 import com.ems.employee_management_system.models.Department;
 import com.ems.employee_management_system.models.Employee;
@@ -21,10 +25,15 @@ import com.ems.employee_management_system.models.Location;
 import com.ems.employee_management_system.services.DepartmentService;
 import com.ems.employee_management_system.services.EmployeeService;
 import com.ems.employee_management_system.services.LocationService;
+import com.ems.employee_management_system.utils.PaginationUtils;
+
+import jakarta.validation.Valid;
 
 @RestController
 @RequestMapping("/api/departments")
 public class DepartmentController {
+    private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(DepartmentController.class);
+    
     private final DepartmentService departmentService;
     private final LocationService locationService;
     private final EmployeeService employeeService;
@@ -36,37 +45,93 @@ public class DepartmentController {
     }
 
     @GetMapping
-    public List<DepartmentDTO> getAll() {
-        return departmentService.getAll().stream()
-                .map(DepartmentMapper::toDTO)
-                .collect(Collectors.toList());
+    public ResponseEntity<com.ems.employee_management_system.dtos.PaginatedResponseDTO<DepartmentResponseDTO>> getAll(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size,
+            @RequestParam(required = false) String sortBy,
+            @RequestParam(required = false, defaultValue = "ASC") String sortDir) {
+        logger.debug("Fetching departments with pagination: page={}, size={}, sortBy={}, sortDir={}", page, size, sortBy, sortDir);
+        
+        Pageable pageable = PaginationUtils.createPageable(page, size, sortBy, sortDir);
+        Page<Department> departmentPage = departmentService.getAll(pageable);
+        
+        return ResponseEntity.ok(PaginationUtils.toPaginatedResponse(departmentPage, DepartmentMapper::toResponseDTO));
     }
 
     @GetMapping("/{id}")
-    public DepartmentDTO getById(@PathVariable UUID id) {
+    public ResponseEntity<DepartmentResponseDTO> getById(@PathVariable UUID id) {
+        logger.debug("Fetching department with id: {}", id);
         Department department = departmentService.getById(id);
-        return department != null ? DepartmentMapper.toDTO(department) : null;
+        if (department == null) {
+            logger.warn("Department not found with id: {}", id);
+            return ResponseEntity.notFound().build();
+        }
+        return ResponseEntity.ok(DepartmentMapper.toResponseDTO(department));
     }
 
     @PostMapping
-    public DepartmentDTO create(@RequestBody DepartmentDTO dto) {
-        Location location = locationService.getById(dto.getLocationId());
-        Employee head = dto.getDepartmentHeadId() != null ? employeeService.getById(dto.getDepartmentHeadId()) : null;
-        Department department = DepartmentMapper.toEntity(dto, location, head);
-        return DepartmentMapper.toDTO(departmentService.save(department));
+    public ResponseEntity<DepartmentResponseDTO> create(@Valid @RequestBody DepartmentRequestDTO requestDTO) {
+        logger.info("Creating new department: {}", requestDTO.getName());
+        // Validate related entities exist
+        Location location = locationService.getById(requestDTO.getLocationId());
+        if (location == null) {
+            throw new IllegalArgumentException("Location not found with id: " + requestDTO.getLocationId());
+        }
+        
+        Employee head = null;
+        if (requestDTO.getDepartmentHeadId() != null) {
+            head = employeeService.getById(requestDTO.getDepartmentHeadId());
+            if (head == null) {
+                throw new IllegalArgumentException("Department head not found with id: " + requestDTO.getDepartmentHeadId());
+            }
+        }
+        
+        Department department = DepartmentMapper.toEntity(requestDTO, location, head);
+        Department savedDepartment = departmentService.save(department);
+        logger.info("Department created successfully with id: {}", savedDepartment.getId());
+        return ResponseEntity.status(HttpStatus.CREATED).body(DepartmentMapper.toResponseDTO(savedDepartment));
     }
 
     @PutMapping("/{id}")
-    public DepartmentDTO update(@PathVariable UUID id, @RequestBody DepartmentDTO dto) {
-        Location location = locationService.getById(dto.getLocationId());
-        Employee head = dto.getDepartmentHeadId() != null ? employeeService.getById(dto.getDepartmentHeadId()) : null;
-        Department department = DepartmentMapper.toEntity(dto, location, head);
-        department.setId(id);
-        return DepartmentMapper.toDTO(departmentService.save(department));
+    public ResponseEntity<DepartmentResponseDTO> update(@PathVariable UUID id, @Valid @RequestBody DepartmentRequestDTO requestDTO) {
+        logger.info("Updating department with id: {}", id);
+        Department existingDepartment = departmentService.getById(id);
+        if (existingDepartment == null) {
+            return ResponseEntity.notFound().build();
+        }
+        
+        // Validate related entities exist
+        Location location = locationService.getById(requestDTO.getLocationId());
+        if (location == null) {
+            throw new IllegalArgumentException("Location not found with id: " + requestDTO.getLocationId());
+        }
+        
+        Employee head = null;
+        if (requestDTO.getDepartmentHeadId() != null) {
+            head = employeeService.getById(requestDTO.getDepartmentHeadId());
+            if (head == null) {
+                throw new IllegalArgumentException("Department head not found with id: " + requestDTO.getDepartmentHeadId());
+            }
+        }
+        
+        Department updatedDepartment = DepartmentMapper.toEntity(requestDTO, location, head);
+        updatedDepartment.setId(id); // Ensure ID is preserved for update
+        updatedDepartment.setCreatedAt(existingDepartment.getCreatedAt()); // Preserve createdAt
+        Department savedDepartment = departmentService.save(updatedDepartment);
+        logger.info("Department updated successfully with id: {}", id);
+        return ResponseEntity.ok(DepartmentMapper.toResponseDTO(savedDepartment));
     }
 
     @DeleteMapping("/{id}")
-    public void delete(@PathVariable UUID id) {
+    public ResponseEntity<Void> delete(@PathVariable UUID id) {
+        logger.info("Deleting department with id: {}", id);
+        Department department = departmentService.getById(id);
+        if (department == null) {
+            logger.warn("Department not found with id: {}", id);
+            return ResponseEntity.notFound().build();
+        }
         departmentService.delete(id);
+        logger.info("Department deleted successfully with id: {}", id);
+        return ResponseEntity.noContent().build();
     }
 }
