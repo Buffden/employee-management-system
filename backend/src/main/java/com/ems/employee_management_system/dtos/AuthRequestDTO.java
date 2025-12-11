@@ -10,7 +10,7 @@ public class AuthRequestDTO {
     private String username;
 
     @NotBlank(message = "Password is required")
-    @Size(min = 8, message = "Password must be at least 8 characters long")
+    @Size(min = 64, max = 64, message = "Password must be a valid hash (64 characters)")
     private String password;
 }
 
