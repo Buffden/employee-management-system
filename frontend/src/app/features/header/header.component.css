@@ -93,49 +93,40 @@
   height: 20px;
 }
 
-.user-info {
+.my-profile-button {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-}
-
-.user-icon {
   color: #ffffff;
-  font-size: 32px;
-  width: 32px;
-  height: 32px;
+  padding: 8px 16px;
+  border-radius: 4px;
+  transition: background-color 0.3s ease-in-out;
 }
 
-.user-details {
-  display: flex;
-  flex-direction: column;
-  gap: 0.2rem;
+.my-profile-button:hover {
+  background-color: rgba(255, 255, 255, 0.1);
 }
 
-.username {
-  font-size: 0.9rem;
-  font-weight: 500;
+.my-profile-button mat-icon:first-of-type {
+  font-size: 20px;
+  width: 20px;
+  height: 20px;
+}
+
+.dropdown-icon {
   color: #ffffff;
+  font-size: 18px;
+  width: 18px;
+  height: 18px;
+  margin-left: 0.25rem;
 }
 
-.user-role {
-  font-size: 0.75rem;
-  color: #b0b0b0;
-  text-transform: uppercase;
+.user-menu {
+  margin-top: 8px;
 }
 
-.profile-icon,
-.logout-icon {
-  display: flex;
-  align-items: center;
-  color: #ffffff;
-  cursor: pointer;
-  transition: color 0.3s ease-in-out;
-}
-
-.profile-icon:hover .mat-icon,
-.logout-icon:hover .mat-icon {
-  color: #00b4d8;
+.user-menu button mat-icon {
+  margin-right: 12px;
 }
 
 .mat-icon {
@@ -189,6 +180,11 @@
   }
 
   .auth-button {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .my-profile-button {
     width: 100%;
     justify-content: center;
   }

@@ -20,26 +20,26 @@
                
                <!-- Authenticated User Section -->
                <div class="user-section" *ngIf="currentUser">
-                    <div class="user-info">
-                         <mat-icon class="user-icon">account_circle</mat-icon>
-                         <div class="user-details">
-                              <span class="username">{{ userDisplayName }}</span>
-                              <span class="user-role">{{ userRole }}</span>
-                         </div>
-                    </div>
-                    <button mat-icon-button
-                            class="profile-icon"
-                            routerLink="/profile"
-                            routerLinkActive="active"
-                            matTooltip="Profile">
-                         <mat-icon>settings</mat-icon>
+                    <button mat-button
+                            [matMenuTriggerFor]="userMenu"
+                            class="my-profile-button">
+                         <mat-icon>person</mat-icon>
                     </button>
-                    <button mat-icon-button
-                            class="logout-icon"
-                            (click)="logout()"
-                            matTooltip="Logout">
-                         <mat-icon>logout</mat-icon>
-                    </button>
+                    <mat-menu #userMenu="matMenu" class="user-menu">
+                         <button mat-menu-item routerLink="/profile">
+                              <mat-icon>person</mat-icon>
+                              <span>Profile</span>
+                         </button>
+                         <button mat-menu-item routerLink="/settings">
+                              <mat-icon>settings</mat-icon>
+                              <span>Settings</span>
+                         </button>
+                         <mat-divider></mat-divider>
+                         <button mat-menu-item (click)="logout()">
+                              <mat-icon>logout</mat-icon>
+                              <span>Logout</span>
+                         </button>
+                    </mat-menu>
                </div>
                
                <!-- Login/Register buttons (when not authenticated) -->
