@@ -1,0 +1,168 @@
+<div class="settings-container">
+  <div class="settings-header">
+    <h1>
+      <mat-icon>settings</mat-icon>
+      Settings (Server not integrated yet, API implementation pending)
+    </h1>
+    <p class="subtitle">Manage your account settings and preferences</p>
+  </div>
+
+  <div class="settings-content">
+    <!-- User Information Card -->
+    <mat-card class="settings-card">
+      <mat-card-header>
+        <mat-card-title>
+          <mat-icon>account_circle</mat-icon>
+          Account Information
+        </mat-card-title>
+      </mat-card-header>
+      <mat-card-content>
+        <div class="user-info-display">
+          <div class="info-item">
+            <span class="label">Username:</span>
+            <span class="value">{{ userDisplayName }}</span>
+          </div>
+          <div class="info-item">
+            <span class="label">Role:</span>
+            <span class="value">{{ userRole }}</span>
+          </div>
+          <div class="info-item">
+            <span class="label">Email:</span>
+            <span class="value">{{ currentUser?.email || 'N/A' }}</span>
+          </div>
+        </div>
+      </mat-card-content>
+    </mat-card>
+
+    <!-- General Settings Card -->
+    <mat-card class="settings-card">
+      <mat-card-header>
+        <mat-card-title>
+          <mat-icon>tune</mat-icon>
+          General Settings
+        </mat-card-title>
+      </mat-card-header>
+      <mat-card-content>
+        <form [formGroup]="settingsForm" class="settings-form">
+          <mat-form-field appearance="outline" class="full-width">
+            <mat-label>Email</mat-label>
+            <input matInput formControlName="email" type="email">
+            <mat-icon matPrefix>email</mat-icon>
+            <mat-error *ngIf="settingsForm.get('email')?.hasError('required')">
+              Email is required
+            </mat-error>
+            <mat-error *ngIf="settingsForm.get('email')?.hasError('email')">
+              Please enter a valid email
+            </mat-error>
+          </mat-form-field>
+
+          <mat-form-field appearance="outline" class="full-width">
+            <mat-label>Language</mat-label>
+            <mat-select formControlName="language">
+              <mat-option value="en">English</mat-option>
+              <mat-option value="es">Spanish</mat-option>
+              <mat-option value="fr">French</mat-option>
+              <mat-option value="de">German</mat-option>
+            </mat-select>
+            <mat-icon matPrefix>language</mat-icon>
+          </mat-form-field>
+
+          <mat-form-field appearance="outline" class="full-width">
+            <mat-label>Timezone</mat-label>
+            <mat-select formControlName="timezone">
+              <mat-option value="UTC">UTC</mat-option>
+              <mat-option value="EST">Eastern Time (EST)</mat-option>
+              <mat-option value="PST">Pacific Time (PST)</mat-option>
+              <mat-option value="GMT">Greenwich Mean Time (GMT)</mat-option>
+            </mat-select>
+            <mat-icon matPrefix>schedule</mat-icon>
+          </mat-form-field>
+
+          <div class="form-actions">
+            <button mat-raised-button 
+                    color="primary" 
+                    (click)="onSaveSettings()"
+                    [disabled]="settingsForm.invalid || loading">
+              <mat-icon>save</mat-icon>
+              Save Settings
+            </button>
+          </div>
+        </form>
+      </mat-card-content>
+    </mat-card>
+
+    <!-- Notification Preferences Card -->
+    <mat-card class="settings-card">
+      <mat-card-header>
+        <mat-card-title>
+          <mat-icon>notifications</mat-icon>
+          Notification Preferences
+        </mat-card-title>
+      </mat-card-header>
+      <mat-card-content>
+        <form [formGroup]="notificationForm" class="settings-form">
+          <div class="toggle-item">
+            <div class="toggle-info">
+              <mat-icon>email</mat-icon>
+              <div>
+                <span class="toggle-label">Email Notifications</span>
+                <span class="toggle-description">Receive notifications via email</span>
+              </div>
+            </div>
+            <mat-slide-toggle formControlName="emailNotifications"></mat-slide-toggle>
+          </div>
+
+          <mat-divider></mat-divider>
+
+          <div class="toggle-item">
+            <div class="toggle-info">
+              <mat-icon>notifications_active</mat-icon>
+              <div>
+                <span class="toggle-label">Push Notifications</span>
+                <span class="toggle-description">Receive push notifications in browser</span>
+              </div>
+            </div>
+            <mat-slide-toggle formControlName="pushNotifications"></mat-slide-toggle>
+          </div>
+
+          <mat-divider></mat-divider>
+
+          <div class="toggle-item">
+            <div class="toggle-info">
+              <mat-icon>task</mat-icon>
+              <div>
+                <span class="toggle-label">Task Reminders</span>
+                <span class="toggle-description">Get reminded about upcoming tasks</span>
+              </div>
+            </div>
+            <mat-slide-toggle formControlName="taskReminders"></mat-slide-toggle>
+          </div>
+
+          <mat-divider></mat-divider>
+
+          <div class="toggle-item">
+            <div class="toggle-info">
+              <mat-icon>update</mat-icon>
+              <div>
+                <span class="toggle-label">Project Updates</span>
+                <span class="toggle-description">Receive updates about project changes</span>
+              </div>
+            </div>
+            <mat-slide-toggle formControlName="projectUpdates"></mat-slide-toggle>
+          </div>
+
+          <div class="form-actions">
+            <button mat-raised-button 
+                    color="primary" 
+                    (click)="onSaveNotifications()"
+                    [disabled]="loading">
+              <mat-icon>save</mat-icon>
+              Save Preferences
+            </button>
+          </div>
+        </form>
+      </mat-card-content>
+    </mat-card>
+  </div>
+</div>
+

@@ -65,6 +65,14 @@ export const routes: Routes = [
     canActivate: [AuthGuard],
   },
   {
+    path: 'settings',
+    loadComponent: () =>
+      import(
+        './features/settings/components/settings/settings.component'
+      ).then((m) => m.SettingsComponent),
+    canActivate: [AuthGuard],
+  },
+  {
     path: 'projects',
     loadChildren: () => import('./features/projects/projects-routing.module').then(m => m.ProjectsRoutingModule),
     canActivate: [AuthGuard],
