@@ -69,6 +69,16 @@ class EmployeeProject {
     - startDate: LocalDate
     - endDate: LocalDate
 }
+
+class User {
+    - id: UUID
+    - username: String
+    - password: String
+    - email: String
+    - role: String
+    - createdAt: LocalDateTime
+    - lastLogin: LocalDateTime
+}
 }
 
 ' Relationships
@@ -83,5 +93,15 @@ Task "1" --> "1" Project : project
 Task "1" --> "0..1" Employee : assignedTo
 Employee "1" --> "*" EmployeeProject : projects
 Project "1" --> "*" EmployeeProject : employees
+User "0..1" --> "1" Employee : employee
+
+note right of User
+  **RBAC Entity:**
+  - Stores authentication credentials
+  - Role determines permissions
+  - Links to Employee (optional)
+  - Used for JWT token generation
+  - See: docs/security/roles-and-permissions.md
+end note
 
 @enduml
