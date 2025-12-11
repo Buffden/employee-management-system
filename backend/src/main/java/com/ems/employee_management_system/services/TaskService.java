@@ -7,26 +7,35 @@ import java.util.UUID;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.ems.employee_management_system.constants.Constants;
 import com.ems.employee_management_system.models.Task;
 import com.ems.employee_management_system.repositories.TaskRepository;
+import com.ems.employee_management_system.security.SecurityService;
 
 @Service
 public class TaskService {
     private static final Logger logger = LoggerFactory.getLogger(TaskService.class);
     
     private final TaskRepository taskRepository;
+    private final SecurityService securityService;
 
-    public TaskService(TaskRepository taskRepository) {
+    public TaskService(TaskRepository taskRepository,
+                       SecurityService securityService) {
         this.taskRepository = taskRepository;
+        this.securityService = securityService;
     }
 
-    public org.springframework.data.domain.Page<Task> getAll(org.springframework.data.domain.Pageable pageable) {
+    public Page<Task> getAll(Pageable pageable) {
         logger.debug("Fetching tasks with pagination: page={}, size={}", pageable.getPageNumber(), pageable.getPageSize());
-        return taskRepository.findAll(pageable);
+        String role = securityService.getCurrentUserRole();
+        UUID departmentId = securityService.getCurrentUserDepartmentId();
+        UUID userId = securityService.getCurrentUserEmployeeId();
+        return taskRepository.findAllFilteredByRole(role, departmentId, userId, pageable);
     }
 
     public List<Task> getAll() {

@@ -12,20 +12,27 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.ems.employee_management_system.models.Employee;
 import com.ems.employee_management_system.repositories.EmployeeRepository;
+import com.ems.employee_management_system.security.SecurityService;
 
 @Service
 public class EmployeeService {
     private static final Logger logger = LoggerFactory.getLogger(EmployeeService.class);
     
     private final EmployeeRepository employeeRepository;
+    private final SecurityService securityService;
 
-    public EmployeeService(EmployeeRepository employeeRepository) {
+    public EmployeeService(EmployeeRepository employeeRepository,
+                           SecurityService securityService) {
         this.employeeRepository = employeeRepository;
+        this.securityService = securityService;
     }
 
     public Page<Employee> getAll(Pageable pageable) {
         logger.debug("Fetching employees with pagination: page={}, size={}", pageable.getPageNumber(), pageable.getPageSize());
-        return employeeRepository.findAll(pageable);
+        String role = securityService.getCurrentUserRole();
+        UUID departmentId = securityService.getCurrentUserDepartmentId();
+        UUID userId = securityService.getCurrentUserEmployeeId();
+        return employeeRepository.findAllFilteredByRole(role, departmentId, userId, pageable);
     }
 
     public List<Employee> getAll() {

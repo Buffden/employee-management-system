@@ -8,23 +8,31 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+
 import com.ems.employee_management_system.constants.Constants;
 import com.ems.employee_management_system.models.Location;
 import com.ems.employee_management_system.repositories.LocationRepository;
+import com.ems.employee_management_system.security.SecurityService;
 
 @Service
 public class LocationService {
     private static final Logger logger = LoggerFactory.getLogger(LocationService.class);
     
     private final LocationRepository locationRepository;
+    private final SecurityService securityService;
 
-    public LocationService(LocationRepository locationRepository) {
+    public LocationService(LocationRepository locationRepository, SecurityService securityService) {
         this.locationRepository = locationRepository;
+        this.securityService = securityService;
     }
 
-    public org.springframework.data.domain.Page<Location> getAll(org.springframework.data.domain.Pageable pageable) {
+    public Page<Location> getAll(Pageable pageable) {
         logger.debug("Fetching locations with pagination: page={}, size={}", pageable.getPageNumber(), pageable.getPageSize());
-        return locationRepository.findAll(pageable);
+        // Location is read-only for all roles, so use filtered method for consistency
+        String role = securityService.getCurrentUserRole();
+        return locationRepository.findAllFilteredByRole(role, pageable);
     }
 
     public List<Location> getAll() {

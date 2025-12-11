@@ -1,29 +1,39 @@
 package com.ems.employee_management_system.services;
 
 import java.util.List;
+import java.util.UUID;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.ems.employee_management_system.models.EmployeeProject;
 import com.ems.employee_management_system.models.EmployeeProject.EmployeeProjectId;
 import com.ems.employee_management_system.repositories.EmployeeProjectRepository;
+import com.ems.employee_management_system.security.SecurityService;
 
 @Service
 public class EmployeeProjectService {
     private static final Logger logger = LoggerFactory.getLogger(EmployeeProjectService.class);
     
     private final EmployeeProjectRepository employeeProjectRepository;
+    private final SecurityService securityService;
 
-    public EmployeeProjectService(EmployeeProjectRepository employeeProjectRepository) {
+    public EmployeeProjectService(EmployeeProjectRepository employeeProjectRepository,
+                                  SecurityService securityService) {
         this.employeeProjectRepository = employeeProjectRepository;
+        this.securityService = securityService;
     }
 
-    public org.springframework.data.domain.Page<EmployeeProject> getAll(org.springframework.data.domain.Pageable pageable) {
+    public Page<EmployeeProject> getAll(Pageable pageable) {
         logger.debug("Fetching employee-project assignments with pagination: page={}, size={}", pageable.getPageNumber(), pageable.getPageSize());
-        return employeeProjectRepository.findAll(pageable);
+        String role = securityService.getCurrentUserRole();
+        UUID departmentId = securityService.getCurrentUserDepartmentId();
+        UUID userId = securityService.getCurrentUserEmployeeId();
+        return employeeProjectRepository.findAllFilteredByRole(role, departmentId, userId, pageable);
     }
 
     public List<EmployeeProject> getAll() {

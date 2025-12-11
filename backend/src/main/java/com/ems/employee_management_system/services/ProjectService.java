@@ -6,26 +6,34 @@ import java.util.UUID;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.ems.employee_management_system.constants.Constants;
 import com.ems.employee_management_system.models.Project;
 import com.ems.employee_management_system.repositories.ProjectRepository;
+import com.ems.employee_management_system.security.SecurityService;
 
 @Service
 public class ProjectService {
     private static final Logger logger = LoggerFactory.getLogger(ProjectService.class);
     
     private final ProjectRepository projectRepository;
+    private final SecurityService securityService;
 
-    public ProjectService(ProjectRepository projectRepository) {
+    public ProjectService(ProjectRepository projectRepository,
+                          SecurityService securityService) {
         this.projectRepository = projectRepository;
+        this.securityService = securityService;
     }
 
     public org.springframework.data.domain.Page<Project> getAll(org.springframework.data.domain.Pageable pageable) {
         logger.debug("Fetching projects with pagination: page={}, size={}", pageable.getPageNumber(), pageable.getPageSize());
-        return projectRepository.findAll(pageable);
+        String role = securityService.getCurrentUserRole();
+        UUID departmentId = securityService.getCurrentUserDepartmentId();
+        return projectRepository.findAllFilteredByRole(role, departmentId, pageable);
     }
 
     public List<Project> getAll() {
