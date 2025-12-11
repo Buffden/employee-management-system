@@ -1,0 +1,62 @@
+@startuml Task Status State Diagram
+skinparam linetype ortho
+skinparam roundcorner 10
+
+title Task Status State Machine
+
+state "Not Started" as NotStarted
+state "In Progress" as InProgress
+state "On Hold" as OnHold
+state "Completed" as Completed
+state "Cancelled" as Cancelled
+
+[*] --> NotStarted : Task created
+
+NotStarted --> InProgress : Start task
+InProgress --> OnHold : Pause task
+OnHold --> InProgress : Resume task
+InProgress --> Completed : Complete task
+InProgress --> Cancelled : Cancel task
+OnHold --> Cancelled : Cancel task
+NotStarted --> Cancelled : Cancel task
+
+Completed --> [*] : Task finished
+Cancelled --> [*] : Task removed
+
+note right of NotStarted
+  **Initial State:**
+  - Task created
+  - Not yet started
+  - Can be assigned
+end note
+
+note right of InProgress
+  **Active State:**
+  - Task in work
+  - Can be paused
+  - Can be completed
+end note
+
+note right of OnHold
+  **Paused State:**
+  - Task temporarily stopped
+  - Can be resumed
+  - Can be cancelled
+end note
+
+note right of Completed
+  **Final State:**
+  - Task finished
+  - completed_date set
+  - Cannot be changed
+end note
+
+note right of Cancelled
+  **Final State:**
+  - Task cancelled
+  - Cannot be resumed
+  - Cannot be completed
+end note
+
+@enduml
+

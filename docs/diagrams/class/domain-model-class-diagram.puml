@@ -1,0 +1,87 @@
+@startuml Domain Model - Entity Relationships
+skinparam classAttributeIconSize 0
+skinparam linetype ortho
+skinparam roundcorner 10
+
+title Employee Management System - Domain Model Class Diagram
+
+package "Domain Entities" #LightBlue {
+class Location {
+    - id: UUID
+    - name: String
+    - address: String
+    - city: String
+    - state: String
+    - country: String
+    - postalCode: String
+}
+
+class Employee {
+    - id: UUID
+    - firstName: String
+    - lastName: String
+    - email: String
+    - phone: String
+    - address: String
+    - designation: String
+    - salary: Double
+    - joiningDate: LocalDate
+    - performanceRating: Double
+    - workLocation: String
+    - experienceYears: Integer
+}
+
+class Department {
+    - id: UUID
+    - name: String
+    - description: String
+    - budget: Double
+    - budgetUtilization: Double
+    - performanceMetric: Double
+    - createdAt: LocalDate
+    - locationName: String
+}
+
+class Project {
+    - id: UUID
+    - name: String
+    - description: String
+    - startDate: LocalDate
+    - endDate: LocalDate
+    - status: String
+    - budget: Double
+}
+
+class Task {
+    - id: UUID
+    - name: String
+    - description: String
+    - status: String
+    - priority: String
+    - startDate: LocalDate
+    - dueDate: LocalDate
+    - completedDate: LocalDate
+}
+
+class EmployeeProject {
+    - id: UUID
+    - role: String
+    - startDate: LocalDate
+    - endDate: LocalDate
+}
+}
+
+' Relationships
+Employee "1" --> "1" Department : department
+Employee "1" --> "1" Location : location
+Employee "1" --> "0..1" Employee : manager
+Department "1" --> "0..1" Location : location
+Department "1" --> "0..1" Employee : departmentHead
+Project "1" --> "1" Department : department
+Project "1" --> "0..1" Employee : projectManager
+Task "1" --> "1" Project : project
+Task "1" --> "0..1" Employee : assignedTo
+Employee "1" --> "*" EmployeeProject : projects
+Project "1" --> "*" EmployeeProject : employees
+
+@enduml

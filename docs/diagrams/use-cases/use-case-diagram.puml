@@ -1,0 +1,130 @@
+@startuml Use Case Diagram - Employee Management System
+skinparam linetype ortho
+skinparam usecase {
+    BackgroundColor #E8F4F8
+    BorderColor #2E7D9A
+}
+skinparam actor {
+    BackgroundColor #FFFFFF
+    BorderColor #2E7D9A
+}
+
+title Use Case Diagram - Employee Management System
+
+left to right direction
+
+actor "System Administrator" as Admin
+actor "HR Manager" as HR
+actor "Department Manager" as Manager
+actor "Employee" as Emp
+
+rectangle "Employee Management System" {
+    usecase "Create Employee" as UC_EM_001
+    usecase "View Employee List" as UC_EM_002
+    usecase "View Employee Details" as UC_EM_003
+    usecase "Update Employee" as UC_EM_004
+    usecase "Delete Employee" as UC_EM_005
+    usecase "Assign Manager" as UC_EM_006
+    
+    usecase "Create Department" as UC_DM_001
+    usecase "View Department List" as UC_DM_002
+    usecase "Update Department" as UC_DM_003
+    usecase "Delete Department" as UC_DM_004
+    
+    usecase "Create Project" as UC_PM_001
+    usecase "View Project List" as UC_PM_002
+    usecase "Assign Employee to Project" as UC_PM_003
+    
+    usecase "Create Task" as UC_TM_001
+    usecase "Update Task Status" as UC_TM_002
+    
+    usecase "View Dashboard Metrics" as UC_DB_001
+    usecase "View Employee Growth Chart" as UC_DB_002
+    
+    usecase "Login" as UC_AU_001
+    usecase "Logout" as UC_AU_002
+    
+    usecase "Search Employees" as UC_SR_001
+    usecase "Search Departments" as UC_SR_002
+}
+
+' System Administrator - Full access
+Admin --> UC_EM_001
+Admin --> UC_EM_002
+Admin --> UC_EM_003
+Admin --> UC_EM_004
+Admin --> UC_EM_005
+Admin --> UC_EM_006
+Admin --> UC_DM_001
+Admin --> UC_DM_002
+Admin --> UC_DM_003
+Admin --> UC_DM_004
+Admin --> UC_PM_001
+Admin --> UC_PM_002
+Admin --> UC_PM_003
+Admin --> UC_TM_001
+Admin --> UC_TM_002
+Admin --> UC_DB_001
+Admin --> UC_DB_002
+Admin --> UC_AU_001
+Admin --> UC_AU_002
+Admin --> UC_SR_001
+Admin --> UC_SR_002
+
+' HR Manager - Employee and Department management
+HR --> UC_EM_001
+HR --> UC_EM_002
+HR --> UC_EM_003
+HR --> UC_EM_004
+HR --> UC_EM_005
+HR --> UC_EM_006
+HR --> UC_DM_001
+HR --> UC_DM_002
+HR --> UC_DM_003
+HR --> UC_DB_001
+HR --> UC_DB_002
+HR --> UC_AU_001
+HR --> UC_AU_002
+HR --> UC_SR_001
+HR --> UC_SR_002
+
+' Department Manager - Team and project management
+Manager --> UC_EM_002
+Manager --> UC_EM_003
+Manager --> UC_PM_001
+Manager --> UC_PM_002
+Manager --> UC_PM_003
+Manager --> UC_TM_001
+Manager --> UC_TM_002
+Manager --> UC_DB_001
+Manager --> UC_AU_001
+Manager --> UC_AU_002
+
+' Employee - View own data
+Emp --> UC_EM_003
+Emp --> UC_TM_002
+Emp --> UC_AU_001
+Emp --> UC_AU_002
+
+note right of Admin
+  Full system access:
+  All use cases
+end note
+
+note right of HR
+  Employee & Department
+  management focus
+end note
+
+note right of Manager
+  Team & Project
+  management focus
+end note
+
+note right of Emp
+  Limited access:
+  Own profile & tasks
+end note
+
+@enduml
+

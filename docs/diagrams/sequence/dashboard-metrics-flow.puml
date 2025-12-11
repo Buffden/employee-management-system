@@ -1,0 +1,95 @@
+@startuml Dashboard Metrics - Sequence Diagram
+skinparam linetype ortho
+skinparam sequenceArrowThickness 2
+skinparam roundcorner 20
+skinparam maxmessagesize 60
+
+title Dashboard Metrics Calculation - Sequence Diagram
+
+actor "HR Manager" as User
+participant "Angular Frontend" as Frontend
+participant "Dashboard Component" as Dashboard
+participant "Dashboard Service" as Service
+participant "Nginx Gateway" as Gateway
+participant "Dashboard Controller" as Controller
+participant "Dashboard Facade Service" as Facade
+participant "Metric Factory" as Factory
+participant "Total Employees Metric" as TotalMetric
+participant "Average Salary Metric" as AvgMetric
+participant "Department Distribution Metric" as DeptMetric
+participant "Employee Repository" as EmpRepo
+participant "Department Repository" as DeptRepo
+database "PostgreSQL" as DB
+
+User -> Dashboard: 1. Navigate to Dashboard
+Dashboard -> Service: 2. loadMetrics()
+Service -> Gateway: 3. GET /api/dashboard/metrics
+Gateway -> Controller: 4. Forward request
+
+Controller -> Facade: 5. getAllMetrics()
+
+Facade -> Factory: 6. getMetric("totalEmployees")
+Factory --> Facade: 7. TotalEmployeesMetric
+
+Facade -> TotalMetric: 8. calculate()
+TotalMetric -> EmpRepo: 9. count()
+EmpRepo -> DB: 10. SELECT COUNT(*) FROM employee
+DB --> EmpRepo: 11. Count result
+EmpRepo --> TotalMetric: 12. Long count
+TotalMetric --> Facade: 13. MetricResult("totalEmployees", count)
+
+Facade -> Factory: 14. getMetric("averageSalary")
+Factory --> Facade: 15. AverageSalaryMetric
+
+Facade -> AvgMetric: 16. calculate()
+AvgMetric -> EmpRepo: 17. findAverageSalary()
+EmpRepo -> DB: 18. SELECT AVG(salary) FROM employee
+DB --> EmpRepo: 19. Average salary
+EmpRepo --> AvgMetric: 20. Double average
+AvgMetric --> Facade: 21. MetricResult("averageSalary", avg)
+
+Facade -> Factory: 22. getMetric("departmentDistribution")
+Factory --> Facade: 23. DepartmentDistributionMetric
+
+Facade -> DeptMetric: 24. calculate()
+DeptMetric -> DeptRepo: 25. findAll()
+DeptRepo -> DB: 26. SELECT * FROM department
+DB --> DeptRepo: 27. All departments
+DeptRepo --> DeptMetric: 28. List<Department>
+
+loop For each department
+    DeptMetric -> EmpRepo: 29. countByDepartment(deptId)
+    EmpRepo -> DB: 30. SELECT COUNT(*) WHERE dept_id = ?
+    DB --> EmpRepo: 31. Employee count
+    EmpRepo --> DeptMetric: 32. Count
+end
+
+DeptMetric --> Facade: 33. MetricResult("distribution", data)
+
+Facade -> Facade: 34. Aggregate all metrics
+Facade --> Controller: 35. DashboardMetricsDTO
+Controller --> Gateway: 36. HTTP 200 OK
+Gateway --> Service: 37. Response with metrics
+Service --> Dashboard: 38. Metrics data
+Dashboard -> User: 39. Display metrics and charts
+
+note right of Facade
+  Facade Pattern:
+  Simplifies access to
+  multiple metric services
+end note
+
+note right of Factory
+  Factory Method Pattern:
+  Creates metric service
+  implementations
+end note
+
+note right of TotalMetric
+  Strategy Pattern:
+  Different calculation
+  strategies
+end note
+
+@enduml
+

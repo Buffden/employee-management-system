@@ -1,0 +1,85 @@
+@startuml Employee Create - Sequence Diagram
+skinparam linetype ortho
+skinparam sequenceArrowThickness 2
+skinparam roundcorner 20
+skinparam maxmessagesize 60
+
+title Employee Create - Sequence Diagram
+
+actor "HR Manager" as User
+participant "Angular Frontend" as Frontend
+participant "Nginx Gateway" as Gateway
+participant "Employee Controller" as Controller
+participant "Employee Service" as Service
+participant "Validation Service" as Validation
+participant "Employee Mapper" as Mapper
+participant "Employee Repository" as Repository
+participant "Department Repository" as DeptRepo
+participant "Location Repository" as LocRepo
+database "PostgreSQL" as DB
+
+User -> Frontend: 1. Fill employee form (name, email, salary, etc.)
+User -> Frontend: 2. Select department & location
+User -> Frontend: 3. Optionally select manager
+User -> Frontend: 4. Click "Create Employee"
+
+Frontend -> Gateway: 5. POST /api/employees (EmployeeRequestDTO)
+Gateway -> Controller: 6. Forward request
+
+Controller -> Service: 7. create(EmployeeRequestDTO)
+
+alt Manager is provided
+    Service -> Validation: 8. validateManagerInDepartment(managerId, departmentId)
+    Validation -> DeptRepo: 9. Check manager's department
+    DeptRepo -> DB: 10. Query employee department
+    DB --> DeptRepo: 11. Department data
+    DeptRepo --> Validation: 12. Department info
+    Validation --> Service: 13. Validation result
+end
+
+Service -> DeptRepo: 14. getById(departmentId)
+DeptRepo -> DB: 15. SELECT department
+DB --> DeptRepo: 16. Department entity
+DeptRepo --> Service: 17. Department
+
+Service -> LocRepo: 18. getById(locationId)
+LocRepo -> DB: 19. SELECT location
+DB --> LocRepo: 20. Location entity
+LocRepo --> Service: 21. Location
+
+alt Manager provided
+    Service -> Repository: 22. getById(managerId)
+    Repository -> DB: 23. SELECT employee
+    DB --> Repository: 24. Manager entity
+    Repository --> Service: 25. Manager
+end
+
+Service -> Mapper: 26. toEntity(DTO, dept, loc, mgr)
+Mapper --> Service: 27. Employee entity
+
+Service -> Repository: 28. save(Employee)
+Repository -> DB: 29. INSERT employee
+DB --> Repository: 30. Saved employee
+Repository --> Service: 31. Employee
+
+Service -> Mapper: 32. toResponseDTO(Employee)
+Mapper --> Service: 33. EmployeeResponseDTO
+
+Service --> Controller: 34. EmployeeResponseDTO
+Controller --> Gateway: 35. HTTP 201 Created
+Gateway --> Frontend: 36. Response with employee data
+Frontend -> User: 37. Display success message and employee details
+
+note right of Validation
+  Business Rule:
+  Manager must be in
+  same department
+end note
+
+note right of Mapper
+  Adapter Pattern:
+  Converts DTO ↔ Entity
+end note
+
+@enduml
+

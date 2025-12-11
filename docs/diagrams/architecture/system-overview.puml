@@ -1,0 +1,58 @@
+@startuml System Overview
+!define RECTANGLE class
+skinparam classAttributeIconSize 0
+skinparam linetype ortho
+skinparam backgroundColor #FFFFFF
+
+title Employee Management System - Architecture Overview
+
+package "Frontend Layer" #LightBlue {
+  [Angular Application] as Frontend
+  [Angular Material UI] as UI
+}
+
+package "API Gateway" #LightGreen {
+  [Nginx Gateway] as Gateway
+}
+
+package "Backend Layer" #LightYellow {
+  [Spring Boot Application] as Backend
+  package "Controller Layer" #LightBlue {
+    [Employee Controller] as EmpCtrl
+    [Department Controller] as DeptCtrl
+    [Dashboard Controller] as DashCtrl
+  }
+  package "Service Layer" #LightGreen {
+    [Employee Service] as EmpSvc
+    [Department Service] as DeptSvc
+    [Dashboard Service] as DashSvc
+  }
+  package "Repository Layer" #LightCoral {
+    [Employee Repository] as EmpRepo
+    [Department Repository] as DeptRepo
+  }
+}
+
+package "Database Layer" #LightCoral {
+  database "PostgreSQL Database" as DB
+}
+
+Frontend --> Gateway : HTTPS
+Gateway --> Backend : /api/*
+Gateway --> Frontend : /*
+
+Backend --> EmpCtrl
+Backend --> DeptCtrl
+Backend --> DashCtrl
+
+EmpCtrl --> EmpSvc
+DeptCtrl --> DeptSvc
+DashCtrl --> DashSvc
+
+EmpSvc --> EmpRepo
+DeptSvc --> DeptRepo
+
+EmpRepo --> DB
+DeptRepo --> DB
+
+@enduml

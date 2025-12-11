@@ -1,0 +1,59 @@
+@startuml Project Creation Activity
+skinparam linetype ortho
+skinparam roundcorner 10
+
+title Project Creation - Activity Diagram
+
+start
+
+:Department Manager creates project;
+:Enter project details (name, description);
+:Set start date;
+:Set budget (optional);
+:Assign to department;
+
+if (Project manager assigned?) then (yes)
+  :Assign project manager;
+  if (Manager in department?) then (yes)
+    :Continue;
+  else (no)
+    :Display error;
+    stop
+  endif
+else (no)
+  :Continue;
+endif
+
+:Validate project name (unique);
+if (Name unique?) then (yes)
+  :Save project;
+  :Set status: Planning;
+  :Generate project ID;
+else (no)
+  :Display error: Name exists;
+  stop
+endif
+
+partition "Project Setup" {
+  :Create project folder;
+  :Set up project structure;
+  :Assign initial team members;
+  :Create initial tasks;
+}
+
+:Update status: Active;
+:Notify team members;
+:Complete project creation;
+
+stop
+
+note right
+  **Business Rules:**
+  - Project name must be unique
+  - Project manager must be in same department
+  - Department must exist
+  - Start date is required
+end note
+
+@enduml
+

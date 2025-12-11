@@ -1,0 +1,68 @@
+@startuml Docker Architecture
+skinparam linetype ortho
+skinparam roundcorner 10
+
+title Employee Management System - Docker Architecture
+
+node "Docker Host" #LightBlue {
+    node "Docker Network: ems-network" #LightYellow {
+        component [PostgreSQL Container\nems-postgres] as Postgres
+        component [Spring Boot API Container\nems-backend] as Backend
+        component [Nginx Gateway Container\nems-gateway] as Gateway
+    }
+}
+
+cloud "External" #LightGreen {
+    [User Browser] as User
+    [Docker Hub] as DockerHub
+}
+
+database "PostgreSQL Volume\npostgres_data" as DBVolume
+
+User --> Gateway : HTTP (Port 80)
+Gateway --> Backend : HTTP (Internal)
+Backend --> Postgres : JDBC (Internal)
+Postgres --> DBVolume : Data persistence
+
+DockerHub --> Gateway : Pull image
+DockerHub --> Backend : Pull image
+DockerHub --> Postgres : Pull image
+
+note right of Gateway
+  **Container:** ems-gateway
+  **Port:** 80:80
+  **Purpose:** API Gateway, routing
+  **Features:**
+  - Routes /api/* to backend
+  - Serves static frontend files
+  - Health check endpoint
+end note
+
+note right of Backend
+  **Container:** ems-backend
+  **Port:** Internal only
+  **Purpose:** REST API
+  **Features:**
+  - Employee CRUD
+  - Department CRUD
+  - Dashboard metrics
+  - Health check: /api/departments
+end note
+
+note right of Postgres
+  **Container:** ems-postgres
+  **Image:** postgres:15-alpine
+  **Port:** Internal only (5432)
+  **Volume:** postgres_data
+  **Health Check:** pg_isready
+end note
+
+note right of DBVolume
+  **Volume:** postgres_data
+  **Type:** Local volume
+  **Purpose:** Persistent data storage
+  **Location:** /var/lib/postgresql/data
+end note
+
+@enduml
+

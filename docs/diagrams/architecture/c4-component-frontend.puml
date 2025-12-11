@@ -1,0 +1,98 @@
+@startuml Component Diagram
+skinparam componentStyle rectangle
+skinparam linetype ortho
+skinparam backgroundColor #FFFFFF
+
+title Angular Frontend Application - Component Diagram
+
+package "Angular Web Application Container" #LightYellow {
+  
+  package "Feature Modules" #LightBlue {
+    [Employee Module] as EmpModule
+    [Department Module] as DeptModule
+    [Project Module] as ProjModule
+    [Dashboard Module] as DashModule
+  }
+  
+  package "Employee Components" #LightGreen {
+    [Employee List] as EmpList
+    [Employee Form] as EmpForm
+    [Employee Detail] as EmpDetail
+  }
+  
+  package "Department Components" #LightCoral {
+    [Department List] as DeptList
+  }
+  
+  package "Dashboard Components" #LightGray {
+    [Dashboard] as Dashboard
+  }
+  
+  package "Shared Components" #LightYellow {
+    [Generic Table] as Table
+    [Overlay Dialog] as Overlay
+  }
+  
+  package "Services" #LightBlue {
+    [Employee Service] as EmpService
+    [Department Service] as DeptService
+    [Project Service] as ProjService
+    [API Service] as ApiService
+    [Auth Service] as AuthService
+  }
+  
+  package "State Services" #LightGreen {
+    [Table State Service] as TableState
+    [Overlay Service] as OverlayService
+  }
+}
+
+package "External Dependencies" #LightCoral {
+  [Backend API] as API
+}
+
+EmpModule --> EmpList : uses
+EmpModule --> EmpForm : uses
+EmpModule --> EmpDetail : uses
+DeptModule --> DeptList : uses
+DashModule --> Dashboard : uses
+
+EmpList --> Table : uses
+EmpDetail --> Overlay : uses
+DeptList --> Table : uses
+
+EmpList --> EmpService : uses
+EmpForm --> EmpService : uses
+DeptList --> DeptService : uses
+Dashboard --> EmpService : uses
+Dashboard --> DeptService : uses
+
+EmpService --> ApiService : uses
+DeptService --> ApiService : uses
+ProjService --> ApiService : uses
+
+Table --> TableState : uses
+Overlay --> OverlayService : uses
+
+ApiService --> API : HTTPS/REST
+AuthService --> API : HTTPS/REST
+
+note right of Table
+  **Purpose:** Reusable table component
+  **Features:**
+  - Sorting
+  - Filtering
+  - Pagination
+end note
+
+note right of TableState
+  **Pattern:** Observer
+  **Purpose:** Manages table state
+end note
+
+note right of OverlayService
+  **Pattern:** Observer
+  **Purpose:** Manages overlay state
+end note
+
+@enduml

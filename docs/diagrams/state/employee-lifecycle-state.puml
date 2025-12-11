@@ -1,0 +1,52 @@
+@startuml Employee Lifecycle State Diagram
+skinparam linetype ortho
+skinparam roundcorner 10
+
+title Employee Lifecycle State Machine
+
+state "Onboarding" as Onboarding
+state "Active" as Active
+state "On Leave" as OnLeave
+state "Terminated" as Terminated
+
+[*] --> Onboarding : Employee created
+
+Onboarding --> Active : Onboarding complete
+Active --> OnLeave : Start leave
+OnLeave --> Active : Return from leave
+Active --> Terminated : Terminate employee
+OnLeave --> Terminated : Terminate employee
+Onboarding --> Terminated : Terminate employee
+
+Terminated --> [*] : Employee removed
+
+note right of Onboarding
+  **Initial State:**
+  - Employee record created
+  - Onboarding process
+  - Can assign department
+end note
+
+note right of Active
+  **Active State:**
+  - Employee working
+  - Can be assigned tasks
+  - Can take leave
+end note
+
+note right of OnLeave
+  **Leave State:**
+  - Employee on leave
+  - Can return to active
+  - Can be terminated
+end note
+
+note right of Terminated
+  **Final State:**
+  - Employee terminated
+  - Cannot be reactivated
+  - Record archived
+end note
+
+@enduml
+

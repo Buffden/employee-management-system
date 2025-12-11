@@ -1,0 +1,86 @@
+@startuml CI/CD Pipeline
+skinparam linetype ortho
+skinparam roundcorner 10
+
+title Employee Management System - CI/CD Pipeline
+
+node "Source Control" #LightBlue {
+    [GitHub Repository] as GitHub
+}
+
+node "CI Pipeline (GitHub Actions)" #LightGreen {
+    [Checkout Code] as Checkout
+    [Backend Tests] as BackendTest
+    [Frontend Tests] as FrontendTest
+    [Docker Build] as DockerBuild
+    [Code Quality Checks] as Quality
+}
+
+node "CD Pipeline (Jenkins)" #LightYellow {
+    [Build Backend] as BuildBackend
+    [Build Frontend] as BuildFrontend
+    [Run Integration Tests] as IntegrationTest
+    [Build Docker Images] as BuildImages
+    [Push to Docker Hub] as PushDocker
+    [Deploy to Environment] as Deploy
+}
+
+cloud "External Services" #LightCoral {
+    [Docker Hub] as DockerHub
+    [AWS Cloud] as AWS
+}
+
+database "Test Database" as TestDB
+
+GitHub --> Checkout : Trigger on PR/Push
+Checkout --> BackendTest : Run Maven tests
+Checkout --> FrontendTest : Run npm tests
+BackendTest --> TestDB : Connect to test DB
+BackendTest --> Quality : Code quality checks
+FrontendTest --> Quality : Linting
+Quality --> DockerBuild : Build verification
+DockerBuild --> BuildBackend : Pass CI
+DockerBuild --> BuildFrontend : Pass CI
+
+BuildBackend --> IntegrationTest : Build success
+BuildFrontend --> IntegrationTest : Build success
+IntegrationTest --> BuildImages : Tests pass
+BuildImages --> PushDocker : Images built
+PushDocker --> DockerHub : Push images
+DockerHub --> Deploy : Images available
+Deploy --> AWS : Deploy containers
+
+note right of BackendTest
+  **Steps:**
+  - Set up JDK 17
+  - Run Maven tests
+  - Build JAR
+  - Code quality checks
+end note
+
+note right of FrontendTest
+  **Steps:**
+  - Set up Node.js 18
+  - Install dependencies
+  - Run linter
+  - Run tests
+  - Build application
+end note
+
+note right of BuildImages
+  **Docker Images:**
+  - ems-backend:latest
+  - ems-frontend:latest
+  - ems-gateway:latest
+end note
+
+note right of Deploy
+  **Deployment:**
+  - Pull images from Docker Hub
+  - Start containers
+  - Health checks
+  - Rolling updates
+end note
+
+@enduml
+

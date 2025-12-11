@@ -1,0 +1,77 @@
+@startuml Container Diagram
+!define RECTANGLE class
+skinparam classAttributeIconSize 0
+skinparam linetype ortho
+skinparam backgroundColor #FFFFFF
+
+title Employee Management System - Container Diagram
+
+package "External Systems" #LightBlue {
+  [GitHub] as GitHub
+  [Docker Hub] as DockerHub
+  [AWS Cloud] as AWS
+}
+
+actor "User" as User
+
+package "Employee Management System" #LightYellow {
+  [Angular Web Application] as Web
+  [Nginx Gateway] as Gateway
+  [Spring Boot API] as API
+  database "PostgreSQL Database" as DB
+  
+  note right of Web
+    **Technology:** Angular 19, TypeScript
+    **Port:** 80
+    **Purpose:** User interface
+    **Features:**
+    - Employee Management
+    - Department Management
+    - Dashboard
+    - Project Management
+  end note
+  
+  note right of Gateway
+    **Technology:** Nginx
+    **Purpose:** API Gateway, routing
+    **Features:**
+    - Request routing
+    - API proxying
+    - Static file serving
+  end note
+  
+  note right of API
+    **Technology:** Java 17, Spring Boot 3.4
+    **Port:** 8080
+    **Purpose:** REST API
+    **Features:**
+    - Employee CRUD
+    - Department CRUD
+    - Dashboard metrics
+    - Project/Task management
+  end note
+  
+  note right of DB
+    **Technology:** PostgreSQL 15
+    **Port:** 5432
+    **Purpose:** Data storage
+    **Features:**
+    - Employee data
+    - Department data
+    - Project/Task data
+  end note
+}
+
+User --> Web : Uses
+Web --> Gateway : Served by
+Gateway --> API : Proxies API requests
+API --> DB : Reads/Writes
+Gateway --> Web : Serves static files
+
+GitHub --> Web : CI/CD
+GitHub --> API : CI/CD
+API --> DockerHub : Pushes images
+Web --> DockerHub : Pushes images
+DockerHub --> AWS : Pulls for deployment
+
+@enduml

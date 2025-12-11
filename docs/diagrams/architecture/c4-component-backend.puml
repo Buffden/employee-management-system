@@ -1,0 +1,91 @@
+@startuml Component Diagram
+skinparam componentStyle rectangle
+skinparam linetype ortho
+skinparam backgroundColor #FFFFFF
+
+title Spring Boot Backend API - Component Diagram
+
+package "Spring Boot API Container" #LightYellow {
+  
+  package "Controller Layer" #LightBlue {
+    [Employee Controller] as EmpCtrl
+    [Department Controller] as DeptCtrl
+    [Project Controller] as ProjCtrl
+    [Task Controller] as TaskCtrl
+    [Dashboard Controller] as DashCtrl
+  }
+  
+  package "Service Layer" #LightGreen {
+    [Employee Service] as EmpSvc
+    [Department Service] as DeptSvc
+    [Project Service] as ProjSvc
+    [Task Service] as TaskSvc
+    [Dashboard Facade Service] as DashSvc
+  }
+  
+  package "Repository Layer" #LightCoral {
+    [Employee Repository] as EmpRepo
+    [Department Repository] as DeptRepo
+    [Project Repository] as ProjRepo
+    [Task Repository] as TaskRepo
+  }
+  
+  package "Mapper Layer" #LightGray {
+    [Employee Mapper] as EmpMapper
+    [Department Mapper] as DeptMapper
+    [Project Mapper] as ProjMapper
+    [Task Mapper] as TaskMapper
+  }
+  
+  package "Metric Services" #LightYellow {
+    [Metric Factory] as MetricFactory
+    [Total Employees Metric] as TotalMetric
+    [Average Salary Metric] as AvgMetric
+  }
+}
+
+database "PostgreSQL Database" as DB
+
+EmpCtrl --> EmpSvc : uses
+DeptCtrl --> DeptSvc : uses
+ProjCtrl --> ProjSvc : uses
+TaskCtrl --> TaskSvc : uses
+DashCtrl --> DashSvc : uses
+
+EmpSvc --> EmpRepo : uses
+DeptSvc --> DeptRepo : uses
+ProjSvc --> ProjRepo : uses
+TaskSvc --> TaskRepo : uses
+
+EmpSvc --> EmpMapper : uses
+DeptSvc --> DeptMapper : uses
+ProjSvc --> ProjMapper : uses
+TaskSvc --> TaskMapper : uses
+
+DashSvc --> MetricFactory : uses
+MetricFactory --> TotalMetric : creates
+MetricFactory --> AvgMetric : creates
+
+EmpRepo --> DB : reads/writes
+DeptRepo --> DB : reads/writes
+ProjRepo --> DB : reads/writes
+TaskRepo --> DB : reads/writes
+
+note right of DashSvc
+  **Pattern:** Facade
+  **Purpose:** Simplifies access to
+  multiple metric services
+end note
+
+note right of MetricFactory
+  **Pattern:** Factory Method
+  **Purpose:** Creates metric services
+end note
+
+note right of TotalMetric
+  **Pattern:** Strategy
+  **Purpose:** Different calculation
+  strategies
+end note
+
+@enduml
