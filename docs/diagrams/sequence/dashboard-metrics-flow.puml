@@ -23,55 +23,138 @@ database "PostgreSQL" as DB
 
 User -> Dashboard: 1. Navigate to Dashboard
 Dashboard -> Service: 2. loadMetrics()
-Service -> Gateway: 3. GET /api/dashboard/metrics
-Gateway -> Controller: 4. Forward request
+Service -> Gateway: 3. GET /api/dashboard/metrics\nAuthorization: Bearer {token}
+Gateway -> Gateway: 4. Forward to Backend
 
-Controller -> Facade: 5. getAllMetrics()
+participant "JwtAuthenticationFilter" as JwtFilter
+participant "SecurityService" as SecurityService
 
-Facade -> Factory: 6. getMetric("totalEmployees")
-Factory --> Facade: 7. TotalEmployeesMetric
+Gateway -> JwtFilter: 5. Intercept request
+JwtFilter -> JwtFilter: 6. Validate JWT token
+JwtFilter -> JwtFilter: 7. Extract role from token
+JwtFilter -> Controller: 8. Forward request
 
-Facade -> TotalMetric: 8. calculate()
-TotalMetric -> EmpRepo: 9. count()
-EmpRepo -> DB: 10. SELECT COUNT(*) FROM employee
-DB --> EmpRepo: 11. Count result
-EmpRepo --> TotalMetric: 12. Long count
-TotalMetric --> Facade: 13. MetricResult("totalEmployees", count)
+Controller -> Controller: 9. Check @PreAuthorize\n(hasAnyRole('SYSTEM_ADMIN', 'HR_MANAGER', 'DEPARTMENT_MANAGER', 'EMPLOYEE'))
+Controller -> SecurityService: 10. getCurrentUserRole()\ngetCurrentUserDepartmentId()\ngetCurrentUserId()
+SecurityService --> Controller: 11. Role, DepartmentId, UserId
 
-Facade -> Factory: 14. getMetric("averageSalary")
-Factory --> Facade: 15. AverageSalaryMetric
+Controller -> Facade: 12. getAllMetrics(role, departmentId, userId)
 
-Facade -> AvgMetric: 16. calculate()
-AvgMetric -> EmpRepo: 17. findAverageSalary()
-EmpRepo -> DB: 18. SELECT AVG(salary) FROM employee
-DB --> EmpRepo: 19. Average salary
-EmpRepo --> AvgMetric: 20. Double average
-AvgMetric --> Facade: 21. MetricResult("averageSalary", avg)
-
-Facade -> Factory: 22. getMetric("departmentDistribution")
-Factory --> Facade: 23. DepartmentDistributionMetric
-
-Facade -> DeptMetric: 24. calculate()
-DeptMetric -> DeptRepo: 25. findAll()
-DeptRepo -> DB: 26. SELECT * FROM department
-DB --> DeptRepo: 27. All departments
-DeptRepo --> DeptMetric: 28. List<Department>
-
-loop For each department
-    DeptMetric -> EmpRepo: 29. countByDepartment(deptId)
-    EmpRepo -> DB: 30. SELECT COUNT(*) WHERE dept_id = ?
-    DB --> EmpRepo: 31. Employee count
-    EmpRepo --> DeptMetric: 32. Count
+alt Role is SYSTEM_ADMIN
+    Facade -> Factory: 13. getMetric("totalEmployees")
+    Factory --> Facade: 14. TotalEmployeesMetric
+    Facade -> TotalMetric: 15. calculate()
+    TotalMetric -> EmpRepo: 16. count()
+    EmpRepo -> DB: 17. SELECT COUNT(*) FROM employee
+    DB --> EmpRepo: 18. Count result (all employees)
+    EmpRepo --> TotalMetric: 19. Long count
+    TotalMetric --> Facade: 20. MetricResult("totalEmployees", count)
+    
+else Role is HR_MANAGER
+    Facade -> Factory: 13. getMetric("totalEmployees")
+    Factory --> Facade: 14. TotalEmployeesMetric
+    Facade -> TotalMetric: 15. calculate()
+    TotalMetric -> EmpRepo: 16. count()
+    EmpRepo -> DB: 17. SELECT COUNT(*) FROM employee
+    DB --> EmpRepo: 18. Count result (all employees)
+    EmpRepo --> TotalMetric: 19. Long count
+    TotalMetric --> Facade: 20. MetricResult("totalEmployees", count)
+    
+else Role is DEPARTMENT_MANAGER
+    Facade -> Factory: 13. getMetric("totalEmployees")
+    Factory --> Facade: 14. TotalEmployeesMetric
+    Facade -> TotalMetric: 15. calculate(departmentId)
+    TotalMetric -> EmpRepo: 16. countByDepartment(departmentId)
+    EmpRepo -> DB: 17. SELECT COUNT(*) FROM employee\nWHERE department_id = ?
+    DB --> EmpRepo: 18. Count result (department only)
+    EmpRepo --> TotalMetric: 19. Long count
+    TotalMetric --> Facade: 20. MetricResult("totalEmployees", count)
+    
+else Role is EMPLOYEE
+    Facade -> Factory: 13. getMetric("ownMetrics")
+    Factory --> Facade: 14. OwnMetricsMetric
+    Facade -> TotalMetric: 15. calculate(userId)
+    TotalMetric -> EmpRepo: 16. getById(userId)
+    EmpRepo -> DB: 17. SELECT * FROM employee WHERE id = ?
+    DB --> EmpRepo: 18. Own employee record
+    EmpRepo --> TotalMetric: 19. Employee
+    TotalMetric --> Facade: 20. MetricResult("ownMetrics", data)
 end
 
-DeptMetric --> Facade: 33. MetricResult("distribution", data)
+Facade -> Factory: 21. getMetric("averageSalary")
+Factory --> Facade: 22. AverageSalaryMetric
 
-Facade -> Facade: 34. Aggregate all metrics
-Facade --> Controller: 35. DashboardMetricsDTO
-Controller --> Gateway: 36. HTTP 200 OK
-Gateway --> Service: 37. Response with metrics
-Service --> Dashboard: 38. Metrics data
-Dashboard -> User: 39. Display metrics and charts
+alt Role is SYSTEM_ADMIN or HR_MANAGER
+    Facade -> AvgMetric: 23. calculate()
+    AvgMetric -> EmpRepo: 24. findAverageSalary()
+    EmpRepo -> DB: 25. SELECT AVG(salary) FROM employee
+    DB --> EmpRepo: 26. Average salary (all employees)
+    EmpRepo --> AvgMetric: 27. Double average
+    AvgMetric --> Facade: 28. MetricResult("averageSalary", avg)
+else Role is DEPARTMENT_MANAGER
+    Facade -> AvgMetric: 23. calculate(departmentId)
+    AvgMetric -> EmpRepo: 24. findAverageSalaryByDepartment(departmentId)
+    EmpRepo -> DB: 25. SELECT AVG(salary) FROM employee\nWHERE department_id = ?
+    DB --> EmpRepo: 26. Average salary (department only)
+    EmpRepo --> AvgMetric: 27. Double average
+    AvgMetric --> Facade: 28. MetricResult("averageSalary", avg)
+else Role is EMPLOYEE
+    ' Skip average salary for employees
+end
+
+Facade -> Factory: 29. getMetric("departmentDistribution")
+Factory --> Facade: 30. DepartmentDistributionMetric
+
+alt Role is SYSTEM_ADMIN or HR_MANAGER
+    Facade -> DeptMetric: 31. calculate()
+    DeptMetric -> DeptRepo: 32. findAll()
+    DeptRepo -> DB: 33. SELECT * FROM department
+    DB --> DeptRepo: 34. All departments
+    DeptRepo --> DeptMetric: 35. List<Department>
+    
+    loop For each department
+        DeptMetric -> EmpRepo: 36. countByDepartment(deptId)
+        EmpRepo -> DB: 37. SELECT COUNT(*) WHERE dept_id = ?
+        DB --> EmpRepo: 38. Employee count
+        EmpRepo --> DeptMetric: 39. Count
+    end
+    DeptMetric --> Facade: 40. MetricResult("distribution", data)
+else Role is DEPARTMENT_MANAGER
+    Facade -> DeptMetric: 31. calculate(departmentId)
+    DeptMetric -> DeptRepo: 32. getById(departmentId)
+    DeptRepo -> DB: 33. SELECT * FROM department WHERE id = ?
+    DB --> DeptRepo: 34. Own department
+    DeptRepo --> DeptMetric: 35. Department
+    
+    DeptMetric -> EmpRepo: 36. countByDepartment(departmentId)
+    EmpRepo -> DB: 37. SELECT COUNT(*) WHERE dept_id = ?
+    DB --> EmpRepo: 38. Employee count
+    EmpRepo --> DeptMetric: 39. Count
+    DeptMetric --> Facade: 40. MetricResult("distribution", data)
+else Role is EMPLOYEE
+    ' Skip department distribution for employees
+end
+
+Facade -> Facade: 41. Aggregate all metrics
+Facade --> Controller: 42. DashboardMetricsDTO
+Controller --> Gateway: 43. HTTP 200 OK
+Gateway --> Service: 44. Response with metrics
+Service --> Dashboard: 45. Metrics data
+Dashboard -> User: 46. Display metrics and charts
+
+note right of SecurityService
+  **RBAC Filtering:**
+  - SYSTEM_ADMIN: All metrics
+  - HR_MANAGER: All metrics
+  - DEPARTMENT_MANAGER: Department metrics only
+  - EMPLOYEE: Own metrics only
+end note
+
+note right of Facade
+  **Role-Based Metrics:**
+  Metrics filtered by role
+  scope automatically
+end note
 
 note right of Facade
   Facade Pattern:

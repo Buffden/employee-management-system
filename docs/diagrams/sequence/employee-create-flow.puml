@@ -23,10 +23,29 @@ User -> Frontend: 2. Select department & location
 User -> Frontend: 3. Optionally select manager
 User -> Frontend: 4. Click "Create Employee"
 
-Frontend -> Gateway: 5. POST /api/employees (EmployeeRequestDTO)
-Gateway -> Controller: 6. Forward request
+Frontend -> Gateway: 5. POST /api/employees (EmployeeRequestDTO)\nAuthorization: Bearer {token}
+Gateway -> Gateway: 6. Forward to Backend
 
-Controller -> Service: 7. create(EmployeeRequestDTO)
+participant "JwtAuthenticationFilter" as JwtFilter
+participant "SecurityService" as SecurityService
+
+Gateway -> JwtFilter: 7. Intercept request
+JwtFilter -> JwtFilter: 8. Validate JWT token
+JwtFilter -> JwtFilter: 9. Extract role from token
+JwtFilter -> JwtFilter: 10. Set SecurityContext
+JwtFilter -> Controller: 11. Forward request
+
+Controller -> Controller: 12. Check @PreAuthorize\n(hasRole('SYSTEM_ADMIN') or hasRole('HR_MANAGER'))
+
+alt Insufficient permissions
+    Controller --> Gateway: 13. HTTP 403 Forbidden
+    Gateway --> Frontend: 14. Access denied
+    Frontend --> User: 15. Show error message
+else Authorized
+    Controller -> SecurityService: 16. getCurrentUserRole()
+    SecurityService --> Controller: 17. Role (e.g., 'HR_MANAGER')
+    
+    Controller -> Service: 18. create(EmployeeRequestDTO)
 
 alt Manager is provided
     Service -> Validation: 8. validateManagerInDepartment(managerId, departmentId)
@@ -65,15 +84,30 @@ Repository --> Service: 31. Employee
 Service -> Mapper: 32. toResponseDTO(Employee)
 Mapper --> Service: 33. EmployeeResponseDTO
 
-Service --> Controller: 34. EmployeeResponseDTO
-Controller --> Gateway: 35. HTTP 201 Created
-Gateway --> Frontend: 36. Response with employee data
-Frontend -> User: 37. Display success message and employee details
+Service --> Controller: 40. EmployeeResponseDTO
+Controller --> Gateway: 41. HTTP 201 Created
+Gateway --> Frontend: 42. Response with employee data
+Frontend -> User: 43. Display success message and employee details
 
 note right of Validation
   Business Rule:
   Manager must be in
   same department
+end note
+
+note right of JwtFilter
+  **RBAC:**
+  - Validates JWT token
+  - Extracts role (HR_MANAGER/SYSTEM_ADMIN)
+  - Sets SecurityContext
+end note
+
+note right of Controller
+  **Authorization:**
+  @PreAuthorize checks role
+  before method execution
+  Only HR_MANAGER and
+  SYSTEM_ADMIN can create
 end note
 
 note right of Mapper
