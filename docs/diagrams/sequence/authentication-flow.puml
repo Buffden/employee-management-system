@@ -1,0 +1,67 @@
+@startuml Authentication Flow
+skinparam linetype ortho
+skinparam sequenceArrowThickness 2
+skinparam roundcorner 20
+skinparam maxmessagesize 60
+
+title Authentication Flow - Sequence Diagram
+
+actor "User" as User
+participant "Angular Frontend" as Frontend
+participant "Auth Service" as AuthService
+participant "Nginx Gateway" as Gateway
+participant "Auth Controller" as Controller
+participant "User Repository" as UserRepo
+database "PostgreSQL" as DB
+
+== User Login ==
+User -> Frontend: 1. Enter username and password
+Frontend -> Frontend: 2. Validate input (client-side)
+Frontend -> Gateway: 3. POST /api/auth/login\n{username, password}
+Gateway -> Controller: 4. Forward request
+
+Controller -> AuthService: 5. authenticate(username, password)
+AuthService -> UserRepo: 6. findByUsername(username)
+UserRepo -> DB: 7. SELECT * FROM users WHERE username = ?
+DB --> UserRepo: 8. User data
+UserRepo --> AuthService: 9. User entity
+
+AuthService -> AuthService: 10. Verify password (BCrypt)
+AuthService -> AuthService: 11. Generate JWT token
+AuthService --> Controller: 12. AuthResponseDTO\n{token, user}
+
+Controller --> Gateway: 13. HTTP 200 OK
+Gateway --> Frontend: 14. Response with token
+Frontend -> Frontend: 15. Store token in localStorage
+Frontend --> User: 16. Redirect to dashboard
+
+== Token Validation ==
+User -> Frontend: 17. Navigate to protected route
+Frontend -> Frontend: 18. Get token from localStorage
+Frontend -> Gateway: 19. GET /api/employees\nAuthorization: Bearer {token}
+Gateway -> Gateway: 20. Validate JWT token
+Gateway -> Controller: 21. Forward request (if valid)
+Controller --> Gateway: 22. Response
+Gateway --> Frontend: 23. Data
+
+alt Invalid token
+    Gateway --> Frontend: 24. HTTP 401 Unauthorized
+    Frontend --> User: 25. Redirect to login
+end
+
+note right of AuthService
+  **Security:**
+  - Password hashing (BCrypt)
+  - JWT token generation
+  - Token expiration
+end note
+
+note right of Gateway
+  **JWT Validation:**
+  - Verify signature
+  - Check expiration
+  - Extract user info
+end note
+
+@enduml
+

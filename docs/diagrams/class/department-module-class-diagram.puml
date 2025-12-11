@@ -1,0 +1,135 @@
+@startuml Department Module - Complete Class Structure
+skinparam classAttributeIconSize 0
+skinparam linetype ortho
+skinparam roundcorner 10
+
+title Department Module - Complete Class Diagram
+
+package "Domain Layer" #LightBlue {
+    class Department {
+        - id: UUID
+        - name: String
+        - description: String
+        - budget: Double
+        - budgetUtilization: Double
+        - performanceMetric: Double
+        - createdAt: LocalDate
+        - locationName: String
+        --
+        + getId(): UUID
+        + getName(): String
+        + getDescription(): String
+        + getBudget(): Double
+        + getCreatedAt(): LocalDate
+        + getTotalEmployees(): Integer
+    }
+    
+    Department "1" --> "0..1" Location : location
+    Department "1" --> "0..1" Employee : departmentHead
+}
+
+package "DTO Layer" #LightGreen {
+    class DepartmentDTO {
+        - id: UUID
+        - name: String
+        - description: String
+        - locationId: UUID
+        - budget: Double
+        - departmentHeadId: UUID
+        --
+        + builder()
+    }
+    
+    class DepartmentRequestDTO {
+        - name: String
+        - description: String
+        - locationId: UUID
+        - budget: Double
+        - departmentHeadId: UUID
+        --
+        + builder()
+    }
+    
+    class DepartmentResponseDTO {
+        - id: UUID
+        - name: String
+        - description: String
+        - locationName: String
+        - budget: Double
+        - departmentHeadName: String
+        - totalEmployees: Integer
+        - createdAt: LocalDate
+        --
+        + builder()
+    }
+}
+
+package "Controller Layer" #LightYellow {
+    class DepartmentController {
+        - departmentService: DepartmentService
+        - locationService: LocationService
+        - employeeService: EmployeeService
+        --
+        + getAll(): List<DepartmentDTO>
+        + getById(id: UUID): DepartmentDTO
+        + create(dto: DepartmentDTO): DepartmentDTO
+        + update(id: UUID, dto: DepartmentDTO): DepartmentDTO
+        + delete(id: UUID): void
+    }
+}
+
+package "Service Layer" #LightCoral {
+    class DepartmentService {
+        - repository: DepartmentRepository
+        - mapper: DepartmentMapper
+        --
+        + getAll(): List<Department>
+        + getById(id: UUID): Department
+        + save(department: Department): Department
+        + delete(id: UUID): void
+    }
+}
+
+package "Repository Layer" #LightGray {
+    interface DepartmentRepository {
+        + findAll(): List<Department>
+        + findById(id: UUID): Optional<Department>
+        + save(department: Department): Department
+        + deleteById(id: UUID): void
+        + findByName(name: String): Optional<Department>
+        + countEmployeesByDepartment(deptId: UUID): Long
+    }
+}
+
+package "Mapper Layer" #LightBlue {
+    class DepartmentMapper {
+        + toDTO(entity: Department): DepartmentDTO
+        + toEntity(dto: DepartmentDTO, loc: Location, head: Employee): Department
+        + toResponseDTO(entity: Department): DepartmentResponseDTO
+    }
+}
+
+' ============================================
+' RELATIONSHIPS
+' ============================================
+
+DepartmentController --> DepartmentService : uses
+DepartmentController --> LocationService : uses
+DepartmentController --> EmployeeService : uses
+
+DepartmentService --> DepartmentRepository : uses
+DepartmentService --> DepartmentMapper : uses
+
+DepartmentMapper ..> Department : converts
+DepartmentMapper ..> DepartmentDTO : converts
+DepartmentMapper ..> DepartmentResponseDTO : converts
+
+DepartmentRepository ..> Department : manages
+
+note right of DepartmentMapper
+  Adapter Pattern:
+  Converts Entity ↔ DTO
+end note
+
+@enduml
+

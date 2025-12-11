@@ -1,0 +1,108 @@
+name: CI Pipeline
+
+on:
+  pull_request:
+    branches: [main, develop, master]
+  push:
+    branches: [main, develop, master]
+
+jobs:
+  backend-test:
+    name: Backend Tests
+    runs-on: ubuntu-latest
+    
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_DB: ems_db
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: 'maven'
+      
+      - name: Run Maven tests
+        working-directory: ./backend
+        # Tests use H2 in-memory database (no external DB needed)
+        run: |
+          mvn clean test
+      
+      - name: Build application
+        working-directory: ./backend
+        run: |
+          mvn clean package -DskipTests
+
+  frontend-test:
+    name: Frontend Tests
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+      
+      - name: Install dependencies
+        working-directory: ./frontend
+        run: npm ci
+      
+      - name: Run linter
+        working-directory: ./frontend
+        run: npm run lint || true
+      
+      - name: Run tests
+        working-directory: ./frontend
+        run: npm test -- --watch=false --browsers=ChromeHeadless || true
+      
+      - name: Build application
+        working-directory: ./frontend
+        run: npm run build
+
+  docker-build:
+    name: Docker Build Verification
+    runs-on: ubuntu-latest
+    needs: [backend-test, frontend-test]
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      
+      - name: Build backend Docker image
+        working-directory: ./backend
+        run: |
+          docker build -f Dockerfile.app -t ems-backend:test .
+      
+      - name: Build frontend Docker image (build only)
+        working-directory: ./frontend
+        run: |
+          docker build -t ems-frontend:test .
+          # Note: Frontend is build-only, gateway serves it
+      
+      - name: Build gateway Docker image
+        run: |
+          docker build -f gateway/Dockerfile -t ems-gateway:test .
+

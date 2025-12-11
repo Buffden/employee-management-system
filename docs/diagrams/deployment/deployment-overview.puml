@@ -1,0 +1,71 @@
+@startuml Deployment Overview
+skinparam linetype ortho
+skinparam roundcorner 10
+
+title Employee Management System - Deployment Overview
+
+node "Development Environment" #LightBlue {
+    [Local Docker Compose] as LocalDocker
+    [Local PostgreSQL] as LocalDB
+}
+
+node "CI/CD Infrastructure" #LightGreen {
+    [GitHub Actions] as GitHubActions
+    [Jenkins] as Jenkins
+    [Docker Hub] as DockerHub
+}
+
+node "Production Environment" #LightYellow {
+    [Docker Host] as DockerHost
+    [PostgreSQL Container] as ProdDB
+    [Backend Container] as ProdBackend
+    [Gateway Container] as ProdGateway
+}
+
+cloud "External" #LightCoral {
+    [Users] as Users
+    [GitHub] as GitHub
+    [AWS Cloud] as AWS
+}
+
+Users --> ProdGateway : HTTPS
+ProdGateway --> ProdBackend : HTTP (Internal)
+ProdBackend --> ProdDB : JDBC
+
+GitHub --> GitHubActions : Push/PR
+GitHubActions --> Jenkins : CI Pass
+Jenkins --> DockerHub : Build & Push
+DockerHub --> DockerHost : Pull & Deploy
+
+LocalDocker --> LocalDB : Development
+
+note right of LocalDocker
+  **Development:**
+  - docker-compose up
+  - Local testing
+  - Hot reload
+end note
+
+note right of GitHubActions
+  **CI Pipeline:**
+  - Automated tests
+  - Code quality
+  - Build verification
+end note
+
+note right of Jenkins
+  **CD Pipeline:**
+  - Integration tests
+  - Docker builds
+  - Deployment automation
+end note
+
+note right of DockerHost
+  **Production:**
+  - Container orchestration
+  - Health monitoring
+  - Auto-restart
+end note
+
+@enduml
+

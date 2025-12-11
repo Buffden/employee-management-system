@@ -1,0 +1,335 @@
+@startuml Complete System - All Layers
+skinparam classAttributeIconSize 0
+skinparam linetype ortho
+skinparam roundcorner 10
+
+title Employee Management System - Complete System Class Diagram
+
+' ============================================
+' PRESENTATION LAYER (Controllers)
+' ============================================
+
+package "Controller Layer" #LightYellow {
+    class EmployeeController {
+        + getAll(): List<EmployeeDTO>
+        + getById(id: UUID): EmployeeDTO
+        + create(dto: EmployeeDTO): EmployeeDTO
+        + update(id: UUID, dto: EmployeeDTO): EmployeeDTO
+        + delete(id: UUID): void
+    }
+    
+    class DepartmentController {
+        + getAll(): List<DepartmentDTO>
+        + getById(id: UUID): DepartmentDTO
+        + create(dto: DepartmentDTO): DepartmentDTO
+        + update(id: UUID, dto: DepartmentDTO): DepartmentDTO
+        + delete(id: UUID): void
+    }
+    
+    class ProjectController {
+        + getAll(): List<ProjectDTO>
+        + getById(id: UUID): ProjectDTO
+        + create(dto: ProjectDTO): ProjectDTO
+        + update(id: UUID, dto: ProjectDTO): ProjectDTO
+        + delete(id: UUID): void
+    }
+    
+    class TaskController {
+        + getAll(): List<TaskDTO>
+        + getById(id: UUID): TaskDTO
+        + create(dto: TaskDTO): TaskDTO
+        + update(id: UUID, dto: TaskDTO): TaskDTO
+        + delete(id: UUID): void
+    }
+    
+    class LocationController {
+        + getAll(): List<LocationDTO>
+        + getById(id: UUID): LocationDTO
+        + create(dto: LocationDTO): LocationDTO
+        + update(id: UUID, dto: LocationDTO): LocationDTO
+        + delete(id: UUID): void
+    }
+    
+    class DashboardController {
+        + getMetrics(): DashboardMetricsDTO
+        + getGraphsData(): GraphDataDTO
+    }
+}
+
+' ============================================
+' BUSINESS LOGIC LAYER (Services)
+' ============================================
+
+package "Service Layer" #LightCoral {
+    class EmployeeService {
+        + getAll(): List<Employee>
+        + getById(id: UUID): Employee
+        + save(employee: Employee): Employee
+        + delete(id: UUID): void
+    }
+    
+    class DepartmentService {
+        + getAll(): List<Department>
+        + getById(id: UUID): Department
+        + save(department: Department): Department
+        + delete(id: UUID): void
+    }
+    
+    class ProjectService {
+        + getAll(): List<Project>
+        + getById(id: UUID): Project
+        + save(project: Project): Project
+        + delete(id: UUID): void
+    }
+    
+    class TaskService {
+        + getAll(): List<Task>
+        + getById(id: UUID): Task
+        + save(task: Task): Task
+        + delete(id: UUID): void
+    }
+    
+    class LocationService {
+        + getAll(): List<Location>
+        + getById(id: UUID): Location
+        + save(location: Location): Location
+        + delete(id: UUID): void
+    }
+    
+    class DashboardFacadeService {
+        - totalEmployeesMetric: TotalEmployeesMetric
+        - averageSalaryMetric: AverageSalaryMetric
+        - departmentDistributionMetric: DepartmentDistributionMetric
+        --
+        + getAllMetrics(): DashboardMetricsDTO
+        + getGraphsData(): GraphDataDTO
+    }
+    
+    class MetricFactory {
+        + getMetric(metricName: String): MetricService
+    }
+    
+    interface MetricService {
+        + calculate(): MetricResult
+    }
+    
+    class TotalEmployeesMetric {
+        + calculate(): MetricResult
+    }
+    
+    class AverageSalaryMetric {
+        + calculate(): MetricResult
+    }
+    
+    class DepartmentDistributionMetric {
+        + calculate(): MetricResult
+    }
+}
+
+' ============================================
+' DATA ACCESS LAYER (Repositories)
+' ============================================
+
+package "Repository Layer" #LightGray {
+    interface EmployeeRepository {
+        + findAll(): List<Employee>
+        + findById(id: UUID): Optional<Employee>
+        + save(employee: Employee): Employee
+        + deleteById(id: UUID): void
+    }
+    
+    interface DepartmentRepository {
+        + findAll(): List<Department>
+        + findById(id: UUID): Optional<Department>
+        + save(department: Department): Department
+        + deleteById(id: UUID): void
+    }
+    
+    interface ProjectRepository {
+        + findAll(): List<Project>
+        + findById(id: UUID): Optional<Project>
+        + save(project: Project): Project
+        + deleteById(id: UUID): void
+    }
+    
+    interface TaskRepository {
+        + findAll(): List<Task>
+        + findById(id: UUID): Optional<Task>
+        + save(task: Task): Task
+        + deleteById(id: UUID): void
+    }
+    
+    interface LocationRepository {
+        + findAll(): List<Location>
+        + findById(id: UUID): Optional<Location>
+        + save(location: Location): Location
+        + deleteById(id: UUID): void
+    }
+}
+
+' ============================================
+' DOMAIN LAYER (Entities)
+' ============================================
+
+package "Domain Layer" #LightBlue {
+    class Employee {
+        - id: UUID
+        - firstName: String
+        - lastName: String
+        - email: String
+        - salary: Double
+        - designation: String
+    }
+    
+    class Department {
+        - id: UUID
+        - name: String
+        - description: String
+        - budget: Double
+    }
+    
+    class Project {
+        - id: UUID
+        - name: String
+        - description: String
+        - status: String
+        - budget: Double
+    }
+    
+    class Task {
+        - id: UUID
+        - name: String
+        - description: String
+        - status: String
+        - priority: String
+    }
+    
+    class Location {
+        - id: UUID
+        - name: String
+        - city: String
+        - state: String
+        - country: String
+    }
+}
+
+' ============================================
+' DTO LAYER
+' ============================================
+
+package "DTO Layer" #LightGreen {
+    class EmployeeDTO
+    class DepartmentDTO
+    class ProjectDTO
+    class TaskDTO
+    class LocationDTO
+    class DashboardMetricsDTO
+    class GraphDataDTO
+}
+
+' ============================================
+' MAPPER LAYER
+' ============================================
+
+package "Mapper Layer" #LightBlue {
+    class EmployeeMapper {
+        + toDTO(entity: Employee): EmployeeDTO
+        + toEntity(dto: EmployeeDTO): Employee
+    }
+    
+    class DepartmentMapper {
+        + toDTO(entity: Department): DepartmentDTO
+        + toEntity(dto: DepartmentDTO): Department
+    }
+    
+    class ProjectMapper {
+        + toDTO(entity: Project): ProjectDTO
+        + toEntity(dto: ProjectDTO): Project
+    }
+    
+    class TaskMapper {
+        + toDTO(entity: Task): TaskDTO
+        + toEntity(dto: TaskDTO): Task
+    }
+    
+    class LocationMapper {
+        + toDTO(entity: Location): LocationDTO
+        + toEntity(dto: LocationDTO): Location
+    }
+}
+
+' ============================================
+' RELATIONSHIPS
+' ============================================
+
+' Controller → Service
+EmployeeController --> EmployeeService
+DepartmentController --> DepartmentService
+ProjectController --> ProjectService
+TaskController --> TaskService
+LocationController --> LocationService
+DashboardController --> DashboardFacadeService
+
+' Service → Repository
+EmployeeService --> EmployeeRepository
+DepartmentService --> DepartmentRepository
+ProjectService --> ProjectRepository
+TaskService --> TaskRepository
+LocationService --> LocationRepository
+
+' Service → Metric
+DashboardFacadeService --> TotalEmployeesMetric
+DashboardFacadeService --> AverageSalaryMetric
+DashboardFacadeService --> DepartmentDistributionMetric
+MetricFactory --> MetricService
+TotalEmployeesMetric ..|> MetricService
+AverageSalaryMetric ..|> MetricService
+DepartmentDistributionMetric ..|> MetricService
+
+' Repository → Entity
+EmployeeRepository ..> Employee
+DepartmentRepository ..> Department
+ProjectRepository ..> Project
+TaskRepository ..> Task
+LocationRepository ..> Location
+
+' Mapper → Entity/DTO
+EmployeeMapper ..> Employee
+EmployeeMapper ..> EmployeeDTO
+DepartmentMapper ..> Department
+DepartmentMapper ..> DepartmentDTO
+ProjectMapper ..> Project
+ProjectMapper ..> ProjectDTO
+TaskMapper ..> Task
+TaskMapper ..> TaskDTO
+LocationMapper ..> Location
+LocationMapper ..> LocationDTO
+
+' Entity Relationships
+Employee "1" --> "1" Department
+Employee "1" --> "1" Location
+Employee "1" --> "0..1" Employee : manager
+Project "1" --> "1" Department
+Project "1" --> "1" Employee : projectManager
+Task "1" --> "1" Project
+Task "1" --> "0..1" Employee : assignedTo
+
+note right of DashboardFacadeService
+  Facade Pattern:
+  Simplifies access to
+  multiple metric services
+end note
+
+note right of MetricFactory
+  Factory Method Pattern:
+  Creates metric services
+end note
+
+note right of MetricService
+  Strategy Pattern:
+  Different calculation
+  strategies
+end note
+
+@enduml
+

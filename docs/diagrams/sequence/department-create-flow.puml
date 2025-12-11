@@ -1,0 +1,84 @@
+@startuml Department Create Flow
+skinparam linetype ortho
+skinparam sequenceArrowThickness 2
+skinparam roundcorner 20
+skinparam maxmessagesize 60
+
+title Department Creation - Sequence Diagram
+
+actor "HR Manager" as User
+participant "Angular Frontend" as Frontend
+participant "Nginx Gateway" as Gateway
+participant "Department Controller" as Controller
+participant "Department Service" as Service
+participant "Department Mapper" as Mapper
+participant "Department Repository" as DeptRepo
+participant "Location Repository" as LocRepo
+participant "Employee Repository" as EmpRepo
+database "PostgreSQL" as DB
+
+User -> Frontend: 1. Fill department form (name, description, budget)
+User -> Frontend: 2. Select location
+User -> Frontend: 3. Optionally select department head
+User -> Frontend: 4. Click "Create Department"
+
+Frontend -> Gateway: 5. POST /api/departments\n(DepartmentRequestDTO)
+Gateway -> Controller: 6. Forward request
+
+Controller -> Service: 7. create(DepartmentRequestDTO)
+
+alt Department head is provided
+    Service -> EmpRepo: 8. getById(departmentHeadId)
+    EmpRepo -> DB: 9. SELECT * FROM employee WHERE id = ?
+    DB --> EmpRepo: 10. Employee entity
+    EmpRepo --> Service: 11. DepartmentHead
+end
+
+Service -> LocRepo: 12. getById(locationId)
+LocRepo -> DB: 13. SELECT * FROM location WHERE id = ?
+DB --> LocRepo: 14. Location entity
+LocRepo --> Service: 15. Location
+
+Service -> Service: 16. Validate department name (unique)
+Service -> DeptRepo: 17. findByName(name)
+DeptRepo -> DB: 18. SELECT * FROM department WHERE name = ?
+DB --> DeptRepo: 19. Optional<Department>
+DeptRepo --> Service: 20. Optional (empty if new)
+
+alt Department name exists
+    Service --> Controller: 21. Throw exception: "Department name already exists"
+    Controller --> Gateway: 22. HTTP 400 Bad Request
+    Gateway --> Frontend: 23. Error response
+    Frontend --> User: 24. Display error message
+else Department name is unique
+    Service -> Mapper: 25. toEntity(DTO, location, head)
+    Mapper --> Service: 26. Department entity
+    
+    Service -> DeptRepo: 27. save(Department)
+    DeptRepo -> DB: 28. INSERT INTO department
+    DB --> DeptRepo: 29. Saved department
+    DeptRepo --> Service: 30. Department
+    
+    Service -> Mapper: 31. toResponseDTO(Department)
+    Mapper --> Service: 32. DepartmentResponseDTO
+    
+    Service --> Controller: 33. DepartmentResponseDTO
+    Controller --> Gateway: 34. HTTP 201 Created
+    Gateway --> Frontend: 35. Response with department data
+    Frontend -> User: 36. Display success message and department details
+end
+
+note right of Service
+  **Business Rules:**
+  - Department name must be unique
+  - Location must exist
+  - Department head must exist (if provided)
+end note
+
+note right of Mapper
+  **Adapter Pattern:**
+  Converts DTO ↔ Entity
+end note
+
+@enduml
+

@@ -1,0 +1,42 @@
+@startuml Context Diagram
+!define RECTANGLE class
+skinparam classAttributeIconSize 0
+skinparam linetype ortho
+skinparam backgroundColor #FFFFFF
+
+title Employee Management System - System Context Diagram
+
+actor "System Administrator" as Admin
+actor "HR Manager" as HR
+actor "Department Manager" as Manager
+actor "Employee" as Emp
+
+rectangle "Employee Management System" as EMS {
+  note right
+    **Purpose:** Manages employees, departments,
+    projects, and tasks for the organization
+    
+    **Features:**
+    - Employee Management
+    - Department Management
+    - Dashboard Analytics
+    - Project/Task Management
+  end note
+}
+
+cloud "External Systems" #LightBlue {
+  [GitHub] as GitHub
+  [Docker Hub] as DockerHub
+  [AWS Cloud] as AWS
+}
+
+Admin --> EMS : Manages
+HR --> EMS : Manages employees
+Manager --> EMS : Views team data
+Emp --> EMS : Views profile
+
+EMS --> GitHub : Pulls code
+EMS --> DockerHub : Pushes images
+EMS --> AWS : Deploys to
+
+@enduml

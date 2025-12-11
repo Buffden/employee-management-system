@@ -2,7 +2,7 @@
 FROM node:18 AS build
 WORKDIR /app
 
-# Copy frontend source
+# Copy frontend source (build context is root directory)
 COPY frontend/package*.json ./
 RUN npm install
 

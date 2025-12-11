@@ -1,0 +1,87 @@
+@startuml Employee Query with Filters/Sorting - Sequence Diagram
+skinparam linetype ortho
+skinparam sequenceArrowThickness 2
+skinparam roundcorner 20
+skinparam maxmessagesize 60
+
+title Employee Query with Filters, Sorting, Pagination - Sequence Diagram
+
+actor "HR Manager" as User
+participant "Angular Frontend" as Frontend
+participant "Table Component" as Table
+participant "Employee Service" as Service
+participant "Nginx Gateway" as Gateway
+participant "Employee Controller" as Controller
+participant "Employee Query Service" as QueryService
+participant "Sort Strategy Factory" as SortFactory
+participant "Filter Strategy Factory" as FilterFactory
+participant "Name Sort Strategy" as NameSort
+participant "Department Filter Strategy" as DeptFilter
+participant "Employee Repository" as Repository
+database "PostgreSQL" as DB
+
+User -> Table: 1. Apply filters (department, designation)
+User -> Table: 2. Sort by column (name, salary)
+User -> Table: 3. Change page (pagination)
+
+Table -> Service: 4. queryEmployees(query: TableQueryRequest)
+Service -> Gateway: 5. POST /api/employees/query (filters, sortBy, sortDirection, page, size)
+Gateway -> Controller: 6. Forward request
+
+Controller -> QueryService: 7. query(TableQueryRequest)
+
+QueryService -> Repository: 8. findAll()
+Repository -> DB: 9. SELECT * FROM employee
+DB --> Repository: 10. All employees
+Repository --> QueryService: 11. List<Employee>
+
+QueryService -> QueryService: 12. toTableRowDTO(Employee)
+QueryService --> QueryService: 13. List<EmployeeTableRowDTO>
+
+loop For each filter
+    QueryService -> FilterFactory: 14. createFilterStrategy(filterKey)
+    FilterFactory --> QueryService: 15. FilterStrategy
+    
+    alt Department filter
+        QueryService -> DeptFilter: 16. filter(data, "Engineering")
+        DeptFilter --> QueryService: 17. Filtered data
+    end
+end
+
+QueryService -> SortFactory: 18. createSortStrategy(sortBy, direction)
+SortFactory --> QueryService: 19. SortStrategy
+
+alt Sort by name
+    QueryService -> NameSort: 20. sort(data, "ASC")
+    NameSort --> QueryService: 21. Sorted data
+end
+
+QueryService -> QueryService: 22. applyPagination(data, page, size)
+QueryService --> QueryService: 23. Page<EmployeeTableRowDTO>
+
+QueryService --> Controller: 24. Page<EmployeeTableRowDTO>
+Controller --> Gateway: 25. HTTP 200 OK
+Gateway --> Service: 26. Response with paginated data
+Service --> Table: 27. Employee data
+Table -> User: 28. Display filtered, sorted, paginated table
+
+note right of QueryService
+  Template Method Pattern:
+  BaseTableQueryService defines
+  algorithm structure
+end note
+
+note right of SortFactory
+  Factory Method Pattern:
+  Creates appropriate
+  sort strategy
+end note
+
+note right of NameSort
+  Strategy Pattern:
+  Different sorting
+  algorithms
+end note
+
+@enduml
+

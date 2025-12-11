@@ -1,0 +1,86 @@
+@startuml Table Pagination Flow
+skinparam linetype ortho
+skinparam sequenceArrowThickness 2
+skinparam roundcorner 20
+skinparam maxmessagesize 60
+
+title Frontend Table Pagination - Sequence Diagram
+
+actor "User" as User
+participant "Table Component" as Table
+participant "Table State Service" as TableState
+participant "Employee Service" as EmpService
+participant "API Service" as ApiService
+participant "Nginx Gateway" as Gateway
+participant "Employee Controller" as Controller
+participant "Employee Query Service" as QueryService
+participant "Employee Repository" as Repository
+database "PostgreSQL" as DB
+
+User -> Table: 1. Change page (click page 2)
+Table -> TableState: 2. updatePage(2)
+TableState -> TableState: 3. Update state: {page: 2, size: 10}
+
+Table -> EmpService: 4. loadPage(page: 2, size: 10)
+EmpService -> ApiService: 5. POST /api/employees/query\n{page: 2, size: 10}
+ApiService -> Gateway: 6. HTTP request
+Gateway -> Controller: 7. Forward request
+
+Controller -> QueryService: 8. query(TableQueryRequest\n{page: 2, size: 10})
+QueryService -> Repository: 9. findAll()
+Repository -> DB: 10. SELECT * FROM employee
+DB --> Repository: 11. All employees
+Repository --> QueryService: 12. List<Employee>
+
+QueryService -> QueryService: 13. toTableRowDTO(Employee)
+QueryService -> QueryService: 14. applyPagination(data, page: 2, size: 10)
+QueryService --> QueryService: 15. Page<EmployeeTableRowDTO>\n{content, totalElements, totalPages}
+
+QueryService --> Controller: 16. Page<EmployeeTableRowDTO>
+Controller --> Gateway: 17. HTTP 200 OK
+Gateway --> ApiService: 18. Response
+ApiService --> EmpService: 19. Page data
+EmpService --> Table: 20. Page<EmployeeTableRowDTO>
+
+Table -> TableState: 21. updateData(pageData)
+TableState -> TableState: 22. Emit state change
+TableState --> Table: 23. State update notification
+Table -> User: 24. Display page 2 data
+
+== User Changes Page Size ==
+User -> Table: 25. Change page size (10 -> 20)
+Table -> TableState: 26. updatePageSize(20)
+TableState -> TableState: 27. Update state: {page: 1, size: 20}
+Table -> EmpService: 28. loadPage(page: 1, size: 20)
+EmpService -> ApiService: 29. POST /api/employees/query\n{page: 1, size: 20}
+ApiService -> Gateway: 30. HTTP request
+Gateway -> Controller: 31. Forward request
+Controller -> QueryService: 32. query({page: 1, size: 20})
+QueryService -> Repository: 33. findAll()
+Repository -> DB: 34. SELECT * FROM employee
+DB --> Repository: 35. All employees
+Repository --> QueryService: 36. List<Employee>
+QueryService -> QueryService: 37. applyPagination(data, page: 1, size: 20)
+QueryService --> Controller: 38. Page<EmployeeTableRowDTO>
+Controller --> Gateway: 39. HTTP 200 OK
+Gateway --> ApiService: 40. Response
+ApiService --> EmpService: 41. Page data
+EmpService --> Table: 42. Page<EmployeeTableRowDTO>
+Table -> User: 43. Display page 1 with 20 items
+
+note right of TableState
+  **Observer Pattern:**
+  - Manages table state
+  - Notifies subscribers
+  - State persistence
+end note
+
+note right of QueryService
+  **Template Method:**
+  - Base pagination logic
+  - Extensible filtering
+  - Extensible sorting
+end note
+
+@enduml
+

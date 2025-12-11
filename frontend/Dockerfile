@@ -1,4 +1,5 @@
-# Use Node.js 18 as the base image for the build process
+# Frontend Dockerfile - Build only (no nginx)
+# The gateway Dockerfile builds and serves the frontend with nginx
 FROM node:18 AS build
 WORKDIR /app
 
@@ -10,22 +11,6 @@ RUN npm install
 COPY . .
 RUN npm run build
 
-# Use a lightweight server to serve the app
-FROM nginx:alpine
-
-# Copy built app
-COPY --from=build /app/dist/employee-management-system-gui /usr/share/nginx/html
-
-# Copy nginx configuration for standalone frontend
-# This serves Angular app and proxies /api to gateway
-COPY nginx.conf /etc/nginx/conf.d/default.conf
-
-# Add a health check to monitor the app
-HEALTHCHECK --interval=30s --timeout=5s \
-  CMD wget --quiet --tries=1 --spider http://localhost:80 || exit 1
-
-# Expose port 80
-EXPOSE 80
-
-# Start the NGINX server
-CMD ["nginx", "-g", "daemon off;"]
+# This is a build-only stage
+# The built artifacts are used by the gateway Dockerfile
+# No runtime stage needed - gateway handles serving

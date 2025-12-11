@@ -1,0 +1,62 @@
+@startuml Project Status State Diagram
+skinparam linetype ortho
+skinparam roundcorner 10
+
+title Project Status State Machine
+
+state "Planning" as Planning
+state "Active" as Active
+state "On Hold" as OnHold
+state "Completed" as Completed
+state "Cancelled" as Cancelled
+
+[*] --> Planning : Project created
+
+Planning --> Active : Start project
+Active --> OnHold : Pause project
+OnHold --> Active : Resume project
+Active --> Completed : Complete project
+Active --> Cancelled : Cancel project
+OnHold --> Cancelled : Cancel project
+Planning --> Cancelled : Cancel project
+
+Completed --> [*] : Project finished
+Cancelled --> [*] : Project removed
+
+note right of Planning
+  **Initial State:**
+  - Project created
+  - Planning phase
+  - Can assign team
+end note
+
+note right of Active
+  **Active State:**
+  - Project in execution
+  - Tasks being worked on
+  - Can be paused
+end note
+
+note right of OnHold
+  **Paused State:**
+  - Project temporarily stopped
+  - Can be resumed
+  - Can be cancelled
+end note
+
+note right of Completed
+  **Final State:**
+  - Project finished
+  - end_date set
+  - All tasks completed
+end note
+
+note right of Cancelled
+  **Final State:**
+  - Project cancelled
+  - Cannot be resumed
+  - end_date set
+end note
+
+@enduml
+

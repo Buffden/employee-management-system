@@ -1,0 +1,242 @@
+@startuml Employee Module - Complete Class Structure
+skinparam classAttributeIconSize 0
+skinparam linetype ortho
+skinparam roundcorner 10
+
+title Employee Module - Complete Class Diagram
+
+package "Domain Layer" #LightBlue {
+    class Employee {
+        - id: UUID
+        - firstName: String
+        - lastName: String
+        - email: String
+        - phone: String
+        - address: String
+        - designation: String
+        - salary: Double
+        - joiningDate: LocalDate
+        - performanceRating: Double
+        - workLocation: String
+        - experienceYears: Integer
+        --
+        + getId(): UUID
+        + getFirstName(): String
+        + getLastName(): String
+        + getEmail(): String
+        + getSalary(): Double
+    }
+    
+    Employee "1" --> "1" Department : department
+    Employee "1" --> "1" Location : location
+    Employee "1" --> "0..1" Employee : manager
+}
+
+package "DTO Layer" #LightGreen {
+    class EmployeeDTO {
+        - id: UUID
+        - firstName: String
+        - lastName: String
+        - email: String
+        - phone: String
+        - address: String
+        - designation: String
+        - salary: Double
+        - joiningDate: LocalDate
+        - departmentId: UUID
+        - locationId: UUID
+        - managerId: UUID
+        - workLocation: String
+        - experienceYears: Integer
+        --
+        + builder()
+    }
+    
+    class EmployeeRequestDTO {
+        - firstName: String
+        - lastName: String
+        - email: String
+        - phone: String
+        - address: String
+        - designation: String
+        - salary: Double
+        - joiningDate: LocalDate
+        - departmentId: UUID
+        - locationId: UUID
+        - managerId: UUID
+        - workLocation: String
+        - experienceYears: Integer
+        --
+        + builder()
+    }
+    
+    class EmployeeResponseDTO {
+        - id: UUID
+        - firstName: String
+        - lastName: String
+        - email: String
+        - phone: String
+        - address: String
+        - designation: String
+        - salary: Double
+        - joiningDate: LocalDate
+        - locationName: String
+        - managerName: String
+        - departmentName: String
+        - workLocation: String
+        - experienceYears: Integer
+        --
+        + builder()
+    }
+    
+    class EmployeeTableRowDTO {
+        - id: UUID
+        - name: String
+        - email: String
+        - designation: String
+        - salary: Double
+        - departmentName: String
+        - locationName: String
+        --
+        + builder()
+    }
+}
+
+package "Controller Layer" #LightYellow {
+    class EmployeeController {
+        - employeeService: EmployeeService
+        - departmentService: DepartmentService
+        - locationService: LocationService
+        --
+        + getAll(): List<EmployeeDTO>
+        + getById(id: UUID): EmployeeDTO
+        + create(dto: EmployeeDTO): EmployeeDTO
+        + update(id: UUID, dto: EmployeeDTO): EmployeeDTO
+        + delete(id: UUID): void
+    }
+}
+
+package "Service Layer" #LightCoral {
+    class EmployeeService {
+        - repository: EmployeeRepository
+        - mapper: EmployeeMapper
+        - validationService: ValidationService
+        --
+        + getAll(): List<Employee>
+        + getById(id: UUID): Employee
+        + save(employee: Employee): Employee
+        + delete(id: UUID): void
+    }
+    
+    class EmployeeQueryService {
+        - repository: EmployeeRepository
+        - sortFactory: SortStrategyFactory
+        - filterFactory: FilterStrategyFactory
+        --
+        + query(request: TableQueryRequest): Page<EmployeeTableRowDTO>
+        + fetchData(): List<EmployeeTableRowDTO>
+        + applyFilters(data, filters): List<EmployeeTableRowDTO>
+        + applySorting(data, sortBy, direction): List<EmployeeTableRowDTO>
+    }
+    
+    class ValidationService {
+        + validateManagerInDepartment(managerId: UUID, deptId: UUID): void
+    }
+}
+
+package "Repository Layer" #LightGray {
+    interface EmployeeRepository {
+        + findAll(): List<Employee>
+        + findById(id: UUID): Optional<Employee>
+        + save(employee: Employee): Employee
+        + deleteById(id: UUID): void
+        + findByDepartmentId(deptId: UUID): List<Employee>
+        + findByManagerId(managerId: UUID): List<Employee>
+        + findByEmail(email: String): Optional<Employee>
+        + findAverageSalary(): Double
+        + countByDepartment(deptId: UUID): Long
+    }
+}
+
+package "Mapper Layer" #LightBlue {
+    class EmployeeMapper {
+        + toDTO(entity: Employee): EmployeeDTO
+        + toEntity(dto: EmployeeDTO, dept: Department, loc: Location, mgr: Employee): Employee
+        + toResponseDTO(entity: Employee): EmployeeResponseDTO
+        + toTableRowDTO(entity: Employee): EmployeeTableRowDTO
+    }
+}
+
+package "Strategy Pattern" #LightGreen {
+    interface SortStrategy {
+        + sort(data: List<T>, direction: String): List<T>
+    }
+    
+    class NameSortStrategy {
+        + sort(data: List<T>, direction: String): List<T>
+    }
+    
+    class SalarySortStrategy {
+        + sort(data: List<T>, direction: String): List<T>
+    }
+    
+    class SortStrategyFactory {
+        + createSortStrategy(sortBy: String, direction: String): SortStrategy
+    }
+    
+    interface FilterStrategy {
+        + filter(data: List<T>, filterValue: String): List<T>
+    }
+    
+    class DepartmentFilterStrategy {
+        + filter(data: List<T>, filterValue: String): List<T>
+    }
+}
+
+' ============================================
+' RELATIONSHIPS
+' ============================================
+
+EmployeeController --> EmployeeService : uses
+EmployeeController --> DepartmentService : uses
+EmployeeController --> LocationService : uses
+
+EmployeeService --> EmployeeRepository : uses
+EmployeeService --> EmployeeMapper : uses
+EmployeeService --> ValidationService : uses
+
+EmployeeQueryService --> EmployeeRepository : uses
+EmployeeQueryService --> SortStrategyFactory : uses
+EmployeeQueryService --> FilterStrategyFactory : uses
+
+EmployeeMapper ..> Employee : converts
+EmployeeMapper ..> EmployeeDTO : converts
+EmployeeMapper ..> EmployeeResponseDTO : converts
+EmployeeMapper ..> EmployeeTableRowDTO : converts
+
+SortStrategyFactory --> SortStrategy : creates
+NameSortStrategy ..|> SortStrategy : implements
+SalarySortStrategy ..|> SortStrategy : implements
+
+FilterStrategyFactory --> FilterStrategy : creates
+DepartmentFilterStrategy ..|> FilterStrategy : implements
+
+EmployeeRepository ..> Employee : manages
+
+note right of EmployeeQueryService
+  Extends BaseTableQueryService
+  (Template Method Pattern)
+end note
+
+note right of EmployeeMapper
+  Adapter Pattern:
+  Converts Entity ↔ DTO
+end note
+
+note right of SortStrategy
+  Strategy Pattern:
+  Different sorting algorithms
+end note
+
+@enduml
+

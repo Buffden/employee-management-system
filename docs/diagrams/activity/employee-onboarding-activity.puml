@@ -1,0 +1,52 @@
+@startuml Employee Onboarding Activity
+skinparam linetype ortho
+skinparam roundcorner 10
+
+title Employee Onboarding - Activity Diagram
+
+start
+
+:HR Manager creates employee record;
+:Assign department;
+:Assign location;
+:Optionally assign manager;
+
+if (Manager assigned?) then (yes)
+  :Validate manager in same department;
+  if (Validation successful?) then (yes)
+    :Continue;
+  else (no)
+    :Display error;
+    stop
+  endif
+else (no)
+  :Continue;
+endif
+
+:Save employee record;
+:Generate employee ID;
+:Set joining date;
+:Set initial status: Onboarding;
+
+partition "Onboarding Process" {
+  :Send welcome email;
+  :Assign workspace;
+  :Create system accounts;
+  :Schedule orientation;
+}
+
+:Update status: Active;
+:Notify department manager;
+:Complete onboarding;
+
+stop
+
+note right
+  **Business Rules:**
+  - Manager must be in same department
+  - Department and location must exist
+  - Joining date is required
+end note
+
+@enduml
+

@@ -1,0 +1,131 @@
+@startuml Database ER Diagram
+skinparam linetype ortho
+skinparam roundcorner 10
+
+title Employee Management System - Database ER Diagram
+
+entity "location" as Location {
+  * id : UUID <<PK>>
+  --
+  * name : VARCHAR(100) <<unique>>
+  address : VARCHAR(255)
+  * city : VARCHAR(100)
+  * state : VARCHAR(100)
+  * country : VARCHAR(100)
+  postal_code : VARCHAR(20)
+}
+
+entity "employee" as Employee {
+  * id : UUID <<PK>>
+  --
+  * first_name : VARCHAR(100)
+  * last_name : VARCHAR(100)
+  * email : VARCHAR(255) <<unique>>
+  phone : VARCHAR(20)
+  address : VARCHAR(255)
+  * designation : VARCHAR(100)
+  * salary : DECIMAL(10,2)
+  * joining_date : DATE
+  performance_rating : DECIMAL(3,2)
+  work_location : VARCHAR(100)
+  experience_years : INTEGER
+  * department_id : UUID <<FK>>
+  * location_id : UUID <<FK>>
+  manager_id : UUID <<FK>>
+}
+
+entity "department" as Department {
+  * id : UUID <<PK>>
+  --
+  * name : VARCHAR(100) <<unique>>
+  description : TEXT
+  budget : DECIMAL(15,2)
+  budget_utilization : DECIMAL(5,2)
+  performance_metric : DECIMAL(5,2)
+  * created_at : DATE
+  location_name : VARCHAR(100)
+  location_id : UUID <<FK>>
+  department_head_id : UUID <<FK>>
+}
+
+entity "project" as Project {
+  * id : UUID <<PK>>
+  --
+  * name : VARCHAR(100) <<unique>>
+  description : TEXT
+  * start_date : DATE
+  end_date : DATE
+  * status : VARCHAR(50)
+  budget : DECIMAL(15,2)
+  * department_id : UUID <<FK>>
+  project_manager_id : UUID <<FK>>
+}
+
+entity "task" as Task {
+  * id : UUID <<PK>>
+  --
+  * name : VARCHAR(200)
+  description : TEXT
+  * status : VARCHAR(50)
+  * priority : VARCHAR(50)
+  * start_date : DATE
+  due_date : DATE
+  completed_date : DATE
+  * project_id : UUID <<FK>>
+  assigned_to_id : UUID <<FK>>
+}
+
+entity "employee_project" as EmployeeProject {
+  * employee_id : UUID <<PK, FK>>
+  * project_id : UUID <<PK, FK>>
+  --
+  role : VARCHAR(100)
+  assigned_date : DATE
+}
+
+' Relationships
+Location ||--o{ Employee : "has employees"
+Location ||--o{ Department : "has departments"
+Department ||--o{ Employee : "employs"
+Employee ||--o{ Employee : "manages (self-ref)"
+Department ||--o| Employee : "headed by"
+Department ||--o{ Project : "has projects"
+Project ||--o| Employee : "managed by"
+Project ||--o{ Task : "has tasks"
+Task ||--o| Employee : "assigned to"
+Employee ||--o{ EmployeeProject : "works on"
+Project ||--o{ EmployeeProject : "has employees"
+
+note right of Employee
+  **Indexes:**
+  - email (unique)
+  - department_id
+  - location_id
+  - manager_id
+end note
+
+note right of Department
+  **Indexes:**
+  - name (unique)
+  - location_id
+  - department_head_id
+end note
+
+note right of Project
+  **Indexes:**
+  - name (unique)
+  - department_id
+  - project_manager_id
+  - status
+end note
+
+note right of Task
+  **Indexes:**
+  - project_id
+  - assigned_to_id
+  - status
+  - priority
+end note
+
+@enduml
+
