@@ -152,7 +152,13 @@ The development workflow is optimized for **Cursor AI**, enabling:
 - **Token Refresh**: Automatic token refresh mechanism
 
 ### 7.2 Authorization
-- **Role-Based Access Control (RBAC)**: Future implementation
+- **Role-Based Access Control (RBAC)**: Implemented with 4 roles
+  - **System Admin**: Full system access
+  - **HR Manager**: HR and employee management
+  - **Department Manager**: Department-specific management
+  - **Employee**: Limited access to own data
+- **Permission Matrix**: See `docs/security/roles-and-permissions.md`
+- **Implementation**: Spring Security with method-level security (`@PreAuthorize`)
 - **API Security**: CORS, rate limiting, input validation
 
 ### 7.3 Data Security

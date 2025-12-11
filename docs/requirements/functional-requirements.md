@@ -52,9 +52,17 @@
 - **JWT-based Session Management**: Token-based authentication
 - **Session Persistence**: Maintain user session across page refreshes
 
-### 4.2 Authorization (Future)
-- **Role-Based Access Control (RBAC)**: Different permissions for different roles
-- **Feature-Level Permissions**: Control access to specific features
+### 4.2 Authorization
+- **Role-Based Access Control (RBAC)**: Implemented with 4 roles
+  - **System Admin**: Full system access
+  - **HR Manager**: HR and employee management
+  - **Department Manager**: Department-specific management (scope-limited)
+  - **Employee**: Limited access to own data
+- **Feature-Level Permissions**: Role-based access to features and endpoints
+- **Field-Level Permissions**: Different roles can modify different fields
+- **Data Scope Control**: Department Managers limited to their department, Employees limited to own records
+
+**Detailed Permissions**: See `docs/security/roles-and-permissions.md` for complete permission matrix
 
 ## 5. Generic Table Infrastructure
 
