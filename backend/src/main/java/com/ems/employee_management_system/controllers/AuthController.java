@@ -4,6 +4,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
@@ -15,6 +16,7 @@ import com.ems.employee_management_system.dtos.AuthResponseDTO;
 import com.ems.employee_management_system.dtos.RegisterRequestDTO;
 import com.ems.employee_management_system.dtos.RefreshTokenRequestDTO;
 import com.ems.employee_management_system.services.AuthService;
+import com.ems.employee_management_system.constants.RoleConstants;
 
 import jakarta.validation.Valid;
 
@@ -31,12 +33,16 @@ public class AuthController {
     }
     
     /**
-     * User registration endpoint
+     * User registration endpoint (System Admin only)
      * POST /api/auth/register
+     * Requires SYSTEM_ADMIN role
+     * Can create SYSTEM_ADMIN or HR_MANAGER users
      */
     @PostMapping("/register")
+    @PreAuthorize("hasRole('" + RoleConstants.SYSTEM_ADMIN + "')")
     public ResponseEntity<AuthResponseDTO> register(@Valid @RequestBody RegisterRequestDTO request) {
-        logger.info("Registration request for username: {}", request.getUsername());
+        logger.info("Registration request received for username: {}", request.getUsername());
+        logger.info("Current authentication: {}", org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication());
         
         try {
             AuthResponseDTO response = authService.register(request);

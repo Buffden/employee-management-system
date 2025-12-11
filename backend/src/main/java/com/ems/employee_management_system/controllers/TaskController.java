@@ -29,12 +29,13 @@ import com.ems.employee_management_system.services.EmployeeService;
 import com.ems.employee_management_system.services.ProjectService;
 import com.ems.employee_management_system.services.TaskService;
 import com.ems.employee_management_system.utils.PaginationUtils;
+import com.ems.employee_management_system.constants.RoleConstants;
 
 import jakarta.validation.Valid;
 
 @RestController
 @RequestMapping("/api/tasks")
-@PreAuthorize("hasAnyRole('SYSTEM_ADMIN', 'HR_MANAGER', 'DEPARTMENT_MANAGER', 'EMPLOYEE')")
+@PreAuthorize("hasAnyRole('" + RoleConstants.SYSTEM_ADMIN + "', '" + RoleConstants.HR_MANAGER + "', '" + RoleConstants.DEPARTMENT_MANAGER + "', '" + RoleConstants.EMPLOYEE + "')")
 public class TaskController {
     private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(TaskController.class);
     
@@ -52,7 +53,7 @@ public class TaskController {
     }
 
     @GetMapping
-    @PreAuthorize("hasAnyRole('SYSTEM_ADMIN', 'HR_MANAGER', 'DEPARTMENT_MANAGER', 'EMPLOYEE')")
+    @PreAuthorize("hasAnyRole('" + RoleConstants.SYSTEM_ADMIN + "', '" + RoleConstants.HR_MANAGER + "', '" + RoleConstants.DEPARTMENT_MANAGER + "', '" + RoleConstants.EMPLOYEE + "')")
     public ResponseEntity<PaginatedResponseDTO<TaskResponseDTO>> getAll(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size,
@@ -67,8 +68,8 @@ public class TaskController {
     }
 
     @GetMapping("/{id}")
-    @PreAuthorize("hasAnyRole('SYSTEM_ADMIN', 'HR_MANAGER', 'DEPARTMENT_MANAGER') or " +
-                  "(hasRole('EMPLOYEE') and @securityService.isTaskAssignedToUser(#id))")
+    @PreAuthorize("hasAnyRole('" + RoleConstants.SYSTEM_ADMIN + "', '" + RoleConstants.HR_MANAGER + "', '" + RoleConstants.DEPARTMENT_MANAGER + "') or " +
+                  "(hasRole('" + RoleConstants.EMPLOYEE + "') and @securityService.isTaskAssignedToUser(#id))")
     public ResponseEntity<TaskResponseDTO> getById(@PathVariable UUID id) {
         logger.debug("Fetching task with id: {}", id);
         Task task = taskService.getById(id);
@@ -80,8 +81,8 @@ public class TaskController {
     }
 
     @PostMapping
-    @PreAuthorize("hasRole('SYSTEM_ADMIN') or " +
-                  "(hasRole('DEPARTMENT_MANAGER') and @securityService.isTaskProjectInOwnDepartment(#requestDTO.projectId))")
+    @PreAuthorize("hasRole('" + RoleConstants.SYSTEM_ADMIN + "') or " +
+                  "(hasRole('" + RoleConstants.DEPARTMENT_MANAGER + "') and @securityService.isTaskProjectInOwnDepartment(#requestDTO.projectId))")
     public ResponseEntity<TaskResponseDTO> create(@Valid @RequestBody TaskRequestDTO requestDTO) {
         logger.info("Creating new task: {}", requestDTO.getName());
         // Validate related entities exist
@@ -105,9 +106,9 @@ public class TaskController {
     }
 
     @PutMapping("/{id}")
-    @PreAuthorize("hasRole('SYSTEM_ADMIN') or " +
-                  "(hasRole('DEPARTMENT_MANAGER') and @securityService.isTaskProjectInOwnDepartmentByTaskId(#id)) or " +
-                  "(hasRole('EMPLOYEE') and @securityService.isTaskAssignedToUser(#id))")
+    @PreAuthorize("hasRole('" + RoleConstants.SYSTEM_ADMIN + "') or " +
+                  "(hasRole('" + RoleConstants.DEPARTMENT_MANAGER + "') and @securityService.isTaskProjectInOwnDepartmentByTaskId(#id)) or " +
+                  "(hasRole('" + RoleConstants.EMPLOYEE + "') and @securityService.isTaskAssignedToUser(#id))")
     public ResponseEntity<TaskResponseDTO> update(@PathVariable UUID id, @Valid @RequestBody TaskRequestDTO requestDTO) {
         logger.info("Updating task with id: {}", id);
         Task existingTask = taskService.getById(id);
@@ -137,8 +138,8 @@ public class TaskController {
     }
 
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasRole('SYSTEM_ADMIN') or " +
-                  "(hasRole('DEPARTMENT_MANAGER') and @securityService.isTaskProjectInOwnDepartmentByTaskId(#id))")
+    @PreAuthorize("hasRole('" + RoleConstants.SYSTEM_ADMIN + "') or " +
+                  "(hasRole('" + RoleConstants.DEPARTMENT_MANAGER + "') and @securityService.isTaskProjectInOwnDepartmentByTaskId(#id))")
     public ResponseEntity<Void> delete(@PathVariable UUID id) {
         logger.info("Deleting task with id: {}", id);
         Task task = taskService.getById(id);

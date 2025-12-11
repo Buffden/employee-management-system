@@ -28,12 +28,13 @@ import com.ems.employee_management_system.services.DepartmentService;
 import com.ems.employee_management_system.services.EmployeeService;
 import com.ems.employee_management_system.services.LocationService;
 import com.ems.employee_management_system.utils.PaginationUtils;
+import com.ems.employee_management_system.constants.RoleConstants;
 
 import jakarta.validation.Valid;
 
 @RestController
 @RequestMapping("/api/employees")
-@PreAuthorize("hasAnyRole('SYSTEM_ADMIN','HR_MANAGER','DEPARTMENT_MANAGER','EMPLOYEE')")
+@PreAuthorize("hasAnyRole('" + RoleConstants.SYSTEM_ADMIN + "','" + RoleConstants.HR_MANAGER + "','" + RoleConstants.DEPARTMENT_MANAGER + "','" + RoleConstants.EMPLOYEE + "')")
 public class EmployeeController {
     private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(EmployeeController.class);
     
@@ -48,7 +49,7 @@ public class EmployeeController {
     }
 
     @GetMapping
-    @PreAuthorize("hasAnyRole('SYSTEM_ADMIN','HR_MANAGER','DEPARTMENT_MANAGER','EMPLOYEE')")
+    @PreAuthorize("hasAnyRole('" + RoleConstants.SYSTEM_ADMIN + "','" + RoleConstants.HR_MANAGER + "','" + RoleConstants.DEPARTMENT_MANAGER + "','" + RoleConstants.EMPLOYEE + "')")
     public ResponseEntity<PaginatedResponseDTO<EmployeeResponseDTO>> getAll(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size,
@@ -63,9 +64,9 @@ public class EmployeeController {
     }
 
     @GetMapping("/{id}")
-    @PreAuthorize("hasAnyRole('SYSTEM_ADMIN','HR_MANAGER') or " +
-                  "(hasRole('DEPARTMENT_MANAGER') and @securityService.isInOwnDepartment(#id)) or " +
-                  "(hasRole('EMPLOYEE') and @securityService.isOwnRecord(#id))")
+    @PreAuthorize("hasAnyRole('" + RoleConstants.SYSTEM_ADMIN + "','" + RoleConstants.HR_MANAGER + "') or " +
+                  "(hasRole('" + RoleConstants.DEPARTMENT_MANAGER + "') and @securityService.isInOwnDepartment(#id)) or " +
+                  "(hasRole('" + RoleConstants.EMPLOYEE + "') and @securityService.isOwnRecord(#id))")
     public ResponseEntity<EmployeeResponseDTO> getById(@PathVariable UUID id) {
         logger.debug("Fetching employee with id: {}", id);
         Employee employee = employeeService.getById(id);
@@ -77,7 +78,7 @@ public class EmployeeController {
     }
 
     @PostMapping
-    @PreAuthorize("hasAnyRole('SYSTEM_ADMIN','HR_MANAGER')")
+    @PreAuthorize("hasAnyRole('" + RoleConstants.SYSTEM_ADMIN + "','" + RoleConstants.HR_MANAGER + "')")
     public ResponseEntity<EmployeeResponseDTO> create(@Valid @RequestBody EmployeeRequestDTO requestDTO) {
         logger.info("Creating new employee: {}", requestDTO.getEmail());
         // Validate related entities exist
@@ -106,9 +107,9 @@ public class EmployeeController {
     }
 
     @PutMapping("/{id}")
-    @PreAuthorize("hasAnyRole('SYSTEM_ADMIN','HR_MANAGER') or " +
-                  "(hasRole('DEPARTMENT_MANAGER') and @securityService.isInOwnDepartment(#id)) or " +
-                  "(hasRole('EMPLOYEE') and @securityService.isOwnRecord(#id))")
+    @PreAuthorize("hasAnyRole('" + RoleConstants.SYSTEM_ADMIN + "','" + RoleConstants.HR_MANAGER + "') or " +
+                  "(hasRole('" + RoleConstants.DEPARTMENT_MANAGER + "') and @securityService.isInOwnDepartment(#id)) or " +
+                  "(hasRole('" + RoleConstants.EMPLOYEE + "') and @securityService.isOwnRecord(#id))")
     public ResponseEntity<EmployeeResponseDTO> update(@PathVariable UUID id, @Valid @RequestBody EmployeeRequestDTO requestDTO) {
         logger.info("Updating employee with id: {}", id);
         Employee existingEmployee = employeeService.getById(id);
@@ -143,7 +144,7 @@ public class EmployeeController {
     }
 
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasAnyRole('SYSTEM_ADMIN','HR_MANAGER')")
+    @PreAuthorize("hasAnyRole('" + RoleConstants.SYSTEM_ADMIN + "','" + RoleConstants.HR_MANAGER + "')")
     public ResponseEntity<Void> delete(@PathVariable UUID id) {
         logger.info("Deleting employee with id: {}", id);
         Employee employee = employeeService.getById(id);
