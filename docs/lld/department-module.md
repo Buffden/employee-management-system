@@ -10,90 +10,68 @@ The Department module handles department management including CRUD operations, e
 
 **Location**: `backend/src/main/java/.../models/Department.java`
 
-```java
-@Entity
-public class Department {
-    @Id
-    @GeneratedValue(strategy = GenerationType.AUTO)
-    private UUID id;
-    
-    @Column(nullable = false, unique = true)
-    private String name;
-    
-    private String description;
-    
-    @ManyToOne
-    private Location location;
-    
-    @Column(nullable = false)
-    private LocalDate createdAt;
-    
-    private Double budget = 0.0;
-    private Double budgetUtilization; // 0-1.0
-    private Double performanceMetric; // 0-100
-    
-    @ManyToOne
-    private Employee departmentHead;
-    
-    private String locationName; // Denormalized for display
-    
-    // Getters and setters
-}
-```
+**Fields**:
+
+| Field | Type | Constraints | Description |
+|-------|------|-------------|-------------|
+| `id` | `UUID` | `@Id`, `@GeneratedValue` | Primary key |
+| `name` | `String` | `@Column(nullable=false, unique=true)` | Department name (unique) |
+| `description` | `String` | - | Department description |
+| `location` | `Location` | `@ManyToOne` | Associated location |
+| `createdAt` | `LocalDate` | `@Column(nullable=false)` | Creation timestamp |
+| `budget` | `Double` | Default: `0.0` | Department budget |
+| `budgetUtilization` | `Double` | Range: 0.0-1.0 | Budget utilization ratio |
+| `performanceMetric` | `Double` | Range: 0-100 | Performance score |
+| `departmentHead` | `Employee` | `@ManyToOne` | Department head employee |
+| `locationName` | `String` | - | Denormalized location name (for display) |
+| `totalEmployees` | `Integer` | - | Cached employee count |
+| `employees` | `List<Employee>` | `@OneToMany(mappedBy="department")`, `@JsonIgnore` | Employees in department (bidirectional) |
+
+**Constructors**:
+- Default constructor (required by JPA)
+- `Department(String name, String description, Integer totalEmployees)` - Parameterized constructor
 
 ## 3. DTOs
 
 ### 3.1 DepartmentRequestDTO
 
-**Pattern**: Builder Pattern
+**Fields**:
 
-```java
-@Builder
-@Data
-public class DepartmentRequestDTO {
-    private String name;
-    private String description;
-    private UUID locationId;
-    private Double budget;
-    private UUID departmentHeadId;
-}
-```
+| Field | Type | Description |
+|-------|------|-------------|
+| `name` | `String` | Department name |
+| `description` | `String` | Department description |
+| `locationId` | `UUID` | Location ID (for relationship) |
+| `budget` | `Double` | Department budget |
+| `budgetUtilization` | `Double` | Budget utilization (0.0-1.0) |
+| `performanceMetric` | `Double` | Performance metric (0-100) |
+| `departmentHeadId` | `UUID` | Department head employee ID |
+
+**Note**: No `id` or `createdAt` fields (auto-generated on server side)
 
 ### 3.2 DepartmentResponseDTO
 
-```java
-@Builder
-@Data
-public class DepartmentResponseDTO {
-    private UUID id;
-    private String name;
-    private String description;
-    private String locationName;
-    private Double budget;
-    private String departmentHeadName;
-    private Integer totalEmployees;
-    private LocalDate createdAt;
-}
-```
+**Fields**:
 
-## 4. Controllers
+| Field | Type | Description |
+|-------|------|-------------|
+| `id` | `UUID` | Department ID |
+| `name` | `String` | Department name |
+| `description` | `String` | Department description |
+| `locationName` | `String` | Denormalized location name |
+| `createdAt` | `LocalDate` | Creation timestamp |
+| `budget` | `Double` | Department budget |
+| `budgetUtilization` | `Double` | Budget utilization (0.0-1.0) |
+| `performanceMetric` | `Double` | Performance metric (0-100) |
+| `departmentHeadName` | `String` | Denormalized department head name (firstName + lastName) |
 
-### 4.1 DepartmentController
-
-**Endpoints**:
-- `GET /api/departments` - List all departments
-- `POST /api/departments` - Create department
-- `PUT /api/departments/{id}` - Update department
-- `GET /api/departments/{id}` - Get department by ID
-- `DELETE /api/departments/{id}` - Delete department
+**Note**: Uses denormalized names (`locationName`, `departmentHeadName`) for better API responses
 
 ## 4. Controllers
 
 ### 4.1 DepartmentController
 
 **Location**: `backend/src/main/java/.../controllers/DepartmentController.java`
-
-**Endpoints**:
 
 **Endpoints**:
 
@@ -112,7 +90,7 @@ public class DepartmentResponseDTO {
 - `DepartmentRepository` - Employee count calculation
 
 **Patterns Applied**:
-- **Adapter Pattern**: DepartmentMapper converts Entity ↔ DTO
+- **Adapter Pattern**: DepartmentMapper converts Entity ↔ DTO (similar to EmployeeMapper pattern)
 
 ## 5. Services
 
@@ -175,8 +153,8 @@ public interface DepartmentRepository extends JpaRepository<Department, UUID> {
 
 | Method | Parameters | Return Type | Description |
 |--------|------------|-------------|-------------|
-| `toResponseDTO(Department dept, Long employeeCount)` | `dept`, `employeeCount` | `DepartmentResponseDTO` | Convert Entity to Response DTO with employee count |
-| `toEntity(DepartmentRequestDTO dto, Location loc, Employee head)` | `dto`, `loc`, `head` | `Department` | Convert Request DTO to Entity with relationships |
+| `toResponseDTO(Department department)` | `department` | `DepartmentResponseDTO` | Convert Entity to Response DTO (includes denormalized names) |
+| `toEntity(DepartmentRequestDTO dto, Location location, Employee head)` | `dto`, `location`, `head` | `Department` | Convert Request DTO to Entity (resolves relationships) |
 
 **Responsibilities**:
 - Maps Entity to Response DTO (includes employee count and denormalized names)
@@ -186,7 +164,6 @@ public interface DepartmentRepository extends JpaRepository<Department, UUID> {
 
 | Pattern | Location | Purpose |
 |---------|----------|---------|
-| **Builder** | DepartmentRequestDTO, DepartmentResponseDTO | DTO construction |
 | **Adapter** | DepartmentMapper | Entity ↔ DTO conversion |
 
 ## 9. Validation Rules
