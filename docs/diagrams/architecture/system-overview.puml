@@ -21,15 +21,22 @@ package "Backend Layer" #LightYellow {
     [Employee Controller] as EmpCtrl
     [Department Controller] as DeptCtrl
     [Dashboard Controller] as DashCtrl
+    [Auth Controller] as AuthCtrl
   }
   package "Service Layer" #LightGreen {
     [Employee Service] as EmpSvc
     [Department Service] as DeptSvc
     [Dashboard Service] as DashSvc
+    [Auth Service] as AuthSvc
+  }
+  package "Security Layer" #LightPink {
+    [JWT Filter] as JwtFilter
+    [Security Service] as SecSvc
   }
   package "Repository Layer" #LightCoral {
     [Employee Repository] as EmpRepo
     [Department Repository] as DeptRepo
+    [User Repository] as UserRepo
   }
 }
 
@@ -41,18 +48,46 @@ Frontend --> Gateway : HTTPS
 Gateway --> Backend : /api/*
 Gateway --> Frontend : /*
 
+Backend --> JwtFilter : intercepts requests
+JwtFilter --> EmpCtrl : authorized requests
+JwtFilter --> DeptCtrl : authorized requests
+JwtFilter --> DashCtrl : authorized requests
+JwtFilter --> AuthCtrl : public requests
+
 Backend --> EmpCtrl
 Backend --> DeptCtrl
 Backend --> DashCtrl
+Backend --> AuthCtrl
 
 EmpCtrl --> EmpSvc
 DeptCtrl --> DeptSvc
 DashCtrl --> DashSvc
+AuthCtrl --> AuthSvc
+
+EmpSvc ..> SecSvc : RBAC checks
+DeptSvc ..> SecSvc : RBAC checks
+DashSvc ..> SecSvc : RBAC checks
 
 EmpSvc --> EmpRepo
 DeptSvc --> DeptRepo
+AuthSvc --> UserRepo
 
 EmpRepo --> DB
 DeptRepo --> DB
+UserRepo --> DB
+
+note right of JwtFilter
+  **Security:**
+  - Validates JWT tokens
+  - Extracts role from claims
+  - Sets SecurityContext
+end note
+
+note right of SecSvc
+  **RBAC:**
+  - Role-based access checks
+  - Department scope validation
+  - Used in @PreAuthorize
+end note
 
 @enduml
