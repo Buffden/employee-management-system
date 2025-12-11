@@ -35,6 +35,12 @@ public class EmployeeProject {
             this.employee = employee;
             this.project = project;
         }
+        // Getters
+        public UUID getEmployee() { return employee; }
+        public UUID getProject() { return project; }
+        // Setters
+        public void setEmployee(UUID employee) { this.employee = employee; }
+        public void setProject(UUID project) { this.project = project; }
         // equals and hashCode
         @Override
         public boolean equals(Object o) {
