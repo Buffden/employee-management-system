@@ -494,6 +494,54 @@ This document provides a comprehensive classification of all classes and objects
 - **Classification**: Security Service
 - **See**: `docs/lld/auth-module.md` Section 5.5 for implementation details
 
+#### CustomAuthenticationEntryPoint
+- **Type**: Spring Security AuthenticationEntryPoint Implementation
+- **Purpose**: Handles unauthenticated requests (401 Unauthorized)
+- **Key Method**: `commence(...)` - Returns 401 JSON error response
+- **Responsibilities**:
+  - Intercepts requests without valid authentication
+  - Returns JSON error response with 401 status
+  - Logs unauthorized access attempts
+- **Classification**: Security Component
+- **See**: `docs/lld/auth-module.md` Section 5.6 for implementation details
+
+#### CustomAccessDeniedHandler
+- **Type**: Spring Security AccessDeniedHandler Implementation
+- **Purpose**: Handles unauthorized requests (403 Forbidden)
+- **Key Method**: `handle(...)` - Returns 403 JSON error response
+- **Responsibilities**:
+  - Intercepts requests with valid authentication but insufficient permissions
+  - Returns JSON error response with 403 status
+  - Logs access denied attempts with user and resource information
+- **Classification**: Security Component
+- **See**: `docs/lld/auth-module.md` Section 5.7 for implementation details
+
+#### DataInitializer
+- **Type**: Spring Boot CommandLineRunner Configuration
+- **Purpose**: Creates initial admin user on application startup
+- **Key Method**: `initDatabase(...)` - CommandLineRunner bean
+- **Responsibilities**:
+  - Checks if admin user exists
+  - Creates admin user if not found
+  - Uses `PasswordEncoder` for password hashing
+  - Logs creation status
+- **Dependencies**: `UserRepository`, `PasswordEncoder`
+- **Classification**: Initialization Component
+- **See**: `docs/lld/auth-module.md` Section 5.9 for implementation details
+
+#### GlobalExceptionHandler
+- **Type**: Spring `@ControllerAdvice` Exception Handler
+- **Purpose**: Centralized exception handling for security-related exceptions
+- **Key Methods**:
+  - `handleAccessDeniedException(...)` - Returns 403 Forbidden
+  - `handleAuthenticationException(...)` - Returns 401 Unauthorized
+- **Security Exception Handlers**:
+  - `AccessDeniedException` → 403 Forbidden
+  - `AuthenticationException` → 401 Unauthorized
+  - `BadCredentialsException` → 401 Unauthorized
+- **Classification**: Exception Handler
+- **See**: `docs/lld/auth-module.md` Section 5.8 for implementation details
+
 ### 7.2 Configuration Classes
 
 #### WebConfig

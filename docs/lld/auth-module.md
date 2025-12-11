@@ -179,8 +179,8 @@ public class UserDTO {
 | `SecurityFilterChain` | Main security filter chain | JWT filter, authentication, authorization |
 | `JwtAuthenticationFilter` | JWT token validation filter | Extracts and validates JWT from Authorization header |
 | `PasswordEncoder` | Password encoding | BCrypt with strength 10 |
-| `AuthenticationEntryPoint` | Unauthorized access handler | Returns 401 for unauthenticated requests |
-| `AccessDeniedHandler` | Forbidden access handler | Returns 403 for unauthorized requests |
+| `CustomAuthenticationEntryPoint` | Unauthorized access handler | Returns 401 for unauthenticated requests |
+| `CustomAccessDeniedHandler` | Forbidden access handler | Returns 403 for unauthorized requests |
 
 **Security Filter Chain Configuration**:
 - **Public Endpoints**: `/api/auth/login`, `/api/auth/refresh` (no authentication required)
@@ -234,6 +234,11 @@ public class SecurityConfig {
 - `@EnableWebSecurity`: Enables Spring Security
 - `@EnableMethodSecurity`: Enables `@PreAuthorize` method-level security
 
+**Exception Handlers Configuration**:
+- `CustomAuthenticationEntryPoint`: Handles 401 Unauthorized errors
+- `CustomAccessDeniedHandler`: Handles 403 Forbidden errors
+- Both integrated via `.exceptionHandling()` in `SecurityFilterChain`
+
 ---
 
 ### 5.4 JWT Authentication Filter
@@ -255,9 +260,27 @@ public class SecurityConfig {
 - `UserRepository` - User lookup (optional, for additional validation)
 
 **Error Handling**:
-- Invalid token → 401 Unauthorized
-- Expired token → 401 Unauthorized
-- Missing token → Continue (handled by authentication entry point)
+- **Expired Token**: Detects expiration before validation, returns 401 with JSON error
+- **Invalid Signature**: Catches `SignatureException`, returns 401 with JSON error
+- **Malformed Token**: Catches `MalformedJwtException`, returns 401 with JSON error
+- **Other Exceptions**: Generic exception handling, returns 401 with JSON error
+- **Missing Token**: Continues filter chain (handled by `CustomAuthenticationEntryPoint`)
+
+**Error Response Format**:
+```json
+{
+  "status": 401,
+  "error": "Unauthorized",
+  "message": "JWT token has expired",
+  "path": "/api/employees"
+}
+```
+
+**Implementation Details**:
+- Checks token expiration using `jwtManager.isTokenExpired(token)` before validation
+- Catches specific JWT exceptions (`ExpiredJwtException`, `SignatureException`, `MalformedJwtException`)
+- Returns JSON error response directly in filter (before reaching controller)
+- Clears `SecurityContextHolder` on any validation failure
 
 ---
 
@@ -323,6 +346,180 @@ public UserDetails loadUserByUsername(String username) throws UsernameNotFoundEx
 **Pattern**: Singleton Pattern
 
 **Purpose**: Single instance for JWT operations, ensures consistent token generation
+
+---
+
+### 5.6 Custom Authentication Entry Point
+
+**Location**: `backend/src/main/java/.../security/CustomAuthenticationEntryPoint.java`
+
+**Purpose**: Handles unauthenticated requests (401 Unauthorized)
+
+**Interface**: Implements Spring Security's `AuthenticationEntryPoint`
+
+**Responsibilities**:
+- Intercepts requests without valid authentication
+- Returns JSON error response with 401 status
+- Logs unauthorized access attempts
+
+**Error Response Format**:
+```json
+{
+  "status": 401,
+  "error": "Unauthorized",
+  "message": "Authentication required. Please provide a valid JWT token.",
+  "path": "/api/employees"
+}
+```
+
+**Triggered When**:
+- No JWT token provided in `Authorization` header
+- Invalid authentication credentials
+- Authentication exception occurs
+
+**Implementation**:
+```java
+@Component
+public class CustomAuthenticationEntryPoint implements AuthenticationEntryPoint {
+    @Override
+    public void commence(HttpServletRequest request, 
+                        HttpServletResponse response,
+                        AuthenticationException authException) {
+        // Returns 401 with JSON error response
+    }
+}
+```
+
+---
+
+### 5.7 Custom Access Denied Handler
+
+**Location**: `backend/src/main/java/.../security/CustomAccessDeniedHandler.java`
+
+**Purpose**: Handles unauthorized requests (403 Forbidden)
+
+**Interface**: Implements Spring Security's `AccessDeniedHandler`
+
+**Responsibilities**:
+- Intercepts requests with valid authentication but insufficient permissions
+- Returns JSON error response with 403 status
+- Logs access denied attempts with user and resource information
+
+**Error Response Format**:
+```json
+{
+  "status": 403,
+  "error": "Forbidden",
+  "message": "You do not have permission to access this resource.",
+  "path": "/api/employees"
+}
+```
+
+**Triggered When**:
+- User has valid JWT token but lacks required role
+- `@PreAuthorize` annotation evaluates to false
+- User tries to access resource outside their scope
+
+**Implementation**:
+```java
+@Component
+public class CustomAccessDeniedHandler implements AccessDeniedHandler {
+    @Override
+    public void handle(HttpServletRequest request, 
+                      HttpServletResponse response,
+                      AccessDeniedException accessDeniedException) {
+        // Returns 403 with JSON error response
+    }
+}
+```
+
+---
+
+### 5.8 Global Exception Handler (Security Exceptions)
+
+**Location**: `backend/src/main/java/.../exceptions/GlobalExceptionHandler.java`
+
+**Purpose**: Centralized exception handling for security-related exceptions
+
+**Security Exception Handlers**:
+
+| Exception | HTTP Status | Description |
+|-----------|-------------|-------------|
+| `AccessDeniedException` | 403 Forbidden | User lacks required permissions |
+| `AuthenticationException` | 401 Unauthorized | Authentication failed |
+| `BadCredentialsException` | 401 Unauthorized | Invalid credentials |
+
+**Error Response Format**:
+```json
+{
+  "timestamp": "2024-12-10T10:30:00Z",
+  "status": 403,
+  "error": "Forbidden",
+  "message": "You do not have permission to access this resource.",
+  "path": "/api/employees"
+}
+```
+
+**Implementation**:
+```java
+@ControllerAdvice
+public class GlobalExceptionHandler {
+    @ExceptionHandler(AccessDeniedException.class)
+    public ResponseEntity<ErrorResponseDTO> handleAccessDeniedException(...) {
+        // Returns 403 Forbidden
+    }
+    
+    @ExceptionHandler({AuthenticationException.class, BadCredentialsException.class})
+    public ResponseEntity<ErrorResponseDTO> handleAuthenticationException(...) {
+        // Returns 401 Unauthorized
+    }
+}
+```
+
+**Note**: These handlers complement the filter-level handlers (`CustomAuthenticationEntryPoint`, `CustomAccessDeniedHandler`) and provide additional exception handling for controller-level security exceptions.
+
+---
+
+### 5.9 Data Initializer
+
+**Location**: `backend/src/main/java/.../config/DataInitializer.java`
+
+**Purpose**: Creates initial admin user on application startup
+
+**Implementation Pattern**: `CommandLineRunner` bean
+
+**Functionality**:
+- Checks if admin user exists
+- Creates admin user if not found
+- Uses `PasswordEncoder` for password hashing
+- Logs creation status
+
+**Default Admin User**:
+- **Username**: `admin`
+- **Password**: `admin123` (⚠️ **CHANGE IN PRODUCTION**)
+- **Role**: `SYSTEM_ADMIN`
+- **Email**: `admin@ems.com`
+
+**Implementation**:
+```java
+@Configuration
+public class DataInitializer {
+    @Bean
+    CommandLineRunner initDatabase(UserRepository userRepository, 
+                                   PasswordEncoder passwordEncoder) {
+        return args -> {
+            if (userRepository.findByUsername("admin").isEmpty()) {
+                // Create admin user
+            }
+        };
+    }
+}
+```
+
+**Security Note**: 
+- ⚠️ Default password is for development only
+- **MUST** be changed in production
+- Consider using environment variables for initial admin credentials
 
 ---
 

@@ -200,7 +200,10 @@ public void delete(UUID id) {
 @PreAuthorize("hasAnyRole('SYSTEM_ADMIN', 'HR_MANAGER', 'DEPARTMENT_MANAGER')")
 public Page<LocationResponseDTO> getAll(Pageable pageable) {
     // All authenticated roles can view, but only System Admin and HR Manager can modify
-    return locationRepository.findAll(pageable).map(mapper::toResponseDTO);
+    // Uses filtered repository method for consistency with other modules
+    String role = securityService.getCurrentUserRole();
+    return locationRepository.findAllFilteredByRole(role, pageable)
+        .map(mapper::toResponseDTO);
 }
 ```
 
@@ -220,7 +223,17 @@ public ResponseEntity<LocationResponseDTO> update(@PathVariable UUID id,
 public ResponseEntity<Void> delete(@PathVariable UUID id) { ... }
 ```
 
-**Note**: Location management is restricted to System Admin and HR Manager only. Department Managers and Employees have read-only access.
+**Repository-Level Filtering**:
+```java
+@Query("SELECT l FROM Location l WHERE " +
+       "(:role = 'SYSTEM_ADMIN' OR :role = 'HR_MANAGER') OR " +
+       "(:role = 'DEPARTMENT_MANAGER') OR " +
+       "(:role = 'EMPLOYEE')")
+Page<Location> findAllFilteredByRole(@Param("role") String role,
+                                     Pageable pageable);
+```
+
+**Note**: Location management is restricted to System Admin and HR Manager only. Department Managers and Employees have read-only access. All roles can view locations, but filtering is applied for consistency with other modules.
 
 **See**: `docs/security/roles-and-permissions.md` for complete permission matrix
 
