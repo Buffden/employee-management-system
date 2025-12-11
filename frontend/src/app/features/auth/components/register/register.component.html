@@ -2,10 +2,10 @@
   <mat-card class="register-card">
     <mat-card-header>
       <mat-card-title>
-        <mat-icon class="register-icon">person_add</mat-icon>
-        Create Account
+        <mat-icon class="register-icon">admin_panel_settings</mat-icon>
+        Add New Admin
       </mat-card-title>
-      <mat-card-subtitle>Sign up to get started</mat-card-subtitle>
+      <mat-card-subtitle>Create a new System Admin or HR Manager account</mat-card-subtitle>
     </mat-card-header>
 
     <mat-card-content>
@@ -78,6 +78,20 @@
           </mat-error>
         </mat-form-field>
 
+        <!-- Role Selection Field -->
+        <mat-form-field appearance="outline" class="full-width">
+          <mat-label>Role</mat-label>
+          <mat-select formControlName="role">
+            <mat-option [value]="userRole.SYSTEM_ADMIN">System Admin</mat-option>
+            <mat-option [value]="userRole.HR_MANAGER">HR Manager</mat-option>
+          </mat-select>
+          <mat-icon matPrefix>badge</mat-icon>
+          <mat-hint>Required: Select the role for the new user (System Admin or HR Manager)</mat-hint>
+          <mat-error *ngIf="hasFieldError('role')">
+            {{ getErrorMessage('role') }}
+          </mat-error>
+        </mat-form-field>
+
         <!-- Error Message -->
         <div *ngIf="errorMessage" class="error-message">
           <mat-icon>error</mat-icon>
@@ -92,15 +106,18 @@
           class="full-width register-button"
           [disabled]="loading || registerForm.invalid">
           <mat-spinner *ngIf="loading" diameter="20" class="button-spinner"></mat-spinner>
-          <span *ngIf="!loading">Create Account</span>
-          <span *ngIf="loading">Creating account...</span>
+          <span *ngIf="!loading">Add Admin</span>
+          <span *ngIf="loading">Adding admin...</span>
         </button>
       </form>
     </mat-card-content>
 
     <mat-card-footer>
       <div class="register-footer">
-        <p>Already have an account? <a routerLink="/login">Sign in</a></p>
+        <button mat-button color="primary" routerLink="/dashboard">
+          <mat-icon>arrow_back</mat-icon>
+          Back to Dashboard
+        </button>
       </div>
     </mat-card-footer>
   </mat-card>
