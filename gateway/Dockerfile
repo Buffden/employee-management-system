@@ -21,7 +21,7 @@ RUN if [ -f /usr/share/nginx/html/index.csr.html ]; then \
     fi
 
 # Copy unified nginx configuration (serves Angular + routes API)
-COPY nginx.conf /etc/nginx/conf.d/default.conf
+COPY gateway/nginx.conf /etc/nginx/conf.d/default.conf
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=5s --retries=3 \
