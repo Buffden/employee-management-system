@@ -6,7 +6,9 @@ title Project Creation - Activity Diagram
 
 start
 
-:Department Manager creates project;
+partition "RBAC: Department Manager or System Admin" {
+  :Department Manager/System Admin creates project;
+}
 :Enter project details (name, description);
 :Set start date;
 :Set budget (optional);
