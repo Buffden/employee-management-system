@@ -1,19 +1,40 @@
 import { NgModule } from '@angular/core';
 import { RouterModule, Routes } from '@angular/router';
+import { AuthGuard } from './core/guards/auth.guard';
 
 export const routes: Routes = [
-  // landing page route to home with full path match
+  // Landing page (public)
   {
     path: '',
-    redirectTo: 'home',
-    pathMatch: 'full'
+    loadComponent: () =>
+      import('./features/landing/components/landing-page/landing-page.component').then(
+        (m) => m.LandingPageComponent
+      ),
   },
+  // Login route (public)
   {
-    path: 'home',
+    path: 'login',
+    loadComponent: () =>
+      import('./features/auth/components/login/login.component').then(
+        (m) => m.LoginComponent
+      ),
+  },
+  // Register route (public)
+  {
+    path: 'register',
+    loadComponent: () =>
+      import('./features/auth/components/register/register.component').then(
+        (m) => m.RegisterComponent
+      ),
+  },
+  // Protected routes
+  {
+    path: 'dashboard',
     loadComponent: () =>
       import('./features/home/components/dashboard/dashboard.component').then(
         (m) => m.DashboardComponent
       ),
+    canActivate: [AuthGuard],
   },
   {
     path: 'employees',
@@ -21,6 +42,7 @@ export const routes: Routes = [
       import(
         './features/employees/components/employee-list/employee-list.component'
       ).then((m) => m.EmployeeListComponent),
+    canActivate: [AuthGuard],
   },
   {
     path: 'departments',
@@ -28,6 +50,7 @@ export const routes: Routes = [
       import(
         './features/departments/components/department-list/department-list.component'
       ).then((m) => m.DepartmentListComponent),
+    canActivate: [AuthGuard],
   },
   {
     path: 'profile',
@@ -35,14 +58,16 @@ export const routes: Routes = [
       import(
         './features/profile/components/user-profile/user-profile.component'
       ).then((m) => m.UserProfileComponent),
+    canActivate: [AuthGuard],
   },
   {
     path: 'projects',
-    loadChildren: () => import('./features/projects/projects-routing.module').then(m => m.ProjectsRoutingModule)
+    loadChildren: () => import('./features/projects/projects-routing.module').then(m => m.ProjectsRoutingModule),
+    canActivate: [AuthGuard],
   },
   {
     path: '**',
-    redirectTo: 'home',
+    redirectTo: '',
   },
 ];
 
