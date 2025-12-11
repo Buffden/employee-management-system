@@ -327,9 +327,37 @@ docker-compose up -d --build gateway
 
 ## 🔄 CI/CD
 
-### Jenkins Integration
+### GitHub Actions (CI)
 
-The project includes Jenkins configuration for continuous integration and deployment.
+The project uses **GitHub Actions** for continuous integration (CI) - automatic testing and validation on every pull request.
+
+#### Automatic CI Pipeline
+
+**Workflow**: `.github/workflows/ci.yml`
+
+**Runs automatically on**:
+- Every pull request
+- Every push to `main`, `develop`, or `master` branches
+
+**What it does**:
+- ✅ Runs backend tests (Maven + PostgreSQL)
+- ✅ Runs frontend tests (Angular + Node.js)
+- ✅ Validates Docker builds
+- ✅ Provides immediate feedback in PR
+
+**Benefits**:
+- 🆓 **Free** for public repositories
+- ⚡ **Fast** feedback (5-10 minutes)
+- 🔄 **Automatic** - no manual triggers needed
+- ✅ **Blocks bad code** from merging
+
+**Status Badge**: ![CI](https://github.com/Buffden/employee-management-system/workflows/CI%20Pipeline/badge.svg)
+
+See `.github/workflows/README.md` for detailed documentation.
+
+### Jenkins Integration (CD)
+
+The project includes Jenkins configuration for continuous deployment (CD) - production deployments when the application is hosted.
 
 #### Start Jenkins
 
