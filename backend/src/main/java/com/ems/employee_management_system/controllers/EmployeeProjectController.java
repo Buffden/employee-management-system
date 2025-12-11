@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.ems.employee_management_system.dtos.EmployeeProjectRequestDTO;
@@ -24,6 +25,7 @@ import com.ems.employee_management_system.models.Employee;
 import com.ems.employee_management_system.models.EmployeeProject;
 import com.ems.employee_management_system.models.EmployeeProject.EmployeeProjectId;
 import com.ems.employee_management_system.models.Project;
+import com.ems.employee_management_system.security.SecurityService;
 import com.ems.employee_management_system.services.EmployeeProjectService;
 import com.ems.employee_management_system.services.EmployeeService;
 import com.ems.employee_management_system.services.ProjectService;
@@ -33,20 +35,25 @@ import jakarta.validation.Valid;
 
 @RestController
 @RequestMapping("/api/employee-projects")
+@PreAuthorize("hasAnyRole('SYSTEM_ADMIN', 'HR_MANAGER', 'DEPARTMENT_MANAGER', 'EMPLOYEE')")
 public class EmployeeProjectController {
     private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(EmployeeProjectController.class);
     
     private final EmployeeProjectService employeeProjectService;
     private final EmployeeService employeeService;
     private final ProjectService projectService;
+    private final SecurityService securityService;
 
-    public EmployeeProjectController(EmployeeProjectService employeeProjectService, EmployeeService employeeService, ProjectService projectService) {
+    public EmployeeProjectController(EmployeeProjectService employeeProjectService, EmployeeService employeeService, 
+                                    ProjectService projectService, SecurityService securityService) {
         this.employeeProjectService = employeeProjectService;
         this.employeeService = employeeService;
         this.projectService = projectService;
+        this.securityService = securityService;
     }
 
     @GetMapping
+    @PreAuthorize("hasAnyRole('SYSTEM_ADMIN', 'HR_MANAGER', 'DEPARTMENT_MANAGER', 'EMPLOYEE')")
     public ResponseEntity<PaginatedResponseDTO<EmployeeProjectResponseDTO>> getAll(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size,
@@ -73,6 +80,8 @@ public class EmployeeProjectController {
     }
 
     @PostMapping
+    @PreAuthorize("hasAnyRole('SYSTEM_ADMIN', 'HR_MANAGER') or " +
+                  "(hasRole('DEPARTMENT_MANAGER') and @securityService.isProjectInOwnDepartmentByProjectId(#requestDTO.projectId))")
     public ResponseEntity<EmployeeProjectResponseDTO> create(@Valid @RequestBody EmployeeProjectRequestDTO requestDTO) {
         logger.info("Creating new employee-project assignment: employeeId={}, projectId={}", requestDTO.getEmployeeId(), requestDTO.getProjectId());
         // Validate related entities exist
@@ -93,6 +102,8 @@ public class EmployeeProjectController {
     }
 
     @PutMapping("/{employeeId}/{projectId}")
+    @PreAuthorize("hasAnyRole('SYSTEM_ADMIN', 'HR_MANAGER') or " +
+                  "(hasRole('DEPARTMENT_MANAGER') and @securityService.isProjectInOwnDepartmentByProjectId(T(java.util.UUID).fromString(#projectId)))")
     public ResponseEntity<EmployeeProjectResponseDTO> update(@PathVariable("employeeId") String employeeId, @PathVariable("projectId") String projectId, @Valid @RequestBody EmployeeProjectRequestDTO requestDTO) {
         logger.info("Updating employee-project assignment: employeeId={}, projectId={}", employeeId, projectId);
         EmployeeProjectId id = new EmployeeProjectId(UUID.fromString(employeeId), UUID.fromString(projectId));
@@ -120,6 +131,8 @@ public class EmployeeProjectController {
     }
 
     @DeleteMapping("/{employeeId}/{projectId}")
+    @PreAuthorize("hasAnyRole('SYSTEM_ADMIN', 'HR_MANAGER') or " +
+                  "(hasRole('DEPARTMENT_MANAGER') and @securityService.isProjectInOwnDepartmentByProjectId(T(java.util.UUID).fromString(#projectId)))")
     public ResponseEntity<Void> delete(@PathVariable("employeeId") String employeeId, @PathVariable("projectId") String projectId) {
         logger.info("Deleting employee-project assignment: employeeId={}, projectId={}", employeeId, projectId);
         EmployeeProjectId id = new EmployeeProjectId(UUID.fromString(employeeId), UUID.fromString(projectId));

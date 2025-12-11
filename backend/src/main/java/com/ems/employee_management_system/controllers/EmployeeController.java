@@ -6,6 +6,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -32,6 +33,7 @@ import jakarta.validation.Valid;
 
 @RestController
 @RequestMapping("/api/employees")
+@PreAuthorize("hasAnyRole('SYSTEM_ADMIN','HR_MANAGER','DEPARTMENT_MANAGER','EMPLOYEE')")
 public class EmployeeController {
     private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(EmployeeController.class);
     
@@ -46,6 +48,7 @@ public class EmployeeController {
     }
 
     @GetMapping
+    @PreAuthorize("hasAnyRole('SYSTEM_ADMIN','HR_MANAGER','DEPARTMENT_MANAGER','EMPLOYEE')")
     public ResponseEntity<PaginatedResponseDTO<EmployeeResponseDTO>> getAll(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size,
@@ -60,6 +63,9 @@ public class EmployeeController {
     }
 
     @GetMapping("/{id}")
+    @PreAuthorize("hasAnyRole('SYSTEM_ADMIN','HR_MANAGER') or " +
+                  "(hasRole('DEPARTMENT_MANAGER') and @securityService.isInOwnDepartment(#id)) or " +
+                  "(hasRole('EMPLOYEE') and @securityService.isOwnRecord(#id))")
     public ResponseEntity<EmployeeResponseDTO> getById(@PathVariable UUID id) {
         logger.debug("Fetching employee with id: {}", id);
         Employee employee = employeeService.getById(id);
@@ -71,6 +77,7 @@ public class EmployeeController {
     }
 
     @PostMapping
+    @PreAuthorize("hasAnyRole('SYSTEM_ADMIN','HR_MANAGER')")
     public ResponseEntity<EmployeeResponseDTO> create(@Valid @RequestBody EmployeeRequestDTO requestDTO) {
         logger.info("Creating new employee: {}", requestDTO.getEmail());
         // Validate related entities exist
@@ -99,6 +106,9 @@ public class EmployeeController {
     }
 
     @PutMapping("/{id}")
+    @PreAuthorize("hasAnyRole('SYSTEM_ADMIN','HR_MANAGER') or " +
+                  "(hasRole('DEPARTMENT_MANAGER') and @securityService.isInOwnDepartment(#id)) or " +
+                  "(hasRole('EMPLOYEE') and @securityService.isOwnRecord(#id))")
     public ResponseEntity<EmployeeResponseDTO> update(@PathVariable UUID id, @Valid @RequestBody EmployeeRequestDTO requestDTO) {
         logger.info("Updating employee with id: {}", id);
         Employee existingEmployee = employeeService.getById(id);
@@ -133,6 +143,7 @@ public class EmployeeController {
     }
 
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasAnyRole('SYSTEM_ADMIN','HR_MANAGER')")
     public ResponseEntity<Void> delete(@PathVariable UUID id) {
         logger.info("Deleting employee with id: {}", id);
         Employee employee = employeeService.getById(id);

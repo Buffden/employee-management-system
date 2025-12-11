@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.ems.employee_management_system.dtos.LocationRequestDTO;
@@ -28,6 +29,7 @@ import jakarta.validation.Valid;
 
 @RestController
 @RequestMapping("/api/locations")
+@PreAuthorize("hasAnyRole('SYSTEM_ADMIN', 'HR_MANAGER', 'DEPARTMENT_MANAGER')")
 public class LocationController {
     private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(LocationController.class);
     
@@ -38,6 +40,7 @@ public class LocationController {
     }
 
     @GetMapping
+    @PreAuthorize("hasAnyRole('SYSTEM_ADMIN', 'HR_MANAGER', 'DEPARTMENT_MANAGER')")
     public ResponseEntity<PaginatedResponseDTO<LocationResponseDTO>> getAll(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size,
@@ -52,6 +55,7 @@ public class LocationController {
     }
 
     @GetMapping("/{id}")
+    @PreAuthorize("hasAnyRole('SYSTEM_ADMIN', 'HR_MANAGER', 'DEPARTMENT_MANAGER')")
     public ResponseEntity<LocationResponseDTO> getById(@PathVariable UUID id) {
         logger.debug("Fetching location with id: {}", id);
         Location location = locationService.getById(id);
@@ -63,6 +67,7 @@ public class LocationController {
     }
 
     @PostMapping
+    @PreAuthorize("hasAnyRole('SYSTEM_ADMIN', 'HR_MANAGER')")
     public ResponseEntity<LocationResponseDTO> create(@Valid @RequestBody LocationRequestDTO requestDTO) {
         logger.info("Creating new location: {}", requestDTO.getName());
         Location location = LocationMapper.toEntity(requestDTO);
@@ -72,6 +77,7 @@ public class LocationController {
     }
 
     @PutMapping("/{id}")
+    @PreAuthorize("hasAnyRole('SYSTEM_ADMIN', 'HR_MANAGER')")
     public ResponseEntity<LocationResponseDTO> update(@PathVariable UUID id, @Valid @RequestBody LocationRequestDTO requestDTO) {
         logger.info("Updating location with id: {}", id);
         Location existingLocation = locationService.getById(id);
@@ -87,6 +93,7 @@ public class LocationController {
     }
 
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasRole('SYSTEM_ADMIN')")
     public ResponseEntity<Void> delete(@PathVariable UUID id) {
         logger.info("Deleting location with id: {}", id);
         Location location = locationService.getById(id);

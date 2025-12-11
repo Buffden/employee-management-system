@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.ems.employee_management_system.dtos.DepartmentRequestDTO;
@@ -22,6 +23,7 @@ import com.ems.employee_management_system.mappers.DepartmentMapper;
 import com.ems.employee_management_system.models.Department;
 import com.ems.employee_management_system.models.Employee;
 import com.ems.employee_management_system.models.Location;
+import com.ems.employee_management_system.security.SecurityService;
 import com.ems.employee_management_system.services.DepartmentService;
 import com.ems.employee_management_system.services.EmployeeService;
 import com.ems.employee_management_system.services.LocationService;
@@ -31,20 +33,25 @@ import jakarta.validation.Valid;
 
 @RestController
 @RequestMapping("/api/departments")
+@PreAuthorize("hasAnyRole('SYSTEM_ADMIN', 'HR_MANAGER', 'DEPARTMENT_MANAGER', 'EMPLOYEE')")
 public class DepartmentController {
     private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(DepartmentController.class);
     
     private final DepartmentService departmentService;
     private final LocationService locationService;
     private final EmployeeService employeeService;
+    private final SecurityService securityService;
 
-    public DepartmentController(DepartmentService departmentService, LocationService locationService, EmployeeService employeeService) {
+    public DepartmentController(DepartmentService departmentService, LocationService locationService, 
+                                EmployeeService employeeService, SecurityService securityService) {
         this.departmentService = departmentService;
         this.locationService = locationService;
         this.employeeService = employeeService;
+        this.securityService = securityService;
     }
 
     @GetMapping
+    @PreAuthorize("hasAnyRole('SYSTEM_ADMIN', 'HR_MANAGER', 'DEPARTMENT_MANAGER', 'EMPLOYEE')")
     public ResponseEntity<com.ems.employee_management_system.dtos.PaginatedResponseDTO<DepartmentResponseDTO>> getAll(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size,
@@ -59,6 +66,10 @@ public class DepartmentController {
     }
 
     @GetMapping("/{id}")
+    @PreAuthorize("hasAnyRole('SYSTEM_ADMIN', 'HR_MANAGER', 'DEPARTMENT_MANAGER', 'EMPLOYEE') and " +
+                  "(@securityService.hasRole('SYSTEM_ADMIN') or @securityService.hasRole('HR_MANAGER') or " +
+                  "@securityService.hasRole('DEPARTMENT_MANAGER') or @securityService.isOwnDepartment(#id) or " +
+                  "@securityService.getCurrentUserEmployeeId() != null)")
     public ResponseEntity<DepartmentResponseDTO> getById(@PathVariable UUID id) {
         logger.debug("Fetching department with id: {}", id);
         Department department = departmentService.getById(id);
@@ -70,6 +81,7 @@ public class DepartmentController {
     }
 
     @PostMapping
+    @PreAuthorize("hasRole('SYSTEM_ADMIN')")
     public ResponseEntity<DepartmentResponseDTO> create(@Valid @RequestBody DepartmentRequestDTO requestDTO) {
         logger.info("Creating new department: {}", requestDTO.getName());
         // Validate related entities exist
@@ -93,6 +105,8 @@ public class DepartmentController {
     }
 
     @PutMapping("/{id}")
+    @PreAuthorize("hasAnyRole('SYSTEM_ADMIN', 'HR_MANAGER') or " +
+                  "(hasRole('DEPARTMENT_MANAGER') and @securityService.isOwnDepartment(#id))")
     public ResponseEntity<DepartmentResponseDTO> update(@PathVariable UUID id, @Valid @RequestBody DepartmentRequestDTO requestDTO) {
         logger.info("Updating department with id: {}", id);
         Department existingDepartment = departmentService.getById(id);
@@ -123,6 +137,7 @@ public class DepartmentController {
     }
 
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasRole('SYSTEM_ADMIN')")
     public ResponseEntity<Void> delete(@PathVariable UUID id) {
         logger.info("Deleting department with id: {}", id);
         Department department = departmentService.getById(id);
