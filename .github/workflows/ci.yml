@@ -96,10 +96,11 @@ jobs:
         run: |
           docker build -f Dockerfile.app -t ems-backend:test .
       
-      - name: Build frontend Docker image
+      - name: Build frontend Docker image (build only)
         working-directory: ./frontend
         run: |
           docker build -t ems-frontend:test .
+          # Note: Frontend is build-only, gateway serves it
       
       - name: Build gateway Docker image
         run: |
