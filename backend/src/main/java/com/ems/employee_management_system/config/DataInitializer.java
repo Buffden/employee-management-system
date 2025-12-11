@@ -1,0 +1,46 @@
+package com.ems.employee_management_system.config;
+
+import com.ems.employee_management_system.models.User;
+import com.ems.employee_management_system.repositories.UserRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.boot.CommandLineRunner;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.security.crypto.password.PasswordEncoder;
+
+import java.time.LocalDateTime;
+import java.util.UUID;
+
+@Configuration
+public class DataInitializer {
+
+    private static final Logger logger = LoggerFactory.getLogger(DataInitializer.class);
+
+    @Bean
+    CommandLineRunner initDatabase(UserRepository userRepository, PasswordEncoder passwordEncoder) {
+        return args -> {
+            // Check if admin user already exists
+            if (userRepository.findByUsername("admin").isEmpty()) {
+                logger.info("Creating initial admin user...");
+                
+                User admin = new User();
+                admin.setId(UUID.randomUUID());
+                admin.setUsername("admin");
+                admin.setPassword(passwordEncoder.encode("admin123")); // Change this in production!
+                admin.setEmail("admin@ems.com");
+                admin.setRole("SYSTEM_ADMIN");
+                admin.setCreatedAt(LocalDateTime.now());
+                
+                userRepository.save(admin);
+                logger.info("✅ Initial admin user created successfully!");
+                logger.info("   Username: admin");
+                logger.info("   Password: admin123 (CHANGE THIS IN PRODUCTION!)");
+                logger.info("   Role: SYSTEM_ADMIN");
+            } else {
+                logger.debug("Admin user already exists, skipping initialization.");
+            }
+        };
+    }
+}
+
