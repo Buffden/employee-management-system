@@ -48,6 +48,19 @@ public class EmployeeAdapter {
 
 **Use Case**: Adapting backend API responses to Angular models
 
+#### 1.3 Security Adapter
+
+**Location**: `backend/src/main/java/.../security/`
+
+**Use Case**: Adapting Spring Security UserDetails to application User entity
+
+**RBAC Integration**: 
+- `UserDetailsServiceImpl` adapts `User` entity to Spring Security `UserDetails`
+- Maps role to Spring Security authorities
+- Used for authentication and authorization
+
+**See**: `docs/lld/auth-module.md` Section 5.5 for implementation details
+
 ```typescript
 @Injectable({ providedIn: 'root' })
 export class EmployeeAdapterService {

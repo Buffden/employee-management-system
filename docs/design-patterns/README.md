@@ -33,6 +33,16 @@ We systematically apply GoF design patterns to:
 - **Observer**: Table refresh, overlay state, metrics updates
 - **Template Method**: Base table query, common CRUD operations
 
+## Security Patterns
+
+While not traditional GoF patterns, security-related patterns are applied:
+- **JWT Authentication**: Stateless token-based authentication
+- **RBAC (Role-Based Access Control)**: 4 roles with permission matrix
+- **Method-Level Security**: @PreAuthorize annotations
+- **Repository Filtering**: Role-based query filtering
+
+**See**: `docs/security/roles-and-permissions.md` for RBAC design
+
 ---
 
 **Status**: Active  

@@ -49,6 +49,20 @@ public class SalarySortStrategy implements SortStrategy {
 - No need to modify existing code
 - Testable in isolation
 
+#### 1.2 Role-Based Filtering Strategy
+
+**Location**: `backend/src/main/java/.../repositories/`
+
+**Use Case**: Different filtering strategies based on user role
+
+**RBAC Integration**:
+- `findAllFilteredByRole()` uses Strategy pattern for role-based filtering
+- SYSTEM_ADMIN/HR_MANAGER: No filtering (all records)
+- DEPARTMENT_MANAGER: Filter by department
+- EMPLOYEE: Filter by own record
+
+**See**: `docs/lld/auth-module.md` Section 14.4.3 for repository filtering
+
 #### 1.2 Filtering Strategy
 
 **Location**: `backend/src/main/java/.../table/FilterStrategy.java`
