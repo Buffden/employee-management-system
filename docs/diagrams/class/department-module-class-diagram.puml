@@ -88,6 +88,12 @@ package "Service Layer" #LightCoral {
         + save(department: Department): Department
         + delete(id: UUID): void
     }
+    
+    class SecurityService {
+        + getCurrentUserRole(): String
+        + getCurrentUserDepartmentId(): UUID
+        + isOwnDepartment(departmentId: UUID): boolean
+    }
 }
 
 package "Repository Layer" #LightGray {
@@ -119,6 +125,7 @@ DepartmentController --> EmployeeService : uses
 
 DepartmentService --> DepartmentRepository : uses
 DepartmentService --> DepartmentMapper : uses
+DepartmentService ..> SecurityService : uses (RBAC)
 
 DepartmentMapper ..> Department : converts
 DepartmentMapper ..> DepartmentDTO : converts
@@ -129,6 +136,14 @@ DepartmentRepository ..> Department : manages
 note right of DepartmentMapper
   Adapter Pattern:
   Converts Entity ↔ DTO
+end note
+
+note right of SecurityService
+  **RBAC Helper:**
+  - Used in @PreAuthorize SpEL
+  - Department scope validation
+  - Only SYSTEM_ADMIN can create
+  - See: docs/lld/auth-module.md
 end note
 
 @enduml

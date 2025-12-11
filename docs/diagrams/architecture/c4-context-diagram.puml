@@ -21,6 +21,9 @@ rectangle "Employee Management System" as EMS {
     - Department Management
     - Dashboard Analytics
     - Project/Task Management
+    - Role-Based Access Control (RBAC)
+    - 4 Roles: System Admin, HR Manager,
+      Department Manager, Employee
   end note
 }
 

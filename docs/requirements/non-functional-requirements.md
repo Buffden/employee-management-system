@@ -49,7 +49,12 @@
 ### 3.3 Data Security
 - **Credential Isolation**: DB credentials via environment variables
 - **Data Encryption**: Sensitive data encrypted at rest
-- **Access Control**: Role-based access to sensitive operations
+- **Access Control**: Role-based access control (RBAC) with 4 roles
+  - System Admin: Full access
+  - HR Manager: HR and employee management
+  - Department Manager: Department-scoped access
+  - Employee: Own data only
+- **Permission Matrix**: See `docs/security/roles-and-permissions.md` for detailed permissions
 
 ## 4. Extensibility
 

@@ -35,32 +35,77 @@ Gateway --> Frontend: 14. Response with token
 Frontend -> Frontend: 15. Store token in localStorage
 Frontend --> User: 16. Redirect to dashboard
 
-== Token Validation ==
+== Token Validation & Authorization ==
 User -> Frontend: 17. Navigate to protected route
 Frontend -> Frontend: 18. Get token from localStorage
 Frontend -> Gateway: 19. GET /api/employees\nAuthorization: Bearer {token}
-Gateway -> Gateway: 20. Validate JWT token
-Gateway -> Controller: 21. Forward request (if valid)
-Controller --> Gateway: 22. Response
-Gateway --> Frontend: 23. Data
+Gateway -> Gateway: 20. Forward to Backend
 
-alt Invalid token
-    Gateway --> Frontend: 24. HTTP 401 Unauthorized
-    Frontend --> User: 25. Redirect to login
+participant "JwtAuthenticationFilter" as JwtFilter
+participant "SecurityService" as SecurityService
+participant "Employee Controller" as EmpController
+participant "Employee Service" as EmpService
+
+Gateway -> JwtFilter: 21. Intercept request
+JwtFilter -> JwtFilter: 22. Extract JWT from header
+JwtFilter -> JwtFilter: 23. Validate token signature
+JwtFilter -> JwtFilter: 24. Check token expiration
+JwtFilter -> JwtFilter: 25. Extract claims (username, role)
+JwtFilter -> JwtFilter: 26. Create Authentication object
+JwtFilter -> JwtFilter: 27. Set SecurityContext
+
+alt Invalid/Expired token
+    JwtFilter --> Gateway: 28. HTTP 401 Unauthorized
+    Gateway --> Frontend: 29. Error response
+    Frontend --> User: 30. Redirect to login
+else Valid token
+    JwtFilter -> EmpController: 31. Forward request
+    EmpController -> EmpController: 32. Check @PreAuthorize\n(hasRole('HR_MANAGER') or hasRole('SYSTEM_ADMIN'))
+    
+    alt Insufficient permissions
+        EmpController --> Gateway: 33. HTTP 403 Forbidden
+        Gateway --> Frontend: 34. Access denied
+        Frontend --> User: 35. Show error message
+    else Authorized
+        EmpController -> SecurityService: 36. getCurrentUserRole()
+        SecurityService --> EmpController: 37. Role (e.g., 'HR_MANAGER')
+        
+        EmpController -> EmpService: 38. getAll(pageable)
+        EmpService -> SecurityService: 39. getCurrentUserRole()\ngetCurrentUserDepartmentId()
+        SecurityService --> EmpService: 40. Role, DepartmentId
+        
+        EmpService -> EmpService: 41. Apply role-based filtering
+        EmpService -> EmpService: 42. Query with role scope
+        EmpService --> EmpController: 43. Page<EmployeeResponseDTO>
+        
+        EmpController --> Gateway: 44. HTTP 200 OK
+        Gateway --> Frontend: 45. Response with filtered data
+        Frontend --> User: 46. Display employee list
+    end
 end
 
 note right of AuthService
   **Security:**
   - Password hashing (BCrypt)
   - JWT token generation
-  - Token expiration
+  - Token expiration (24h access, 7d refresh)
+  - Role included in token claims
 end note
 
-note right of Gateway
+note right of JwtFilter
   **JWT Validation:**
-  - Verify signature
+  - Verify signature (HS512)
   - Check expiration
-  - Extract user info
+  - Extract username, role
+  - Set SecurityContext
+end note
+
+note right of SecurityService
+  **RBAC Helper:**
+  - getCurrentUserRole()
+  - getCurrentUserDepartmentId()
+  - isInOwnDepartment()
+  - Role-based data filtering
 end note
 
 @enduml

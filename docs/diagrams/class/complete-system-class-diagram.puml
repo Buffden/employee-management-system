@@ -54,6 +54,11 @@ package "Controller Layer" #LightYellow {
         + getMetrics(): DashboardMetricsDTO
         + getGraphsData(): GraphDataDTO
     }
+    
+    class AuthController {
+        + login(request: AuthRequestDTO): AuthResponseDTO
+        + refresh(request: RefreshTokenRequestDTO): AuthResponseDTO
+    }
 }
 
 ' ============================================
@@ -94,6 +99,11 @@ package "Service Layer" #LightCoral {
         + getById(id: UUID): Location
         + save(location: Location): Location
         + delete(id: UUID): void
+    }
+    
+    class AuthService {
+        + authenticate(username: String, password: String): AuthResponseDTO
+        + refreshToken(refreshToken: String): AuthResponseDTO
     }
     
     class DashboardFacadeService {
@@ -165,6 +175,12 @@ package "Repository Layer" #LightGray {
         + save(location: Location): Location
         + deleteById(id: UUID): void
     }
+    
+    interface UserRepository {
+        + findByUsername(username: String): Optional<User>
+        + findByEmail(email: String): Optional<User>
+        + findByEmployeeId(employeeId: UUID): Optional<User>
+    }
 }
 
 ' ============================================
@@ -211,6 +227,17 @@ package "Domain Layer" #LightBlue {
         - state: String
         - country: String
     }
+    
+    class User {
+        - id: UUID
+        - username: String
+        - password: String
+        - email: String
+        - role: String
+        - employee: Employee
+        - createdAt: LocalDateTime
+        - lastLogin: LocalDateTime
+    }
 }
 
 ' ============================================
@@ -225,6 +252,10 @@ package "DTO Layer" #LightGreen {
     class LocationDTO
     class DashboardMetricsDTO
     class GraphDataDTO
+    class AuthRequestDTO
+    class AuthResponseDTO
+    class UserDTO
+    class RefreshTokenRequestDTO
 }
 
 ' ============================================
@@ -256,6 +287,50 @@ package "Mapper Layer" #LightBlue {
         + toDTO(entity: Location): LocationDTO
         + toEntity(dto: LocationDTO): Location
     }
+    
+    class UserMapper {
+        + toDTO(user: User): UserDTO
+    }
+}
+
+' ============================================
+' SECURITY LAYER
+' ============================================
+
+package "Security Layer" #LightPink {
+    class SecurityConfig {
+        + securityFilterChain(): SecurityFilterChain
+        + passwordEncoder(): PasswordEncoder
+        + userDetailsService(): UserDetailsService
+    }
+    
+    class JwtAuthenticationFilter {
+        - jwtManager: JWTManager
+        - userDetailsService: UserDetailsService
+        + doFilterInternal(): void
+    }
+    
+    class UserDetailsServiceImpl {
+        - userRepository: UserRepository
+        + loadUserByUsername(username: String): UserDetails
+    }
+    
+    class SecurityService {
+        + getCurrentUser(): User
+        + getCurrentUserId(): UUID
+        + getCurrentUserRole(): String
+        + getCurrentUserDepartmentId(): UUID
+        + isInOwnDepartment(employeeId: UUID): boolean
+        + isOwnDepartment(departmentId: UUID): boolean
+        + isOwnRecord(employeeId: UUID): boolean
+        + isProjectInOwnDepartment(departmentId: UUID): boolean
+    }
+    
+    class JWTManager {
+        + generateToken(user: User): String
+        + generateRefreshToken(user: User): String
+        + validateToken(token: String): Claims
+    }
 }
 
 ' ============================================
@@ -269,6 +344,16 @@ ProjectController --> ProjectService
 TaskController --> TaskService
 LocationController --> LocationService
 DashboardController --> DashboardFacadeService
+AuthController --> AuthService
+
+' Security → Controller/Service
+SecurityConfig ..> JwtAuthenticationFilter
+JwtAuthenticationFilter ..> JWTManager
+JwtAuthenticationFilter ..> UserDetailsServiceImpl
+UserDetailsServiceImpl --> UserRepository
+SecurityService --> UserRepository
+AuthService --> UserRepository
+AuthService --> JWTManager
 
 ' Service → Repository
 EmployeeService --> EmployeeRepository
@@ -276,6 +361,14 @@ DepartmentService --> DepartmentRepository
 ProjectService --> ProjectRepository
 TaskService --> TaskRepository
 LocationService --> LocationRepository
+
+' Service → SecurityService (RBAC)
+EmployeeService ..> SecurityService
+DepartmentService ..> SecurityService
+ProjectService ..> SecurityService
+TaskService ..> SecurityService
+LocationService ..> SecurityService
+DashboardFacadeService ..> SecurityService
 
 ' Service → Metric
 DashboardFacadeService --> TotalEmployeesMetric
@@ -292,6 +385,7 @@ DepartmentRepository ..> Department
 ProjectRepository ..> Project
 TaskRepository ..> Task
 LocationRepository ..> Location
+UserRepository ..> User
 
 ' Mapper → Entity/DTO
 EmployeeMapper ..> Employee
@@ -304,6 +398,8 @@ TaskMapper ..> Task
 TaskMapper ..> TaskDTO
 LocationMapper ..> Location
 LocationMapper ..> LocationDTO
+UserMapper ..> User
+UserMapper ..> UserDTO
 
 ' Entity Relationships
 Employee "1" --> "1" Department
@@ -313,6 +409,7 @@ Project "1" --> "1" Department
 Project "1" --> "1" Employee : projectManager
 Task "1" --> "1" Project
 Task "1" --> "0..1" Employee : assignedTo
+User "0..1" --> "1" Employee : employee
 
 note right of DashboardFacadeService
   Facade Pattern:
@@ -329,6 +426,37 @@ note right of MetricService
   Strategy Pattern:
   Different calculation
   strategies
+end note
+
+note right of SecurityConfig
+  **Spring Security:**
+  - Configures security filter chain
+  - Enables method security (@PreAuthorize)
+  - Sets up JWT authentication
+end note
+
+note right of JwtAuthenticationFilter
+  **JWT Filter:**
+  - Intercepts all requests
+  - Validates JWT tokens
+  - Extracts role from claims
+  - Sets SecurityContext
+end note
+
+note right of SecurityService
+  **RBAC Helper:**
+  - Provides role-based checks
+  - Department scope validation
+  - Employee scope validation
+  - Used in @PreAuthorize SpEL
+end note
+
+note right of User
+  **Authentication:**
+  - Stores user credentials
+  - Links to Employee (optional)
+  - Role determines permissions
+  - Used for JWT token generation
 end note
 
 @enduml

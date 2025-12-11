@@ -4,11 +4,13 @@ This document describes all use cases for the Employee Management System, organi
 
 ## Actors
 
-1. **System Administrator** - Full system access, manages all entities
-2. **HR Manager** - Manages employees and departments
-3. **Department Manager** - Views team members and project data
-4. **Employee** - Views own profile and assigned tasks
+1. **System Administrator** (`SYSTEM_ADMIN`) - Full system access, manages all entities
+2. **HR Manager** (`HR_MANAGER`) - Manages employees and departments
+3. **Department Manager** (`DEPARTMENT_MANAGER`) - Manages own department's projects, tasks, and employees
+4. **Employee** (`EMPLOYEE`) - Views own profile and assigned tasks/projects
 5. **System** - Automated processes (CI/CD, notifications)
+
+**Note**: Detailed role permissions and access control matrix available in `docs/security/roles-and-permissions.md`
 
 ---
 

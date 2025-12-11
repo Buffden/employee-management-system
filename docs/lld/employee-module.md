@@ -286,24 +286,127 @@ public interface EmployeeRepository extends JpaRepository<Employee, UUID> {
 | **Strategy** | SortStrategy, FilterStrategy | Sorting/filtering algorithms (if implemented) |
 | **Factory Method** | SortStrategyFactory, FilterStrategyFactory | Strategy creation (if implemented) |
 
-## 9. Sequence Diagrams
+---
+
+## 9. Role-Based Access Control
+
+### 9.1 Access Control Matrix
+
+| Operation | System Admin | HR Manager | Department Manager | Employee |
+|-----------|--------------|------------|-------------------|----------|
+| **View All Employees** | ✅ | ✅ | ❌ | ❌ |
+| **View Own Department Employees** | ✅ | ✅ | ✅ | ❌ |
+| **View Own Profile** | ✅ | ✅ | ✅ | ✅ |
+| **Create Employee** | ✅ | ✅ | ❌ | ❌ |
+| **Update Any Employee** | ✅ | ✅ | ❌ | ❌ |
+| **Update Own Department Employees** | ✅ | ✅ | ✅ (limited fields) | ❌ |
+| **Update Own Profile** | ✅ | ✅ | ✅ | ✅ (phone, address only) |
+| **Delete Employee** | ✅ | ✅ | ❌ | ❌ |
+| **View Salary** | ✅ | ✅ | ❌ | ❌ |
+
+### 9.2 Implementation Details
+
+**Service Layer**:
+- `@PreAuthorize` annotations on service methods
+- Role-based query filtering in repository layer
+- Department Manager scope: Filter by `user.employee.department`
+
+**Example Service Method Annotations**:
+```java
+@PreAuthorize("hasRole('SYSTEM_ADMIN') or hasRole('HR_MANAGER')")
+public EmployeeResponseDTO create(EmployeeRequestDTO dto) { ... }
+
+@PreAuthorize("hasRole('SYSTEM_ADMIN') or hasRole('HR_MANAGER') or " +
+              "(hasRole('DEPARTMENT_MANAGER') and @securityService.isInOwnDepartment(#id))")
+public EmployeeResponseDTO update(UUID id, EmployeeRequestDTO dto) { ... }
+
+@PreAuthorize("hasAnyRole('SYSTEM_ADMIN', 'HR_MANAGER', 'DEPARTMENT_MANAGER', 'EMPLOYEE')")
+public Page<EmployeeResponseDTO> getAll(Pageable pageable) {
+    // Automatic role-based filtering in repository
+    String role = securityService.getCurrentUserRole();
+    UUID departmentId = securityService.getCurrentUserDepartmentId();
+    UUID userId = securityService.getCurrentUserId();
+    return employeeRepository.findAllFilteredByRole(role, departmentId, userId, pageable)
+        .map(mapper::toResponseDTO);
+}
+```
+
+**Controller Layer**:
+- Role validation before method execution
+- Department Manager: Additional check for department ownership
+- Employee: Additional check for own record ownership
+
+**Example Controller Method Annotations**:
+```java
+@GetMapping
+@PreAuthorize("hasAnyRole('SYSTEM_ADMIN', 'HR_MANAGER')")
+public ResponseEntity<PaginatedResponseDTO<EmployeeResponseDTO>> getAll(...) { ... }
+
+@GetMapping("/{id}")
+@PreAuthorize("hasAnyRole('SYSTEM_ADMIN', 'HR_MANAGER') or " +
+              "(hasRole('DEPARTMENT_MANAGER') and @securityService.isInOwnDepartment(#id)) or " +
+              "(hasRole('EMPLOYEE') and @securityService.isOwnRecord(#id))")
+public ResponseEntity<EmployeeResponseDTO> getById(@PathVariable UUID id) { ... }
+```
+
+**Repository Layer**:
+- Custom query methods with role-based filtering
+- Automatic filtering by department for Department Managers
+- Automatic filtering by employee ID for Employees
+
+**Example Repository Method**:
+```java
+@Query("SELECT e FROM Employee e WHERE " +
+       "(:role = 'SYSTEM_ADMIN' OR :role = 'HR_MANAGER') OR " +
+       "(:role = 'DEPARTMENT_MANAGER' AND e.department.id = :departmentId) OR " +
+       "(:role = 'EMPLOYEE' AND e.id = :userId)")
+Page<Employee> findAllFilteredByRole(@Param("role") String role,
+                                     @Param("departmentId") UUID departmentId,
+                                     @Param("userId") UUID userId,
+                                     Pageable pageable);
+```
+
+**Field-Level Restrictions**:
+- **Department Manager** updating employees: Cannot modify salary, designation, department, location
+- **Employee** updating own profile: Can only modify phone and address
+
+**Field-Level Validation Example**:
+```java
+@PreAuthorize("hasRole('DEPARTMENT_MANAGER') and @securityService.isInOwnDepartment(#id)")
+public EmployeeResponseDTO update(UUID id, EmployeeRequestDTO dto) {
+    // Remove restricted fields for Department Manager
+    if (!securityService.hasRole("SYSTEM_ADMIN") && !securityService.hasRole("HR_MANAGER")) {
+        dto.setSalary(null); // Cannot modify salary
+        dto.setDesignation(null); // Cannot modify designation
+        dto.setDepartmentId(null); // Cannot change department
+        dto.setLocationId(null); // Cannot change location
+    }
+    // ... update logic
+}
+```
+
+**See**: `docs/security/roles-and-permissions.md` for complete permission matrix
+
+---
+
+## 11. Sequence Diagrams
 
 See:
 - `docs/diagrams/sequence/employee-create-flow.puml` - Employee creation flow
 - `docs/diagrams/sequence/employee-query-flow.puml` - Employee query with filters, sorting, pagination
 - `docs/diagrams/sequence/table-pagination-flow.puml` - Frontend table pagination flow
 
-## 10. State Diagrams
+## 12. State Diagrams
 
 See:
 - `docs/diagrams/state/employee-lifecycle-state.puml` - Employee lifecycle state machine
 
-## 11. ER Diagram
+## 13. ER Diagram
 
 See:
 - `docs/diagrams/architecture/database-er-diagram.puml` - Database entity relationships
 
-## 12. Future Enhancements
+## 14. Future Enhancements
 
 - **Caching**: Add Redis caching for frequently accessed employees
 - **Search**: Full-text search capability

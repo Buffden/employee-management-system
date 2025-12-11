@@ -63,6 +63,17 @@ Deployment diagrams show **WHERE** and **HOW** the system is deployed - the phys
 - Planning deployment strategy
 - Understanding system topology
 
+## Security Considerations
+
+**RBAC in Deployment**:
+- JWT tokens stored securely (HttpOnly cookies or localStorage)
+- HTTPS required in production for token transmission
+- Security headers configured in Nginx Gateway
+- Database credentials managed via environment variables
+- Role-based access enforced at application layer
+
+**See**: `docs/security/roles-and-permissions.md` for RBAC details
+
 ## How to View
 
 See main diagrams README for viewing instructions.

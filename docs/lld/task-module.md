@@ -193,6 +193,84 @@ public interface TaskRepository extends JpaRepository<Task, UUID> {
 5. **Cascade Delete**: Deleting project deletes all associated tasks
 6. **Status Updates**: When status changes to "Completed", set completedDate automatically
 
+## 10.1 Role-Based Access Control
+
+| Operation | System Admin | HR Manager | Department Manager | Employee |
+|-----------|--------------|------------|-------------------|----------|
+| **View All Tasks** | ✅ | ✅ | ✅ | ❌ |
+| **View Own Department Tasks** | ✅ | ✅ | ✅ | ❌ |
+| **View Assigned Tasks** | ✅ | ✅ | ✅ | ✅ |
+| **Create Task** | ✅ | ❌ | ✅ (own dept projects) | ❌ |
+| **Update Any Task** | ✅ | ❌ | ❌ | ❌ |
+| **Update Own Department Tasks** | ✅ | ❌ | ✅ | ❌ |
+| **Update Assigned Tasks** | ✅ | ❌ | ✅ | ✅ (status, progress only) |
+| **Delete Task** | ✅ | ❌ | ✅ (own dept projects) | ❌ |
+
+### 10.1.1 Implementation Details
+
+**Service Layer Authorization**:
+
+**Example - TaskService**:
+```java
+@PreAuthorize("hasRole('SYSTEM_ADMIN') or " +
+              "(hasRole('DEPARTMENT_MANAGER') and @securityService.isTaskProjectInOwnDepartment(#dto.projectId))")
+public TaskResponseDTO create(TaskRequestDTO dto) { ... }
+
+@PreAuthorize("hasRole('SYSTEM_ADMIN') or " +
+              "(hasRole('DEPARTMENT_MANAGER') and @securityService.isTaskProjectInOwnDepartmentByTaskId(#id)) or " +
+              "(hasRole('EMPLOYEE') and @securityService.isTaskAssignedToUser(#id))")
+public TaskResponseDTO update(UUID id, TaskRequestDTO dto) {
+    // Employee can only update status and progress
+    if (securityService.hasRole("EMPLOYEE")) {
+        Task existing = taskRepository.findById(id).orElseThrow();
+        // Only allow status and completedDate updates
+        dto.setName(null);
+        dto.setDescription(null);
+        dto.setPriority(null);
+        dto.setStartDate(null);
+        dto.setDueDate(null);
+        dto.setAssignedToId(null);
+        dto.setProjectId(null);
+    }
+    // ... update logic
+}
+
+@PreAuthorize("hasAnyRole('SYSTEM_ADMIN', 'HR_MANAGER', 'DEPARTMENT_MANAGER', 'EMPLOYEE')")
+public Page<TaskResponseDTO> getAll(Pageable pageable) {
+    String role = securityService.getCurrentUserRole();
+    UUID departmentId = securityService.getCurrentUserDepartmentId();
+    UUID userId = securityService.getCurrentUserId();
+    
+    return taskRepository.findAllFilteredByRole(role, departmentId, userId, pageable)
+        .map(mapper::toResponseDTO);
+}
+```
+
+**Repository-Level Filtering**:
+```java
+@Query("SELECT t FROM Task t WHERE " +
+       "(:role = 'SYSTEM_ADMIN' OR :role = 'HR_MANAGER') OR " +
+       "(:role = 'DEPARTMENT_MANAGER' AND t.project.department.id = :departmentId) OR " +
+       "(:role = 'EMPLOYEE' AND t.assignedTo.id = :userId)")
+Page<Task> findAllFilteredByRole(@Param("role") String role,
+                                 @Param("departmentId") UUID departmentId,
+                                 @Param("userId") UUID userId,
+                                 Pageable pageable);
+```
+
+**Employee Restrictions**:
+- Can only update tasks assigned to them
+- Limited to status and progress updates
+- Cannot modify task name, description, priority, dates, or assignment
+- Field filtering: Only `status` and `completedDate` fields allowed
+
+**Department Manager Scope**:
+- Can manage tasks in projects belonging to their department
+- Department determined by `user.employee.department`
+- Validation: `@securityService.isTaskProjectInOwnDepartment(projectId)`
+
+**See**: `docs/security/roles-and-permissions.md` for complete permission matrix
+
 ## 11. State Machine
 
 See: `docs/diagrams/state/task-status-state.puml`

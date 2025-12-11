@@ -22,25 +22,37 @@ Table -> TableState: 2. updatePage(2)
 TableState -> TableState: 3. Update state: {page: 2, size: 10}
 
 Table -> EmpService: 4. loadPage(page: 2, size: 10)
-EmpService -> ApiService: 5. POST /api/employees/query\n{page: 2, size: 10}
+EmpService -> ApiService: 5. POST /api/employees/query\nAuthorization: Bearer {token}\n{page: 2, size: 10}
 ApiService -> Gateway: 6. HTTP request
-Gateway -> Controller: 7. Forward request
+Gateway -> Gateway: 7. Forward to Backend
 
-Controller -> QueryService: 8. query(TableQueryRequest\n{page: 2, size: 10})
-QueryService -> Repository: 9. findAll()
-Repository -> DB: 10. SELECT * FROM employee
-DB --> Repository: 11. All employees
-Repository --> QueryService: 12. List<Employee>
+participant "JwtAuthenticationFilter" as JwtFilter
+participant "SecurityService" as SecurityService
 
-QueryService -> QueryService: 13. toTableRowDTO(Employee)
-QueryService -> QueryService: 14. applyPagination(data, page: 2, size: 10)
-QueryService --> QueryService: 15. Page<EmployeeTableRowDTO>\n{content, totalElements, totalPages}
+Gateway -> JwtFilter: 8. Intercept request
+JwtFilter -> JwtFilter: 9. Validate JWT token
+JwtFilter -> JwtFilter: 10. Extract role from token
+JwtFilter -> Controller: 11. Forward request
 
-QueryService --> Controller: 16. Page<EmployeeTableRowDTO>
-Controller --> Gateway: 17. HTTP 200 OK
-Gateway --> ApiService: 18. Response
-ApiService --> EmpService: 19. Page data
-EmpService --> Table: 20. Page<EmployeeTableRowDTO>
+Controller -> Controller: 12. Check @PreAuthorize\n(hasAnyRole('SYSTEM_ADMIN', 'HR_MANAGER', 'DEPARTMENT_MANAGER', 'EMPLOYEE'))
+Controller -> SecurityService: 13. getCurrentUserRole()\ngetCurrentUserDepartmentId()\ngetCurrentUserId()
+SecurityService --> Controller: 14. Role, DepartmentId, UserId
+
+Controller -> QueryService: 15. query(TableQueryRequest, role, departmentId, userId)
+QueryService -> Repository: 16. findAllFilteredByRole(role, departmentId, userId, pageable)
+Repository -> DB: 17. SELECT * FROM employee\n(role-based WHERE clause)
+DB --> Repository: 18. Filtered employees
+Repository --> QueryService: 19. Page<Employee>
+
+QueryService -> QueryService: 20. toTableRowDTO(Employee)
+QueryService -> QueryService: 21. applyPagination(data, page: 2, size: 10)
+QueryService --> QueryService: 22. Page<EmployeeTableRowDTO>\n{content, totalElements, totalPages}
+
+QueryService --> Controller: 23. Page<EmployeeTableRowDTO>
+Controller --> Gateway: 24. HTTP 200 OK
+Gateway --> ApiService: 25. Response
+ApiService --> EmpService: 26. Page data
+EmpService --> Table: 27. Page<EmployeeTableRowDTO>
 
 Table -> TableState: 21. updateData(pageData)
 TableState -> TableState: 22. Emit state change
@@ -52,21 +64,25 @@ User -> Table: 25. Change page size (10 -> 20)
 Table -> TableState: 26. updatePageSize(20)
 TableState -> TableState: 27. Update state: {page: 1, size: 20}
 Table -> EmpService: 28. loadPage(page: 1, size: 20)
-EmpService -> ApiService: 29. POST /api/employees/query\n{page: 1, size: 20}
+EmpService -> ApiService: 29. POST /api/employees/query\nAuthorization: Bearer {token}\n{page: 1, size: 20}
 ApiService -> Gateway: 30. HTTP request
-Gateway -> Controller: 31. Forward request
-Controller -> QueryService: 32. query({page: 1, size: 20})
-QueryService -> Repository: 33. findAll()
-Repository -> DB: 34. SELECT * FROM employee
-DB --> Repository: 35. All employees
-Repository --> QueryService: 36. List<Employee>
-QueryService -> QueryService: 37. applyPagination(data, page: 1, size: 20)
-QueryService --> Controller: 38. Page<EmployeeTableRowDTO>
-Controller --> Gateway: 39. HTTP 200 OK
-Gateway --> ApiService: 40. Response
-ApiService --> EmpService: 41. Page data
-EmpService --> Table: 42. Page<EmployeeTableRowDTO>
-Table -> User: 43. Display page 1 with 20 items
+Gateway -> JwtFilter: 31. Intercept request
+JwtFilter -> JwtFilter: 32. Validate JWT and extract role
+JwtFilter -> Controller: 33. Forward request
+Controller -> SecurityService: 34. getCurrentUserRole()\ngetCurrentUserDepartmentId()\ngetCurrentUserId()
+SecurityService --> Controller: 35. Role, DepartmentId, UserId
+Controller -> QueryService: 36. query({page: 1, size: 20}, role, departmentId, userId)
+QueryService -> Repository: 37. findAllFilteredByRole(role, departmentId, userId, pageable)
+Repository -> DB: 38. SELECT * FROM employee\n(role-based WHERE clause)
+DB --> Repository: 39. Filtered employees
+Repository --> QueryService: 40. Page<Employee>
+QueryService -> QueryService: 41. applyPagination(data, page: 1, size: 20)
+QueryService --> Controller: 42. Page<EmployeeTableRowDTO>
+Controller --> Gateway: 43. HTTP 200 OK
+Gateway --> ApiService: 44. Response
+ApiService --> EmpService: 45. Page data
+EmpService --> Table: 46. Page<EmployeeTableRowDTO>
+Table -> User: 47. Display page 1 with 20 items
 
 note right of TableState
   **Observer Pattern:**
@@ -80,6 +96,27 @@ note right of QueryService
   - Base pagination logic
   - Extensible filtering
   - Extensible sorting
+end note
+
+note right of JwtFilter
+  **RBAC:**
+  - Validates JWT token
+  - Extracts role from claims
+  - Sets SecurityContext
+end note
+
+note right of SecurityService
+  **Role-Based Filtering:**
+  - SYSTEM_ADMIN/HR_MANAGER: All employees
+  - DEPARTMENT_MANAGER: Own department only
+  - EMPLOYEE: Own record only
+end note
+
+note right of Repository
+  **Role-Based Query:**
+  findAllFilteredByRole()
+  automatically filters by
+  role scope
 end note
 
 @enduml

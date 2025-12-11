@@ -202,7 +202,79 @@ public interface EmployeeProjectRepository extends JpaRepository<EmployeeProject
 - All find operations use `EmployeeProjectId` composite key object
 - Path variables in controller are converted to `EmployeeProjectId`
 
-## 12. API Endpoint Patterns
+## 12. Role-Based Access Control
+
+| Operation | System Admin | HR Manager | Department Manager | Employee |
+|-----------|--------------|------------|-------------------|----------|
+| **View All Assignments** | ✅ | ✅ | ✅ | ❌ |
+| **View Own Department Assignments** | ✅ | ✅ | ✅ | ❌ |
+| **View Own Assignments** | ✅ | ✅ | ✅ | ✅ |
+| **Create Assignment** | ✅ | ❌ | ✅ (own dept projects) | ❌ |
+| **Update Assignment** | ✅ | ❌ | ✅ (own dept projects) | ❌ |
+| **Delete Assignment** | ✅ | ❌ | ✅ (own dept projects) | ❌ |
+
+### 12.1 Implementation Details
+
+**Service Layer Authorization**:
+
+**Example - EmployeeProjectService**:
+```java
+@PreAuthorize("hasRole('SYSTEM_ADMIN') or " +
+              "(hasRole('DEPARTMENT_MANAGER') and @securityService.isProjectInOwnDepartment(#dto.projectId))")
+public EmployeeProjectResponseDTO create(EmployeeProjectRequestDTO dto) {
+    // Validate project is in Department Manager's department
+    if (securityService.hasRole("DEPARTMENT_MANAGER")) {
+        UUID userDepartmentId = securityService.getCurrentUserDepartmentId();
+        Project project = projectRepository.findById(dto.getProjectId()).orElseThrow();
+        if (!project.getDepartment().getId().equals(userDepartmentId)) {
+            throw new AccessDeniedException("Can only assign employees to projects in own department");
+        }
+    }
+    // ... create logic
+}
+
+@PreAuthorize("hasAnyRole('SYSTEM_ADMIN', 'HR_MANAGER', 'DEPARTMENT_MANAGER', 'EMPLOYEE')")
+public Page<EmployeeProjectResponseDTO> getAll(Pageable pageable) {
+    String role = securityService.getCurrentUserRole();
+    UUID departmentId = securityService.getCurrentUserDepartmentId();
+    UUID userId = securityService.getCurrentUserId();
+    
+    return employeeProjectRepository.findAllFilteredByRole(role, departmentId, userId, pageable)
+        .map(mapper::toResponseDTO);
+}
+```
+
+**Repository-Level Filtering**:
+```java
+@Query("SELECT ep FROM EmployeeProject ep WHERE " +
+       "(:role = 'SYSTEM_ADMIN' OR :role = 'HR_MANAGER') OR " +
+       "(:role = 'DEPARTMENT_MANAGER' AND ep.project.department.id = :departmentId) OR " +
+       "(:role = 'EMPLOYEE' AND ep.employee.id = :userId)")
+Page<EmployeeProject> findAllFilteredByRole(@Param("role") String role,
+                                            @Param("departmentId") UUID departmentId,
+                                            @Param("userId") UUID userId,
+                                            Pageable pageable);
+```
+
+**Controller Layer**:
+```java
+@PostMapping
+@PreAuthorize("hasRole('SYSTEM_ADMIN') or hasRole('DEPARTMENT_MANAGER')")
+public ResponseEntity<EmployeeProjectResponseDTO> create(@Valid @RequestBody EmployeeProjectRequestDTO dto) { ... }
+
+@GetMapping
+@PreAuthorize("hasAnyRole('SYSTEM_ADMIN', 'HR_MANAGER', 'DEPARTMENT_MANAGER', 'EMPLOYEE')")
+public ResponseEntity<PaginatedResponseDTO<EmployeeProjectResponseDTO>> getAll(...) { ... }
+```
+
+**Department Manager Scope**:
+- Can only manage assignments for projects in their department
+- Department determined by `user.employee.department`
+- Validation: `@securityService.isProjectInOwnDepartment(projectId)`
+
+**See**: `docs/security/roles-and-permissions.md` for complete permission matrix
+
+## 13. API Endpoint Patterns
 
 **Composite Key in URLs**:
 - **GET/PUT/DELETE**: `/api/employee-projects/{employeeId}/{projectId}`
@@ -219,7 +291,7 @@ POST /api/employee-projects
 }
 ```
 
-## 13. Future Enhancements
+## 14. Future Enhancements
 
 - **Assignment History**: Track assignment start and end dates
 - **Allocation Percentage**: Track percentage of time allocated to project

@@ -165,6 +165,65 @@ public interface LocationRepository extends JpaRepository<Location, UUID> {
 2. **Referential Integrity**: Cannot delete location if referenced by employees or departments
 3. **Default Country**: If country not provided, defaults to "USA"
 
+## 10.1 Role-Based Access Control
+
+| Operation | System Admin | HR Manager | Department Manager | Employee |
+|-----------|--------------|------------|-------------------|----------|
+| **View All Locations** | ✅ | ✅ | ✅ | ❌ |
+| **View Location** | ✅ | ✅ | ✅ | ❌ |
+| **Create Location** | ✅ | ✅ | ❌ | ❌ |
+| **Update Location** | ✅ | ✅ | ❌ | ❌ |
+| **Delete Location** | ✅ | ❌ | ❌ | ❌ |
+
+### 10.1.1 Implementation Details
+
+**Service Layer Authorization**:
+
+**Example - LocationService**:
+```java
+@PreAuthorize("hasAnyRole('SYSTEM_ADMIN', 'HR_MANAGER')")
+public LocationResponseDTO create(LocationRequestDTO dto) { ... }
+
+@PreAuthorize("hasAnyRole('SYSTEM_ADMIN', 'HR_MANAGER')")
+public LocationResponseDTO update(UUID id, LocationRequestDTO dto) { ... }
+
+@PreAuthorize("hasRole('SYSTEM_ADMIN')")
+public void delete(UUID id) {
+    // Check if location is referenced by employees or departments
+    if (locationRepository.countEmployeesByLocation(id) > 0 ||
+        locationRepository.countDepartmentsByLocation(id) > 0) {
+        throw new IllegalStateException("Cannot delete location with associated employees or departments");
+    }
+    // ... delete logic
+}
+
+@PreAuthorize("hasAnyRole('SYSTEM_ADMIN', 'HR_MANAGER', 'DEPARTMENT_MANAGER')")
+public Page<LocationResponseDTO> getAll(Pageable pageable) {
+    // All authenticated roles can view, but only System Admin and HR Manager can modify
+    return locationRepository.findAll(pageable).map(mapper::toResponseDTO);
+}
+```
+
+**Controller Layer**:
+```java
+@PostMapping
+@PreAuthorize("hasAnyRole('SYSTEM_ADMIN', 'HR_MANAGER')")
+public ResponseEntity<LocationResponseDTO> create(@Valid @RequestBody LocationRequestDTO dto) { ... }
+
+@PutMapping("/{id}")
+@PreAuthorize("hasAnyRole('SYSTEM_ADMIN', 'HR_MANAGER')")
+public ResponseEntity<LocationResponseDTO> update(@PathVariable UUID id, 
+                                                   @Valid @RequestBody LocationRequestDTO dto) { ... }
+
+@DeleteMapping("/{id}")
+@PreAuthorize("hasRole('SYSTEM_ADMIN')")
+public ResponseEntity<Void> delete(@PathVariable UUID id) { ... }
+```
+
+**Note**: Location management is restricted to System Admin and HR Manager only. Department Managers and Employees have read-only access.
+
+**See**: `docs/security/roles-and-permissions.md` for complete permission matrix
+
 ## 11. Sequence Diagram
 
 See: `docs/diagrams/sequence/` (to be created for location operations)

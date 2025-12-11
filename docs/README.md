@@ -41,6 +41,8 @@ docs/
 │   ├── README.md
 │   ├── functional-requirements.md
 │   └── non-functional-requirements.md
+├── security/                    # Security and access control
+│   └── roles-and-permissions.md # Role-based access control (RBAC)
 └── class-taxonomy.md            # Class and object classification
 ```
 
@@ -62,6 +64,7 @@ docs/
 - Review `hld/` for system design decisions
 - Check `design-patterns/` for pattern catalog
 - Examine `diagrams/` for visual representations
+- Review `security/` for access control and permissions
 
 ### For New Team Members
 - Begin with `requirements/` to understand what the system does

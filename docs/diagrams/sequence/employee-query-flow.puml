@@ -25,45 +25,82 @@ User -> Table: 2. Sort by column (name, salary)
 User -> Table: 3. Change page (pagination)
 
 Table -> Service: 4. queryEmployees(query: TableQueryRequest)
-Service -> Gateway: 5. POST /api/employees/query (filters, sortBy, sortDirection, page, size)
-Gateway -> Controller: 6. Forward request
+Service -> Gateway: 5. POST /api/employees/query\nAuthorization: Bearer {token}\n(filters, sortBy, sortDirection, page, size)
+Gateway -> Gateway: 6. Forward to Backend
 
-Controller -> QueryService: 7. query(TableQueryRequest)
+participant "JwtAuthenticationFilter" as JwtFilter
+participant "SecurityService" as SecurityService
 
-QueryService -> Repository: 8. findAll()
-Repository -> DB: 9. SELECT * FROM employee
-DB --> Repository: 10. All employees
-Repository --> QueryService: 11. List<Employee>
+Gateway -> JwtFilter: 7. Intercept request
+JwtFilter -> JwtFilter: 8. Validate JWT token
+JwtFilter -> JwtFilter: 9. Extract role from token
+JwtFilter -> Controller: 10. Forward request
 
-QueryService -> QueryService: 12. toTableRowDTO(Employee)
-QueryService --> QueryService: 13. List<EmployeeTableRowDTO>
+Controller -> Controller: 11. Check @PreAuthorize\n(hasAnyRole('SYSTEM_ADMIN', 'HR_MANAGER', 'DEPARTMENT_MANAGER', 'EMPLOYEE'))
+Controller -> SecurityService: 12. getCurrentUserRole()\ngetCurrentUserDepartmentId()\ngetCurrentUserId()
+SecurityService --> Controller: 13. Role, DepartmentId, UserId
+
+Controller -> QueryService: 14. query(TableQueryRequest, role, departmentId, userId)
+
+alt Role is SYSTEM_ADMIN or HR_MANAGER
+    QueryService -> Repository: 15. findAllFilteredByRole(role, null, null, pageable)
+    Repository -> DB: 16. SELECT * FROM employee\n(no filtering)
+    DB --> Repository: 17. All employees
+else Role is DEPARTMENT_MANAGER
+    QueryService -> Repository: 18. findAllFilteredByRole(role, departmentId, null, pageable)
+    Repository -> DB: 19. SELECT * FROM employee\nWHERE department_id = ?
+    DB --> Repository: 20. Department employees only
+else Role is EMPLOYEE
+    QueryService -> Repository: 21. findAllFilteredByRole(role, null, userId, pageable)
+    Repository -> DB: 22. SELECT * FROM employee\nWHERE id = ?
+    DB --> Repository: 23. Own record only
+end
+
+Repository --> QueryService: 24. Page<Employee>
+
+QueryService -> QueryService: 25. toTableRowDTO(Employee)
+QueryService --> QueryService: 26. List<EmployeeTableRowDTO>
 
 loop For each filter
-    QueryService -> FilterFactory: 14. createFilterStrategy(filterKey)
-    FilterFactory --> QueryService: 15. FilterStrategy
+    QueryService -> FilterFactory: 27. createFilterStrategy(filterKey)
+    FilterFactory --> QueryService: 28. FilterStrategy
     
     alt Department filter
-        QueryService -> DeptFilter: 16. filter(data, "Engineering")
-        DeptFilter --> QueryService: 17. Filtered data
+        QueryService -> DeptFilter: 29. filter(data, "Engineering")
+        DeptFilter --> QueryService: 30. Filtered data
     end
 end
 
-QueryService -> SortFactory: 18. createSortStrategy(sortBy, direction)
-SortFactory --> QueryService: 19. SortStrategy
+QueryService -> SortFactory: 31. createSortStrategy(sortBy, direction)
+SortFactory --> QueryService: 32. SortStrategy
 
 alt Sort by name
-    QueryService -> NameSort: 20. sort(data, "ASC")
-    NameSort --> QueryService: 21. Sorted data
+    QueryService -> NameSort: 33. sort(data, "ASC")
+    NameSort --> QueryService: 34. Sorted data
 end
 
-QueryService -> QueryService: 22. applyPagination(data, page, size)
-QueryService --> QueryService: 23. Page<EmployeeTableRowDTO>
+QueryService -> QueryService: 35. applyPagination(data, page, size)
+QueryService --> QueryService: 36. Page<EmployeeTableRowDTO>
 
-QueryService --> Controller: 24. Page<EmployeeTableRowDTO>
-Controller --> Gateway: 25. HTTP 200 OK
-Gateway --> Service: 26. Response with paginated data
-Service --> Table: 27. Employee data
-Table -> User: 28. Display filtered, sorted, paginated table
+QueryService --> Controller: 37. Page<EmployeeTableRowDTO>
+Controller --> Gateway: 38. HTTP 200 OK
+Gateway --> Service: 39. Response with paginated data
+Service --> Table: 40. Employee data
+Table -> User: 41. Display filtered, sorted, paginated table
+
+note right of SecurityService
+  **RBAC Filtering:**
+  - SYSTEM_ADMIN/HR_MANAGER: All employees
+  - DEPARTMENT_MANAGER: Own department only
+  - EMPLOYEE: Own record only
+end note
+
+note right of Repository
+  **Role-Based Query:**
+  findAllFilteredByRole()
+  automatically filters by
+  role scope
+end note
 
 note right of QueryService
   Template Method Pattern:

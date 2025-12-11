@@ -145,6 +145,8 @@ public class DatabaseConfig {
 
 **Use Case**: Centralized JWT token generation and validation
 
+**RBAC Integration**: JWT tokens include role claims for authorization
+
 ```java
 @Component // Spring singleton
 public class JWTManager {

@@ -22,6 +22,7 @@ Use case diagrams show **WHAT** the system does - the functional requirements fr
 - 21 use cases organized by functional area
 - Actor-use case relationships
 - System boundaries
+- **RBAC**: Role-based access control with permission restrictions
 
 **Use When**:
 - Understanding system functionality
@@ -45,6 +46,23 @@ Detailed use case descriptions are in:
 | **Detail** | High-level | Detailed step-by-step |
 
 **Both are valuable** - Use cases show requirements, sequences show implementation.
+
+## RBAC in Use Case Diagrams
+
+**Role-Based Access**:
+- **System Admin**: Full access to all use cases
+- **HR Manager**: Employee and department management use cases
+- **Department Manager**: Own department's projects and tasks
+- **Employee**: Limited to own profile and assigned tasks
+
+**Permission Enforcement**:
+- JWT tokens include role claims
+- @PreAuthorize annotations enforce permissions
+- Repository-level filtering by role scope
+
+**See**: 
+- `docs/security/roles-and-permissions.md` for complete permission matrix
+- `docs/lld/auth-module.md` for RBAC implementation details
 
 ---
 
