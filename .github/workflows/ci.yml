@@ -102,7 +102,6 @@ jobs:
           docker build -t ems-frontend:test .
       
       - name: Build gateway Docker image
-        working-directory: ./gateway
         run: |
-          docker build -t ems-gateway:test .
+          docker build -f gateway/Dockerfile -t ems-gateway:test .
 

@@ -2,7 +2,7 @@
 FROM node:18 AS build
 WORKDIR /app
 
-# Copy frontend source
+# Copy frontend source (build context is root directory)
 COPY frontend/package*.json ./
 RUN npm install
 
@@ -20,8 +20,8 @@ RUN if [ -f /usr/share/nginx/html/index.csr.html ]; then \
         cp /usr/share/nginx/html/index.csr.html /usr/share/nginx/html/index.html; \
     fi
 
-    # Copy unified nginx configuration (serves Angular + routes API)
-    COPY nginx.conf /etc/nginx/conf.d/default.conf
+# Copy unified nginx configuration (serves Angular + routes API)
+COPY nginx.conf /etc/nginx/conf.d/default.conf
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=5s --retries=3 \
