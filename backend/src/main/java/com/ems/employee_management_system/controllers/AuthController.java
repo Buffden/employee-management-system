@@ -12,6 +12,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.ems.employee_management_system.dtos.AuthRequestDTO;
 import com.ems.employee_management_system.dtos.AuthResponseDTO;
+import com.ems.employee_management_system.dtos.RegisterRequestDTO;
 import com.ems.employee_management_system.dtos.RefreshTokenRequestDTO;
 import com.ems.employee_management_system.services.AuthService;
 
@@ -27,6 +28,29 @@ public class AuthController {
     
     public AuthController(AuthService authService) {
         this.authService = authService;
+    }
+    
+    /**
+     * User registration endpoint
+     * POST /api/auth/register
+     */
+    @PostMapping("/register")
+    public ResponseEntity<AuthResponseDTO> register(@Valid @RequestBody RegisterRequestDTO request) {
+        logger.info("Registration request for username: {}", request.getUsername());
+        
+        try {
+            AuthResponseDTO response = authService.register(request);
+            return ResponseEntity.status(HttpStatus.CREATED).body(response);
+        } catch (RuntimeException e) {
+            logger.error("Registration failed for username: {}", request.getUsername(), e);
+            if (e.getMessage().contains("already exists")) {
+                return ResponseEntity.status(HttpStatus.CONFLICT).build();
+            }
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
+        } catch (Exception e) {
+            logger.error("Registration failed for username: {}", request.getUsername(), e);
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
+        }
     }
     
     /**
