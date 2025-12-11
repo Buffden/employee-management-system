@@ -1,0 +1,106 @@
+<div class="landing-container">
+  <!-- Hero Section -->
+  <section class="hero-section">
+    <div class="hero-content">
+      <h1 class="hero-title">Employee Management System</h1>
+      <p class="hero-subtitle">
+        Streamline your workforce management with our comprehensive solution
+      </p>
+      <div class="hero-buttons" *ngIf="!isAuthenticated">
+        <button mat-raised-button color="primary" class="cta-button" (click)="navigateToLogin()">
+          <mat-icon>login</mat-icon>
+          Sign In
+        </button>
+        <button mat-stroked-button color="primary" class="cta-button" (click)="navigateToRegister()">
+          <mat-icon>person_add</mat-icon>
+          Get Started
+        </button>
+      </div>
+      <div class="hero-buttons" *ngIf="isAuthenticated">
+        <button mat-raised-button color="primary" class="cta-button" routerLink="/dashboard">
+          <mat-icon>dashboard</mat-icon>
+          Go to Dashboard
+        </button>
+      </div>
+    </div>
+  </section>
+
+  <!-- Features Section -->
+  <section class="features-section">
+    <h2 class="section-title">Why Choose Our Platform?</h2>
+    <div class="features-grid">
+      <mat-card class="feature-card">
+        <mat-card-header>
+          <mat-icon class="feature-icon">people</mat-icon>
+          <mat-card-title>Employee Management</mat-card-title>
+        </mat-card-header>
+        <mat-card-content>
+          <p>Comprehensive employee profiles with detailed information, performance tracking, and organizational hierarchy.</p>
+        </mat-card-content>
+      </mat-card>
+
+      <mat-card class="feature-card">
+        <mat-card-header>
+          <mat-icon class="feature-icon">business</mat-icon>
+          <mat-card-title>Department Organization</mat-card-title>
+        </mat-card-header>
+        <mat-card-content>
+          <p>Organize your workforce into departments with budget tracking, performance metrics, and resource allocation.</p>
+        </mat-card-content>
+      </mat-card>
+
+      <mat-card class="feature-card">
+        <mat-card-header>
+          <mat-icon class="feature-icon">assignment</mat-icon>
+          <mat-card-title>Project Management</mat-card-title>
+        </mat-card-header>
+        <mat-card-content>
+          <p>Track projects, assign tasks, monitor progress, and manage team collaboration all in one place.</p>
+        </mat-card-content>
+      </mat-card>
+
+      <mat-card class="feature-card">
+        <mat-card-header>
+          <mat-icon class="feature-icon">security</mat-icon>
+          <mat-card-title>Role-Based Access</mat-card-title>
+        </mat-card-header>
+        <mat-card-content>
+          <p>Secure access control with role-based permissions ensuring data security and proper authorization.</p>
+        </mat-card-content>
+      </mat-card>
+
+      <mat-card class="feature-card">
+        <mat-card-header>
+          <mat-icon class="feature-icon">analytics</mat-icon>
+          <mat-card-title>Analytics & Reports</mat-card-title>
+        </mat-card-header>
+        <mat-card-content>
+          <p>Get insights into your workforce with detailed analytics, performance reports, and data visualization.</p>
+        </mat-card-content>
+      </mat-card>
+
+      <mat-card class="feature-card">
+        <mat-card-header>
+          <mat-icon class="feature-icon">cloud</mat-icon>
+          <mat-card-title>Cloud-Based Solution</mat-card-title>
+        </mat-card-header>
+        <mat-card-content>
+          <p>Access your data from anywhere, anytime with our secure cloud-based infrastructure.</p>
+        </mat-card-content>
+      </mat-card>
+    </div>
+  </section>
+
+  <!-- CTA Section -->
+  <section class="cta-section" *ngIf="!isAuthenticated">
+    <div class="cta-content">
+      <h2 class="cta-title">Ready to Get Started?</h2>
+      <p class="cta-subtitle">Join thousands of organizations managing their workforce efficiently</p>
+      <button mat-raised-button color="primary" class="cta-button-large" (click)="navigateToRegister()">
+        <mat-icon>rocket_launch</mat-icon>
+        Start Free Trial
+      </button>
+    </div>
+  </section>
+</div>
+

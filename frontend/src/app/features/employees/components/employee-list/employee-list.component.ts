@@ -41,7 +41,7 @@ export class EmployeeListComponent implements OnInit {
   loadEmployees(): void {
     this.employeeService.getEmployees().subscribe((employees: Employee[]) => {
       this.employees = employees;
-      this.tableData = this.employees.map(emp => ({
+      this.tableData = this.employees?.map(emp => ({
         ...emp,
         name: emp.firstName + ' ' + emp.lastName,
         email: emp.email || '',

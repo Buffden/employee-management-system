@@ -41,7 +41,7 @@ export class DepartmentListComponent implements OnInit {
   loadDepartments(): void {
     this.departmentService.getDepartments().subscribe((departments: Department[]) => {
       this.departments = departments;
-      this.tableData = this.departments.map(dept => ({
+      this.tableData = this.departments?.map(dept => ({
         ...dept,
         name: dept.name,
         description: dept.description || '',

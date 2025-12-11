@@ -1,7 +1,9 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
+import { map } from 'rxjs/operators';
 import { Project } from '../../../shared/models/project.model';
+import { PaginatedResponse } from '../../../shared/models/paginated-response.model';
 import { environment } from '../../../../environments/environment';
 
 @Injectable({
@@ -13,7 +15,9 @@ export class ProjectService {
   constructor(private http: HttpClient) {}
 
   getAll(): Observable<Project[]> {
-    return this.http.get<Project[]>(this.apiUrl);
+    return this.http.get<PaginatedResponse<Project>>(this.apiUrl).pipe(
+      map((response: PaginatedResponse<Project>) => response.content || [])
+    );
   }
 
   getById(id: string): Observable<Project> {

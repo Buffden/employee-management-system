@@ -56,7 +56,7 @@ export class ProjectListComponent implements OnInit {
   loadProjects(): void {
     this.projectService.getAll().subscribe(projects => {
       this.projects = projects;
-      this.tableData = this.projects.map(project => ({
+      this.tableData = this.projects?.map(project => ({
         ...project,
         id: project.id,
         name: project.name,

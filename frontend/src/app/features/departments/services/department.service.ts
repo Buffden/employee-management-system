@@ -1,7 +1,8 @@
 import { HttpClient, HttpErrorResponse } from "@angular/common/http";
 import { Observable } from "rxjs";
-import { catchError } from "rxjs/operators";
+import { catchError, map } from "rxjs/operators";
 import { Department } from "../../../shared/models/department.model";
+import { PaginatedResponse } from "../../../shared/models/paginated-response.model";
 import { Injectable } from "@angular/core";
 import { environment } from "../../../../environments/environment";
 
@@ -21,7 +22,8 @@ export class DepartmentService {
 
     // GET all departments
     getDepartments(): Observable<Department[]> {
-        return this.http.get<Department[]>(this.apiUrl).pipe(
+        return this.http.get<PaginatedResponse<Department>>(this.apiUrl).pipe(
+            map((response: PaginatedResponse<Department>) => response.content || []),
             catchError((error) => {
                 this.handleError(error);
                 throw error; // Re-throw error to be handled by the caller
