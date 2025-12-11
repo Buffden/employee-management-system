@@ -1,13 +1,22 @@
 package com.ems.employee_management_system.mappers;
 
-import com.ems.employee_management_system.dtos.TaskDTO;
+import com.ems.employee_management_system.dtos.TaskRequestDTO;
+import com.ems.employee_management_system.dtos.TaskResponseDTO;
 import com.ems.employee_management_system.models.Employee;
 import com.ems.employee_management_system.models.Project;
 import com.ems.employee_management_system.models.Task;
 
 public class TaskMapper {
-    public static TaskDTO toDTO(Task task) {
-        TaskDTO dto = new TaskDTO();
+    /**
+     * Converts Task entity to TaskResponseDTO
+     * Includes denormalized names for better API responses
+     */
+    public static TaskResponseDTO toResponseDTO(Task task) {
+        if (task == null) {
+            return null;
+        }
+        
+        TaskResponseDTO dto = new TaskResponseDTO();
         dto.setId(task.getId());
         dto.setName(task.getName());
         dto.setDescription(task.getDescription());
@@ -16,14 +25,29 @@ public class TaskMapper {
         dto.setStartDate(task.getStartDate());
         dto.setDueDate(task.getDueDate());
         dto.setCompletedDate(task.getCompletedDate());
-        dto.setProjectId(task.getProject() != null ? task.getProject().getId() : null);
-        dto.setAssignedToId(task.getAssignedTo() != null ? task.getAssignedTo().getId() : null);
+        
+        // Denormalized names for better API responses
+        dto.setProjectName(task.getProject() != null ? task.getProject().getName() : null);
+        if (task.getAssignedTo() != null) {
+            String assignedToFullName = task.getAssignedTo().getFirstName() + " " + task.getAssignedTo().getLastName();
+            dto.setAssignedToName(assignedToFullName);
+        } else {
+            dto.setAssignedToName(null);
+        }
+        
         return dto;
     }
 
-    public static Task toEntity(TaskDTO dto, Project project, Employee assignedTo) {
+    /**
+     * Converts TaskRequestDTO to Task entity
+     * Relationships are resolved by IDs in the controller layer
+     */
+    public static Task toEntity(TaskRequestDTO dto, Project project, Employee assignedTo) {
+        if (dto == null) {
+            return null;
+        }
+        
         Task task = new Task();
-        task.setId(dto.getId());
         task.setName(dto.getName());
         task.setDescription(dto.getDescription());
         task.setStatus(dto.getStatus());
