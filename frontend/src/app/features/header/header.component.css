@@ -65,7 +65,67 @@
   border-bottom: 2px solid #00b4d8;
 }
 
-.profile-icon {
+.user-section,
+.auth-buttons {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-left: 1rem;
+  padding-left: 1rem;
+  border-left: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.auth-buttons {
+  gap: 0.75rem;
+}
+
+.auth-button {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 20px;
+  font-size: 0.95rem;
+}
+
+.auth-button mat-icon {
+  font-size: 20px;
+  width: 20px;
+  height: 20px;
+}
+
+.user-info {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.user-icon {
+  color: #ffffff;
+  font-size: 32px;
+  width: 32px;
+  height: 32px;
+}
+
+.user-details {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.username {
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: #ffffff;
+}
+
+.user-role {
+  font-size: 0.75rem;
+  color: #b0b0b0;
+  text-transform: uppercase;
+}
+
+.profile-icon,
+.logout-icon {
   display: flex;
   align-items: center;
   color: #ffffff;
@@ -73,12 +133,13 @@
   transition: color 0.3s ease-in-out;
 }
 
-.profile-icon:hover .mat-icon {
+.profile-icon:hover .mat-icon,
+.logout-icon:hover .mat-icon {
   color: #00b4d8;
 }
 
 .mat-icon {
-  font-size: 28px;
+  font-size: 24px;
 }
 
 .mat-icon.active {
@@ -110,8 +171,25 @@
     width: 100%;
   }
 
-  .profile-icon {
-    align-self: flex-start;
+  .user-section,
+  .auth-buttons {
+    flex-direction: column;
+    align-items: flex-start;
+    border-left: none;
+    border-top: 1px solid rgba(255, 255, 255, 0.2);
+    padding-left: 0;
+    padding-top: 1rem;
+    margin-left: 0;
     margin-top: 1rem;
+    width: 100%;
+  }
+
+  .auth-buttons {
+    gap: 0.5rem;
+  }
+
+  .auth-button {
+    width: 100%;
+    justify-content: center;
   }
 }

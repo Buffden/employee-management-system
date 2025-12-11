@@ -1,14 +1,15 @@
 <header>
      <nav class="navbar">
-          <div class="logo">
+          <div class="logo" routerLink="/" style="cursor: pointer;">
                <img src="assets/images/logo/ems-logo.png"
                     alt="EMS Logo" />
                <h1>EMPLOYEE MANAGEMENT SYSTEM</h1>
           </div>
           <div class="navbar-buttons">
-               <ul class="nav-links">
-                    <li><a routerLink="/home"
-                            routerLinkActive="active">Home</a></li>
+               <!-- Navigation links (only when authenticated) -->
+               <ul class="nav-links" *ngIf="currentUser">
+                    <li><a routerLink="/dashboard"
+                            routerLinkActive="active">Dashboard</a></li>
                     <li><a routerLink="/employees"
                             routerLinkActive="active">Employees</a></li>
                     <li><a routerLink="/departments"
@@ -16,11 +17,47 @@
                     <li><a routerLink="/projects"
                             routerLinkActive="active">Projects</a></li>
                </ul>
-               <div mat-icon-button
-                    class="profile-icon"
-                    matTooltip="Profile">
-                    <mat-icon routerLink="/profile"
-                              routerLinkActive="active">account_circle</mat-icon>
+               
+               <!-- Authenticated User Section -->
+               <div class="user-section" *ngIf="currentUser">
+                    <div class="user-info">
+                         <mat-icon class="user-icon">account_circle</mat-icon>
+                         <div class="user-details">
+                              <span class="username">{{ userDisplayName }}</span>
+                              <span class="user-role">{{ userRole }}</span>
+                         </div>
+                    </div>
+                    <button mat-icon-button
+                            class="profile-icon"
+                            routerLink="/profile"
+                            routerLinkActive="active"
+                            matTooltip="Profile">
+                         <mat-icon>settings</mat-icon>
+                    </button>
+                    <button mat-icon-button
+                            class="logout-icon"
+                            (click)="logout()"
+                            matTooltip="Logout">
+                         <mat-icon>logout</mat-icon>
+                    </button>
+               </div>
+               
+               <!-- Login/Register buttons (when not authenticated) -->
+               <div class="auth-buttons" *ngIf="!currentUser">
+                    <button mat-stroked-button
+                            color="primary"
+                            class="auth-button"
+                            routerLink="/login">
+                         <mat-icon>login</mat-icon>
+                         Login
+                    </button>
+                    <button mat-raised-button
+                            color="primary"
+                            class="auth-button"
+                            routerLink="/register">
+                         <mat-icon>person_add</mat-icon>
+                         Register
+                    </button>
                </div>
           </div>
      </nav>
