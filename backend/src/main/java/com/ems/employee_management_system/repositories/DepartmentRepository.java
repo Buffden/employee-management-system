@@ -10,6 +10,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import com.ems.employee_management_system.models.Department;
+import com.ems.employee_management_system.enums.UserRole;
 
 public interface DepartmentRepository extends JpaRepository<Department, UUID> {
     Optional<Department> findByName(String name);
@@ -19,8 +20,8 @@ public interface DepartmentRepository extends JpaRepository<Department, UUID> {
 
     @Query("""
         SELECT d FROM Department d
-        WHERE (:role = 'SYSTEM_ADMIN' OR :role = 'HR_MANAGER')
-           OR (:role = 'DEPARTMENT_MANAGER' AND d.id = :departmentId)
+        WHERE (:role = '" + UserRole.SYSTEM_ADMIN.getValue() + "' OR :role = '" + UserRole.HR_MANAGER.getValue() + "')
+           OR (:role = '" + UserRole.DEPARTMENT_MANAGER.getValue() + "' AND d.id = :departmentId)
         """)
     Page<Department> findAllFilteredByRole(@Param("role") String role,
                                            @Param("departmentId") UUID departmentId,

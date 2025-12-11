@@ -10,14 +10,15 @@ import org.springframework.data.repository.query.Param;
 
 import com.ems.employee_management_system.models.EmployeeProject;
 import com.ems.employee_management_system.models.EmployeeProject.EmployeeProjectId;
+import com.ems.employee_management_system.enums.UserRole;
 
 public interface EmployeeProjectRepository extends JpaRepository<EmployeeProject, EmployeeProjectId> {
     
     @Query("""
         SELECT ep FROM EmployeeProject ep
-        WHERE (:role = 'SYSTEM_ADMIN' OR :role = 'HR_MANAGER')
-           OR (:role = 'DEPARTMENT_MANAGER' AND ep.project.department.id = :departmentId)
-           OR (:role = 'EMPLOYEE' AND ep.employee.id = :userId)
+        WHERE (:role = '" + UserRole.SYSTEM_ADMIN.getValue() + "' OR :role = '" + UserRole.HR_MANAGER.getValue() + "')
+           OR (:role = '" + UserRole.DEPARTMENT_MANAGER.getValue() + "' AND ep.project.department.id = :departmentId)
+           OR (:role = '" + UserRole.EMPLOYEE.getValue() + "' AND ep.employee.id = :userId)
         """)
     Page<EmployeeProject> findAllFilteredByRole(@Param("role") String role,
                                                 @Param("departmentId") UUID departmentId,

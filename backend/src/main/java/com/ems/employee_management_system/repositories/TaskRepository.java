@@ -9,14 +9,15 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import com.ems.employee_management_system.models.Task;
+import com.ems.employee_management_system.enums.UserRole;
 
 public interface TaskRepository extends JpaRepository<Task, UUID> {
     
     @Query("""
         SELECT t FROM Task t
-        WHERE (:role = 'SYSTEM_ADMIN' OR :role = 'HR_MANAGER')
-           OR (:role = 'DEPARTMENT_MANAGER' AND t.project.department.id = :departmentId)
-           OR (:role = 'EMPLOYEE' AND t.assignedTo.id = :userId)
+        WHERE (:role = '" + UserRole.SYSTEM_ADMIN.getValue() + "' OR :role = '" + UserRole.HR_MANAGER.getValue() + "')
+           OR (:role = '" + UserRole.DEPARTMENT_MANAGER.getValue() + "' AND t.project.department.id = :departmentId)
+           OR (:role = '" + UserRole.EMPLOYEE.getValue() + "' AND t.assignedTo.id = :userId)
         """)
     Page<Task> findAllFilteredByRole(@Param("role") String role,
                                      @Param("departmentId") UUID departmentId,
