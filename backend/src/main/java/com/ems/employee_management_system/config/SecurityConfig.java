@@ -22,6 +22,7 @@ import com.ems.employee_management_system.security.CustomAccessDeniedHandler;
 import com.ems.employee_management_system.security.CustomAuthenticationEntryPoint;
 import com.ems.employee_management_system.security.JwtAuthenticationFilter;
 
+import org.springframework.boot.actuate.autoconfigure.security.servlet.EndpointRequest;
 import java.util.Arrays;
 import java.util.List;
 
@@ -53,6 +54,7 @@ public class SecurityConfig {
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/api/auth/**").permitAll()
+                .requestMatchers(EndpointRequest.toAnyEndpoint()).permitAll()
                 .anyRequest().authenticated()
             )
             .exceptionHandling(ex -> ex
