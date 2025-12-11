@@ -21,6 +21,7 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 import com.ems.employee_management_system.security.CustomAccessDeniedHandler;
 import com.ems.employee_management_system.security.CustomAuthenticationEntryPoint;
 import com.ems.employee_management_system.security.JwtAuthenticationFilter;
+import com.ems.employee_management_system.constants.RoleConstants;
 
 import org.springframework.boot.actuate.autoconfigure.security.servlet.EndpointRequest;
 import java.util.Arrays;
@@ -53,7 +54,8 @@ public class SecurityConfig {
             .cors(cors -> cors.configurationSource(corsConfigurationSource()))
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
-                .requestMatchers("/api/auth/**").permitAll()
+                .requestMatchers("/api/auth/login", "/api/auth/refresh", "/api/auth/logout").permitAll()
+                .requestMatchers("/api/auth/register").hasRole(RoleConstants.SYSTEM_ADMIN)
                 .requestMatchers(EndpointRequest.toAnyEndpoint()).permitAll()
                 .anyRequest().authenticated()
             )

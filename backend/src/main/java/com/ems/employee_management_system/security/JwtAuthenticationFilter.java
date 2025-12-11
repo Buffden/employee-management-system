@@ -41,9 +41,12 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         String authHeader = request.getHeader("Authorization");
         
         if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+            logger.debug("No Authorization header found for request: {}", request.getRequestURI());
             filterChain.doFilter(request, response);
             return;
         }
+        
+        logger.debug("Authorization header found for request: {}", request.getRequestURI());
         
         try {
             String token = authHeader.substring(7);
@@ -79,7 +82,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             // Set authentication in security context
             SecurityContextHolder.getContext().setAuthentication(authentication);
             
-            logger.debug("JWT token validated for user: {} with role: {}", username, role);
+            logger.info("JWT token validated for user: {} with role: {} for request: {}", username, role, request.getRequestURI());
             
         } catch (io.jsonwebtoken.ExpiredJwtException e) {
             logger.warn("JWT token expired: {}", e.getMessage());
