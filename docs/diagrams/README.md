@@ -47,17 +47,20 @@ plantuml -tsvg diagram.puml
 - Database ER diagrams
 
 ### Sequence Diagrams
-- API request flows
-- Authentication flow
-- Data processing flows
-- Table pagination flow
-- Department creation flow
+- API request flows (with RBAC authorization)
+- Authentication flow (JWT token validation and role extraction)
+- Data processing flows (role-based filtering)
+- Table pagination flow (role-based data filtering)
+- Department creation flow (role-based authorization)
+- Employee query flow (role-based repository filtering)
+- Dashboard metrics flow (role-based metric filtering)
 
 ### Class Diagrams
 - Module class structures
 - Relationships between classes
 - Design pattern applications
-- Domain model
+- Domain model (includes User entity for RBAC)
+- Security layer (SecurityConfig, JwtAuthenticationFilter, SecurityService)
 
 ### Deployment Diagrams
 - Docker architecture
@@ -74,9 +77,22 @@ plantuml -tsvg diagram.puml
 - Project creation workflow
 
 ### Use Case Diagrams
-- System use cases
-- Actor interactions
-- Functional requirements
+- System use cases (role-based)
+- Actor interactions (4 roles: System Admin, HR Manager, Department Manager, Employee)
+- Functional requirements (with permission restrictions)
+
+## Security & RBAC in Diagrams
+
+All sequence diagrams include:
+- **JWT Authentication Filter**: Token validation and role extraction
+- **SecurityService**: Role-based access checks
+- **@PreAuthorize**: Method-level authorization
+- **Repository Filtering**: Role-based data filtering
+
+**See**: 
+- `sequence/authentication-flow.puml` for complete JWT and RBAC flow
+- `class/complete-system-class-diagram.puml` for security layer components
+- `docs/security/roles-and-permissions.md` for permission matrix
 
 ---
 

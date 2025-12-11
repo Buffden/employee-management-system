@@ -256,6 +256,248 @@ The frontend is built with Angular Standalone (v19) and follows component-based 
 
 ---
 
+## 8.1 Role-Based UI Access Control
+
+### 8.1.1 Route Guards
+
+**Location**: `frontend/src/app/core/guards/`
+
+| Guard | Purpose | Roles |
+|-------|---------|-------|
+| `AuthGuard` | Require authentication | All authenticated users |
+| `RoleGuard` | Require specific role | Role-specific routes |
+| `DepartmentGuard` | Require department ownership | Department Manager |
+
+**Route Configuration**:
+- `/employees` - Requires `HR_MANAGER` or `SYSTEM_ADMIN`
+- `/departments` - Requires `HR_MANAGER` or `SYSTEM_ADMIN` or `DEPARTMENT_MANAGER`
+- `/projects` - Requires `DEPARTMENT_MANAGER` or `SYSTEM_ADMIN`
+- `/tasks` - Requires `DEPARTMENT_MANAGER` or `SYSTEM_ADMIN`
+- `/dashboard` - All authenticated users (filtered by role)
+- `/profile` - All authenticated users (own data only)
+
+### 8.1.2 Component Visibility
+
+| Component | System Admin | HR Manager | Department Manager | Employee |
+|-----------|--------------|------------|-------------------|----------|
+| **Employee Table** | ✅ | ✅ | ❌ | ❌ |
+| **Employee Form (Create)** | ✅ | ✅ | ❌ | ❌ |
+| **Employee Form (Edit)** | ✅ | ✅ | ✅ (own dept) | ✅ (own) |
+| **Department Table** | ✅ | ✅ | ✅ | ❌ |
+| **Department Form** | ✅ | ✅ | ✅ (own dept, limited) | ❌ |
+| **Project Table** | ✅ | ✅ | ✅ | ❌ |
+| **Project Form** | ✅ | ❌ | ✅ (own dept) | ❌ |
+| **Task Table** | ✅ | ✅ | ✅ | ❌ |
+| **Task Form** | ✅ | ❌ | ✅ (own dept) | ❌ |
+| **Dashboard (All Metrics)** | ✅ | ❌ | ❌ | ❌ |
+| **Dashboard (HR Metrics)** | ✅ | ✅ | ❌ | ❌ |
+| **Dashboard (Dept Metrics)** | ✅ | ✅ | ✅ | ❌ |
+| **Dashboard (Own Metrics)** | ✅ | ✅ | ✅ | ✅ |
+
+### 8.1.3 UI Element Visibility
+
+**Conditional Rendering**:
+- **Delete Buttons**: Only visible to roles with delete permissions
+- **Edit Buttons**: Only visible to roles with update permissions
+- **Create Buttons**: Only visible to roles with create permissions
+- **Salary Column**: Hidden for `DEPARTMENT_MANAGER` and `EMPLOYEE` roles
+- **Budget Fields**: Hidden for `DEPARTMENT_MANAGER` and `EMPLOYEE` roles
+
+**Implementation**:
+- `*ngIf` directives based on user role
+- Role service: `AuthService.getCurrentUserRole()`
+- Permission service: `PermissionService.hasPermission(permission)`
+
+**See**: `docs/security/roles-and-permissions.md` for complete permission matrix
+
+### 8.1.4 Implementation Details
+
+#### 8.1.4.1 Route Guard Implementation
+
+**AuthGuard**:
+```typescript
+@Injectable({ providedIn: 'root' })
+export class AuthGuard implements CanActivate {
+  constructor(private authService: AuthService, private router: Router) {}
+  
+  canActivate(): boolean {
+    if (this.authService.isAuthenticated()) {
+      return true;
+    }
+    this.router.navigate(['/login']);
+    return false;
+  }
+}
+```
+
+**RoleGuard**:
+```typescript
+@Injectable({ providedIn: 'root' })
+export class RoleGuard implements CanActivate {
+  constructor(private authService: AuthService, private router: Router) {}
+  
+  canActivate(route: ActivatedRouteSnapshot): boolean {
+    const requiredRoles = route.data['roles'] as string[];
+    const userRole = this.authService.getCurrentUserRole();
+    
+    if (requiredRoles.includes(userRole)) {
+      return true;
+    }
+    this.router.navigate(['/unauthorized']);
+    return false;
+  }
+}
+```
+
+**DepartmentGuard**:
+```typescript
+@Injectable({ providedIn: 'root' })
+export class DepartmentGuard implements CanActivate {
+  constructor(
+    private authService: AuthService,
+    private employeeService: EmployeeService,
+    private router: Router
+  ) {}
+  
+  canActivate(route: ActivatedRouteSnapshot): Observable<boolean> {
+    const employeeId = route.params['id'];
+    const userRole = this.authService.getCurrentUserRole();
+    
+    if (userRole !== 'DEPARTMENT_MANAGER') {
+      return of(true); // Other roles handled by RoleGuard
+    }
+    
+    return this.employeeService.getById(employeeId).pipe(
+      map(employee => {
+        const userDepartmentId = this.authService.getCurrentUserDepartmentId();
+        if (employee.departmentId === userDepartmentId) {
+          return true;
+        }
+        this.router.navigate(['/unauthorized']);
+        return false;
+      })
+    );
+  }
+}
+```
+
+#### 8.1.4.2 Permission Service
+
+**Location**: `frontend/src/app/core/services/permission.service.ts`
+
+**Methods**:
+
+| Method | Parameters | Return Type | Description |
+|--------|------------|-------------|-------------|
+| `hasRole(role: string)` | `role` | `boolean` | Check if user has specific role |
+| `hasAnyRole(roles: string[])` | `roles` | `boolean` | Check if user has any of the roles |
+| `hasPermission(permission: string)` | `permission` | `boolean` | Check if user has specific permission |
+| `canCreate(entity: string)` | `entity` | `boolean` | Check if user can create entity |
+| `canUpdate(entity: string, id?: string)` | `entity`, `id` | `boolean` | Check if user can update entity |
+| `canDelete(entity: string)` | `entity` | `boolean` | Check if user can delete entity |
+| `canViewField(field: string)` | `field` | `boolean` | Check if user can view field (e.g., salary) |
+
+**Implementation Example**:
+```typescript
+@Injectable({ providedIn: 'root' })
+export class PermissionService {
+  constructor(private authService: AuthService) {}
+  
+  hasRole(role: string): boolean {
+    return this.authService.getCurrentUserRole() === role;
+  }
+  
+  hasAnyRole(roles: string[]): boolean {
+    const userRole = this.authService.getCurrentUserRole();
+    return roles.includes(userRole);
+  }
+  
+  canViewField(field: string): boolean {
+    const role = this.authService.getCurrentUserRole();
+    if (field === 'salary') {
+      return role === 'SYSTEM_ADMIN' || role === 'HR_MANAGER';
+    }
+    if (field === 'budget') {
+      return role === 'SYSTEM_ADMIN' || role === 'HR_MANAGER';
+    }
+    return true;
+  }
+  
+  canCreate(entity: string): boolean {
+    const role = this.authService.getCurrentUserRole();
+    const permissions = {
+      'employee': ['SYSTEM_ADMIN', 'HR_MANAGER'],
+      'department': ['SYSTEM_ADMIN'],
+      'location': ['SYSTEM_ADMIN', 'HR_MANAGER'],
+      'project': ['SYSTEM_ADMIN', 'DEPARTMENT_MANAGER'],
+      'task': ['SYSTEM_ADMIN', 'DEPARTMENT_MANAGER']
+    };
+    return permissions[entity]?.includes(role) || false;
+  }
+}
+```
+
+#### 8.1.4.3 Component-Level Implementation
+
+**Example - Employee Table Component**:
+```typescript
+@Component({...})
+export class EmployeeTableComponent {
+  canCreate$ = this.permissionService.canCreate('employee');
+  canViewSalary$ = this.permissionService.canViewField('salary');
+  userRole$ = this.authService.getCurrentUserRole$();
+  
+  constructor(
+    private permissionService: PermissionService,
+    private authService: AuthService
+  ) {}
+}
+```
+
+**Template Example**:
+```html
+<button *ngIf="canCreate$ | async" (click)="createEmployee()">
+  Add Employee
+</button>
+
+<table>
+  <thead>
+    <tr>
+      <th>Name</th>
+      <th>Email</th>
+      <th *ngIf="canViewSalary$ | async">Salary</th>
+      <th>Department</th>
+    </tr>
+  </thead>
+  <!-- ... -->
+</table>
+```
+
+#### 8.1.4.4 Auth Service Integration
+
+**Location**: `frontend/src/app/core/services/auth.service.ts`
+
+**Methods for RBAC**:
+
+| Method | Return Type | Description |
+|--------|-------------|-------------|
+| `getCurrentUserRole()` | `string` | Get current user role from JWT token |
+| `getCurrentUserRole$()` | `Observable<string>` | Observable of current user role |
+| `getCurrentUserId()` | `string` | Get current user ID |
+| `getCurrentUserDepartmentId()` | `string \| null` | Get current user's department ID (for Department Manager) |
+| `hasRole(role: string)` | `boolean` | Check if user has specific role |
+| `isSystemAdmin()` | `boolean` | Check if user is System Admin |
+| `isHRManager()` | `boolean` | Check if user is HR Manager |
+| `isDepartmentManager()` | `boolean` | Check if user is Department Manager |
+| `isEmployee()` | `boolean` | Check if user is Employee |
+
+**JWT Token Parsing**:
+- Role extracted from JWT token claims
+- Stored in service state for quick access
+- Updated on login and token refresh
+
+---
+
 ## 9. Sequence Diagrams
 
 See:

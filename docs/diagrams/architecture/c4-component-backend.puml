@@ -13,6 +13,7 @@ package "Spring Boot API Container" #LightYellow {
     [Project Controller] as ProjCtrl
     [Task Controller] as TaskCtrl
     [Dashboard Controller] as DashCtrl
+    [Auth Controller] as AuthCtrl
   }
   
   package "Service Layer" #LightGreen {
@@ -21,6 +22,14 @@ package "Spring Boot API Container" #LightYellow {
     [Project Service] as ProjSvc
     [Task Service] as TaskSvc
     [Dashboard Facade Service] as DashSvc
+    [Auth Service] as AuthSvc
+  }
+  
+  package "Security Layer" #LightPink {
+    [Security Config] as SecConfig
+    [JWT Authentication Filter] as JwtFilter
+    [Security Service] as SecSvc
+    [User Details Service] as UserDetailsSvc
   }
   
   package "Repository Layer" #LightCoral {
@@ -51,11 +60,26 @@ DeptCtrl --> DeptSvc : uses
 ProjCtrl --> ProjSvc : uses
 TaskCtrl --> TaskSvc : uses
 DashCtrl --> DashSvc : uses
+AuthCtrl --> AuthSvc : uses
+
+' Security Layer Relationships
+JwtFilter --> UserDetailsSvc : uses
+JwtFilter --> SecSvc : uses
+SecConfig --> JwtFilter : configures
+UserDetailsSvc --> UserRepo : uses
+
+' Service to Security relationships (RBAC)
+EmpSvc ..> SecSvc : uses (RBAC)
+DeptSvc ..> SecSvc : uses (RBAC)
+ProjSvc ..> SecSvc : uses (RBAC)
+TaskSvc ..> SecSvc : uses (RBAC)
+DashSvc ..> SecSvc : uses (RBAC)
 
 EmpSvc --> EmpRepo : uses
 DeptSvc --> DeptRepo : uses
 ProjSvc --> ProjRepo : uses
 TaskSvc --> TaskRepo : uses
+AuthSvc --> UserRepo : uses
 
 EmpSvc --> EmpMapper : uses
 DeptSvc --> DeptMapper : uses
@@ -70,6 +94,7 @@ EmpRepo --> DB : reads/writes
 DeptRepo --> DB : reads/writes
 ProjRepo --> DB : reads/writes
 TaskRepo --> DB : reads/writes
+UserRepo --> DB : reads/writes
 
 note right of DashSvc
   **Pattern:** Facade
@@ -86,6 +111,22 @@ note right of TotalMetric
   **Pattern:** Strategy
   **Purpose:** Different calculation
   strategies
+end note
+
+note right of SecSvc
+  **RBAC Helper:**
+  - Role-based access checks
+  - Department scope validation
+  - Used in @PreAuthorize SpEL
+  - See: docs/lld/auth-module.md
+end note
+
+note right of JwtFilter
+  **Security Filter:**
+  - Validates JWT tokens
+  - Extracts role from claims
+  - Sets SecurityContext
+  - Applied before all requests
 end note
 
 @enduml

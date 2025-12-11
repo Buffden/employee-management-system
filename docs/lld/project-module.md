@@ -10,40 +10,19 @@ The Project module handles project management including CRUD operations, status 
 
 **Location**: `backend/src/main/java/com/ems/employee_management_system/models/Project.java`
 
-```java
-@Entity
-public class Project {
-    @Id
-    @GeneratedValue(strategy = GenerationType.AUTO)
-    private UUID id;
-    
-    @Column(nullable = false, unique = true)
-    private String name;
-    
-    @Column(columnDefinition = "TEXT")
-    private String description;
-    
-    @Column(nullable = false)
-    private LocalDate startDate;
-    
-    private LocalDate endDate;
-    
-    @Column(nullable = false)
-    private String status;
-    
-    private Double budget = 0.0;
-    
-    @ManyToOne
-    @JoinColumn(nullable = false)
-    private Department department;
-    
-    @ManyToOne
-    @JoinColumn(nullable = false)
-    private Employee projectManager;
-    
-    // Getters and setters
-}
-```
+**Fields**:
+
+| Field | Type | Constraints | Description |
+|-------|------|-------------|-------------|
+| `id` | `UUID` | `@Id`, `@GeneratedValue` | Primary key |
+| `name` | `String` | `@Column(nullable=false, unique=true)` | Project name (unique) |
+| `description` | `String` | `@Column(columnDefinition="TEXT")` | Project description |
+| `startDate` | `LocalDate` | `@Column(nullable=false)` | Project start date |
+| `endDate` | `LocalDate` | - | Project end date (optional) |
+| `status` | `String` | `@Column(nullable=false)` | Project status |
+| `budget` | `Double` | Default: `0.0` | Project budget |
+| `department` | `Department` | `@ManyToOne`, `@JoinColumn(nullable=false)` | Associated department |
+| `projectManager` | `Employee` | `@ManyToOne`, `@JoinColumn(nullable=false)` | Project manager employee |
 
 **Relationships**:
 - `@ManyToOne` → Department (department)
@@ -53,36 +32,44 @@ public class Project {
 
 ## 3. DTOs
 
-### 3.1 ProjectDTO
+### 3.1 ProjectRequestDTO
 
-**Location**: `backend/src/main/java/com/ems/employee_management_system/dtos/ProjectDTO.java`
-
-```java
-public class ProjectDTO {
-    private UUID id;
-    private String name;
-    private String description;
-    private LocalDate startDate;
-    private LocalDate endDate;
-    private String status;
-    private Double budget;
-    private UUID departmentId;
-    private UUID projectManagerId;
-    
-    // Getters and setters
-}
-```
+**Location**: `backend/src/main/java/com/ems/employee_management_system/dtos/ProjectRequestDTO.java`
 
 **Fields**:
-- `id` (UUID): Project unique identifier
-- `name` (String, required, unique): Project name
-- `description` (String, optional): Project description
-- `startDate` (Date, required): Project start date
-- `endDate` (Date, optional): Project end date
-- `status` (String, required): Project status (Planning, Active, On Hold, Completed, Cancelled)
-- `budget` (Double, optional): Project budget
-- `departmentId` (UUID, required): Reference to department
-- `projectManagerId` (UUID, required): Reference to project manager
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `name` | `String` | Project name |
+| `description` | `String` | Project description |
+| `startDate` | `LocalDate` | Project start date |
+| `endDate` | `LocalDate` | Project end date (optional) |
+| `status` | `String` | Project status |
+| `budget` | `Double` | Project budget |
+| `departmentId` | `UUID` | Department ID (for relationship) |
+| `projectManagerId` | `UUID` | Project manager employee ID |
+
+**Note**: No `id` field (auto-generated on server side)
+
+### 3.2 ProjectResponseDTO
+
+**Location**: `backend/src/main/java/com/ems/employee_management_system/dtos/ProjectResponseDTO.java`
+
+**Fields**:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `id` | `UUID` | Project unique identifier |
+| `name` | `String` | Project name |
+| `description` | `String` | Project description |
+| `startDate` | `LocalDate` | Project start date |
+| `endDate` | `LocalDate` | Project end date |
+| `status` | `String` | Project status |
+| `budget` | `Double` | Project budget |
+| `departmentName` | `String` | Denormalized department name |
+| `projectManagerName` | `String` | Denormalized project manager name (firstName + lastName) |
+
+**Note**: Uses denormalized names (`departmentName`, `projectManagerName`) for better API responses
 
 ## 4. Controllers
 
@@ -92,22 +79,12 @@ public class ProjectDTO {
 
 **Endpoints**:
 
-| Method | Endpoint | Description | Status Code |
-|--------|----------|-------------|-------------|
-| GET | `/api/projects` | Get all projects | 200 |
-| GET | `/api/projects/{id}` | Get project by ID | 200, 404 |
-| POST | `/api/projects` | Create new project | 201, 400 |
-| PUT | `/api/projects/{id}` | Update project | 200, 404, 400 |
-| DELETE | `/api/projects/{id}` | Delete project | 204, 404 |
-
-**Endpoints**:
-
 | Method | Endpoint | Description | Request | Response |
 |--------|----------|-------------|---------|----------|
-| GET | `/api/projects` | Get all projects | - | `List<ProjectDTO>` |
-| GET | `/api/projects/{id}` | Get project by ID | - | `ProjectDTO` |
-| POST | `/api/projects` | Create project | `ProjectDTO` | `ProjectDTO` |
-| PUT | `/api/projects/{id}` | Update project | `ProjectDTO` | `ProjectDTO` |
+| GET | `/api/projects` | Get all projects | - | `List<ProjectResponseDTO>` |
+| GET | `/api/projects/{id}` | Get project by ID | - | `ProjectResponseDTO` |
+| POST | `/api/projects` | Create project | `ProjectRequestDTO` | `ProjectResponseDTO` |
+| PUT | `/api/projects/{id}` | Update project | `ProjectRequestDTO` | `ProjectResponseDTO` |
 | DELETE | `/api/projects/{id}` | Delete project | - | `void` |
 
 **Dependencies**:
@@ -117,7 +94,7 @@ public class ProjectDTO {
 - `ProjectMapper` - Entity ↔ DTO conversion
 
 **Patterns Applied**:
-- **Adapter Pattern**: ProjectMapper converts Entity ↔ DTO
+- **Adapter Pattern**: ProjectMapper converts Entity ↔ DTO (similar to EmployeeMapper, DepartmentMapper, LocationMapper pattern)
 
 ## 5. Services
 
@@ -175,36 +152,16 @@ public interface ProjectRepository extends JpaRepository<Project, UUID> {
 
 **Pattern**: Adapter Pattern
 
-```java
-public class ProjectMapper {
-    public static ProjectDTO toDTO(Project project) {
-        ProjectDTO dto = new ProjectDTO();
-        dto.setId(project.getId());
-        dto.setName(project.getName());
-        dto.setDescription(project.getDescription());
-        dto.setStartDate(project.getStartDate());
-        dto.setEndDate(project.getEndDate());
-        dto.setStatus(project.getStatus());
-        dto.setBudget(project.getBudget());
-        dto.setDepartmentId(project.getDepartment().getId());
-        dto.setProjectManagerId(project.getProjectManager().getId());
-        return dto;
-    }
-    
-    public static Project toEntity(ProjectDTO dto, Department department, Employee manager) {
-        Project project = new Project();
-        project.setName(dto.getName());
-        project.setDescription(dto.getDescription());
-        project.setStartDate(dto.getStartDate());
-        project.setEndDate(dto.getEndDate());
-        project.setStatus(dto.getStatus());
-        project.setBudget(dto.getBudget());
-        project.setDepartment(department);
-        project.setProjectManager(manager);
-        return project;
-    }
-}
-```
+**Methods**:
+
+| Method | Parameters | Return Type | Description |
+|--------|------------|-------------|-------------|
+| `toResponseDTO(Project project)` | `project` | `ProjectResponseDTO` | Convert Entity to Response DTO (includes denormalized names) |
+| `toEntity(ProjectRequestDTO dto, Department department, Employee projectManager)` | `dto`, `department`, `projectManager` | `Project` | Convert Request DTO to Entity (resolves relationships) |
+
+**Responsibilities**:
+- Maps Entity to Response DTO (includes denormalized departmentName and projectManagerName)
+- Maps Request DTO to Entity (excludes id, relationships resolved by IDs in controller)
 
 ## 8. Design Patterns Summary
 
@@ -230,6 +187,84 @@ public class ProjectMapper {
 4. **Manager Assignment**: Project manager must be an employee
 5. **Department Assignment**: Project must belong to exactly one department
 6. **Cascade Delete**: Deleting project deletes all associated tasks
+
+## 10.1 Role-Based Access Control
+
+| Operation | System Admin | HR Manager | Department Manager | Employee |
+|-----------|--------------|------------|-------------------|----------|
+| **View All Projects** | ✅ | ✅ | ✅ | ❌ |
+| **View Own Department Projects** | ✅ | ✅ | ✅ | ❌ |
+| **View Assigned Projects** | ✅ | ✅ | ✅ | ✅ |
+| **Create Project** | ✅ | ❌ | ✅ (own dept only) | ❌ |
+| **Update Any Project** | ✅ | ❌ | ❌ | ❌ |
+| **Update Own Department Projects** | ✅ | ❌ | ✅ | ❌ |
+| **Delete Project** | ✅ | ❌ | ✅ (own dept only) | ❌ |
+
+### 10.1.1 Implementation Details
+
+**Service Layer Authorization**:
+
+**Example - ProjectService**:
+```java
+@PreAuthorize("hasRole('SYSTEM_ADMIN') or " +
+              "(hasRole('DEPARTMENT_MANAGER') and @securityService.isProjectInOwnDepartment(#dto.departmentId))")
+public ProjectResponseDTO create(ProjectRequestDTO dto) {
+    // Validate department ownership for Department Manager
+    if (securityService.hasRole("DEPARTMENT_MANAGER")) {
+        UUID userDepartmentId = securityService.getCurrentUserDepartmentId();
+        if (!dto.getDepartmentId().equals(userDepartmentId)) {
+            throw new AccessDeniedException("Can only create projects in own department");
+        }
+    }
+    // ... create logic
+}
+
+@PreAuthorize("hasRole('SYSTEM_ADMIN') or " +
+              "(hasRole('DEPARTMENT_MANAGER') and @securityService.isProjectInOwnDepartmentByProjectId(#id))")
+public ProjectResponseDTO update(UUID id, ProjectRequestDTO dto) { ... }
+
+@PreAuthorize("hasAnyRole('SYSTEM_ADMIN', 'HR_MANAGER', 'DEPARTMENT_MANAGER', 'EMPLOYEE')")
+public Page<ProjectResponseDTO> getAll(Pageable pageable) {
+    String role = securityService.getCurrentUserRole();
+    UUID departmentId = securityService.getCurrentUserDepartmentId();
+    UUID userId = securityService.getCurrentUserId();
+    
+    // Filter by role: Department Manager sees own dept, Employee sees assigned
+    return projectRepository.findAllFilteredByRole(role, departmentId, userId, pageable)
+        .map(mapper::toResponseDTO);
+}
+```
+
+**Repository-Level Filtering**:
+```java
+@Query("SELECT p FROM Project p WHERE " +
+       "(:role = 'SYSTEM_ADMIN' OR :role = 'HR_MANAGER') OR " +
+       "(:role = 'DEPARTMENT_MANAGER' AND p.department.id = :departmentId) OR " +
+       "(:role = 'EMPLOYEE' AND EXISTS (SELECT ep FROM EmployeeProject ep WHERE ep.project.id = p.id AND ep.employee.id = :userId))")
+Page<Project> findAllFilteredByRole(@Param("role") String role,
+                                    @Param("departmentId") UUID departmentId,
+                                    @Param("userId") UUID userId,
+                                    Pageable pageable);
+```
+
+**Controller Layer**:
+```java
+@PostMapping
+@PreAuthorize("hasRole('SYSTEM_ADMIN') or hasRole('DEPARTMENT_MANAGER')")
+public ResponseEntity<ProjectResponseDTO> create(@Valid @RequestBody ProjectRequestDTO dto) { ... }
+
+@GetMapping
+@PreAuthorize("hasAnyRole('SYSTEM_ADMIN', 'HR_MANAGER', 'DEPARTMENT_MANAGER', 'EMPLOYEE')")
+public ResponseEntity<PaginatedResponseDTO<ProjectResponseDTO>> getAll(...) { ... }
+```
+
+**Department Manager Scope**:
+- Can only create/update/delete projects in their own department
+- Department determined by `user.employee.department`
+- Must have linked employee record
+- Validation: `@securityService.isProjectInOwnDepartment(departmentId)`
+
+**See**: `docs/security/roles-and-permissions.md` for complete permission matrix
 
 ## 11. State Machine
 

@@ -283,13 +283,92 @@ Long count();
 
 ---
 
-## 7. Sequence Diagram
+## 7. Role-Based Access Control
+
+| Operation | System Admin | HR Manager | Department Manager | Employee |
+|-----------|--------------|------------|-------------------|----------|
+| **View All Metrics** | ✅ | ❌ | ❌ | ❌ |
+| **View HR Metrics** | ✅ | ✅ | ❌ | ❌ |
+| **View Department Metrics** | ✅ | ✅ | ✅ (own dept) | ❌ |
+| **View Own Metrics** | ✅ | ✅ | ✅ | ✅ |
+
+### 7.1 Implementation Details
+
+**Service Layer Authorization**:
+
+**Example - DashboardService**:
+```java
+@PreAuthorize("hasAnyRole('SYSTEM_ADMIN', 'HR_MANAGER', 'DEPARTMENT_MANAGER', 'EMPLOYEE')")
+public DashboardMetricsDTO getMetrics() {
+    String role = securityService.getCurrentUserRole();
+    UUID departmentId = securityService.getCurrentUserDepartmentId();
+    UUID userId = securityService.getCurrentUserId();
+    
+    DashboardMetricsDTO metrics = new DashboardMetricsDTO();
+    
+    if (role.equals("SYSTEM_ADMIN")) {
+        // All organization metrics
+        metrics.setTotalEmployees(employeeRepository.count());
+        metrics.setTotalDepartments(departmentRepository.count());
+        metrics.setAverageSalary(employeeRepository.calculateAverageSalary());
+    } else if (role.equals("HR_MANAGER")) {
+        // HR metrics (all employees, all departments)
+        metrics.setTotalEmployees(employeeRepository.count());
+        metrics.setTotalDepartments(departmentRepository.count());
+        metrics.setAverageSalary(employeeRepository.calculateAverageSalary());
+    } else if (role.equals("DEPARTMENT_MANAGER")) {
+        // Own department metrics only
+        metrics.setTotalEmployees(employeeRepository.countByDepartmentId(departmentId));
+        metrics.setTotalDepartments(1L); // Only own department
+        metrics.setAverageSalary(employeeRepository.calculateAverageSalaryByDepartment(departmentId));
+    } else if (role.equals("EMPLOYEE")) {
+        // Personal metrics only
+        metrics.setTotalEmployees(1L); // Only self
+        metrics.setTotalDepartments(1L); // Own department
+        // No salary for employee view
+    }
+    
+    return metrics;
+}
+```
+
+**Controller Layer**:
+```java
+@GetMapping("/metrics")
+@PreAuthorize("hasAnyRole('SYSTEM_ADMIN', 'HR_MANAGER', 'DEPARTMENT_MANAGER', 'EMPLOYEE')")
+public ResponseEntity<DashboardMetricsDTO> getMetrics() {
+    // Service automatically filters by role
+    return ResponseEntity.ok(dashboardService.getMetrics());
+}
+
+@GetMapping("/graphs")
+@PreAuthorize("hasAnyRole('SYSTEM_ADMIN', 'HR_MANAGER', 'DEPARTMENT_MANAGER')")
+public ResponseEntity<GraphDataDTO> getGraphs() {
+    // Employees cannot view graphs, only metrics
+    return ResponseEntity.ok(dashboardService.getGraphs());
+}
+```
+
+**Metric Scope**:
+- **System Admin**: All organization-wide metrics
+- **HR Manager**: HR-related metrics (employee stats, department distribution, salary analytics)
+- **Department Manager**: Own department metrics only
+- **Employee**: Personal metrics (own tasks, own projects)
+
+**Filtered Data**:
+- Department Manager queries automatically filtered by `user.employee.department`
+- Employee queries automatically filtered by `user.employee.id`
+- Service layer automatically applies role-based filtering
+
+**See**: `docs/security/roles-and-permissions.md` for complete permission matrix
+
+## 8. Sequence Diagram
 
 See: `docs/diagrams/sequence/dashboard-metrics-flow.puml`
 
 ---
 
-## 8. Future Enhancements
+## 9. Future Enhancements
 
 - **Caching**: Cache metrics for performance (Redis)
 - **Real-time Updates**: WebSocket for real-time metric updates

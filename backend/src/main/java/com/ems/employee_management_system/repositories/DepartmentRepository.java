@@ -1,9 +1,28 @@
 package com.ems.employee_management_system.repositories;
 
-import com.ems.employee_management_system.models.Department;
-import org.springframework.data.jpa.repository.JpaRepository;
-
+import java.util.Optional;
 import java.util.UUID;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
+
+import com.ems.employee_management_system.models.Department;
+
 public interface DepartmentRepository extends JpaRepository<Department, UUID> {
+    Optional<Department> findByName(String name);
+    
+    @Query("SELECT COUNT(e) FROM Employee e WHERE e.department.id = :departmentId")
+    Long countEmployeesByDepartment(@Param("departmentId") UUID departmentId);
+
+    @Query("""
+        SELECT d FROM Department d
+        WHERE (:role = 'SYSTEM_ADMIN' OR :role = 'HR_MANAGER')
+           OR (:role = 'DEPARTMENT_MANAGER' AND d.id = :departmentId)
+        """)
+    Page<Department> findAllFilteredByRole(@Param("role") String role,
+                                           @Param("departmentId") UUID departmentId,
+                                           Pageable pageable);
 }

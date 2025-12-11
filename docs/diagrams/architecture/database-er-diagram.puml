@@ -83,6 +83,18 @@ entity "employee_project" as EmployeeProject {
   assigned_date : DATE
 }
 
+entity "users" as User {
+  * id : UUID <<PK>>
+  --
+  * username : VARCHAR(100) <<unique>>
+  * password : VARCHAR(255)
+  email : VARCHAR(255)
+  * role : VARCHAR(50)
+  employee_id : UUID <<FK>>
+  * created_at : TIMESTAMP
+  last_login : TIMESTAMP
+}
+
 ' Relationships
 Location ||--o{ Employee : "has employees"
 Location ||--o{ Department : "has departments"
@@ -95,6 +107,17 @@ Project ||--o{ Task : "has tasks"
 Task ||--o| Employee : "assigned to"
 Employee ||--o{ EmployeeProject : "works on"
 Project ||--o{ EmployeeProject : "has employees"
+User ||--o| Employee : "linked to (optional)"
+
+note right of User
+  **RBAC Table:**
+  - Stores user accounts for authentication
+  - Role: SYSTEM_ADMIN, HR_MANAGER, 
+    DEPARTMENT_MANAGER, EMPLOYEE
+  - Links to Employee (for Department Manager/Employee roles)
+  - Used for JWT token generation
+  - See: docs/security/roles-and-permissions.md
+end note
 
 note right of Employee
   **Indexes:**

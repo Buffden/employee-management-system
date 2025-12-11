@@ -48,7 +48,7 @@ Required variables in `.env`:
 
 ## Database Initialization
 
-Place any SQL initialization scripts in the `init/` folder. They will be executed automatically when the database container starts for the first time.
+The `init/` folder is reserved for SQL initialization scripts (currently empty). Scripts placed here will be executed automatically when the database container starts for the first time.
 
-Example: `init/01-init-schema.sql`
+**Note**: Since we use Hibernate `ddl-auto=update` (code-first approach), schema is created automatically. This folder is available for seed data or reference data if needed in the future.
 

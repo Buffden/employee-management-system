@@ -39,6 +39,13 @@ package "Angular Web Application Container" #LightYellow {
     [Project Service] as ProjService
     [API Service] as ApiService
     [Auth Service] as AuthService
+    [Permission Service] as PermService
+  }
+  
+  package "Security" #LightPink {
+    [Auth Guard] as AuthGuard
+    [Role Guard] as RoleGuard
+    [Department Guard] as DeptGuard
   }
   
   package "State Services" #LightGreen {
@@ -71,6 +78,19 @@ EmpService --> ApiService : uses
 DeptService --> ApiService : uses
 ProjService --> ApiService : uses
 
+' Security relationships
+EmpModule ..> AuthGuard : uses (RBAC)
+DeptModule ..> RoleGuard : uses (RBAC)
+EmpList ..> PermService : uses (RBAC)
+EmpForm ..> PermService : uses (RBAC)
+DeptList ..> PermService : uses (RBAC)
+Dashboard ..> PermService : uses (RBAC)
+
+AuthGuard --> AuthService : uses
+RoleGuard --> AuthService : uses
+DeptGuard --> AuthService : uses
+PermService --> AuthService : uses
+
 Table --> TableState : uses
 Overlay --> OverlayService : uses
 
@@ -93,6 +113,25 @@ end note
 note right of OverlayService
   **Pattern:** Observer
   **Purpose:** Manages overlay state
+end note
+
+note right of AuthGuard
+  **RBAC:**
+  - Requires authentication
+  - All protected routes
+end note
+
+note right of RoleGuard
+  **RBAC:**
+  - Requires specific role(s)
+  - Role-based route access
+end note
+
+note right of PermService
+  **RBAC:**
+  - Permission checks
+  - Role-based UI visibility
+  - Field-level permissions
 end note
 
 @enduml

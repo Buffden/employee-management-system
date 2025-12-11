@@ -27,6 +27,19 @@ Each module documentation includes:
 - **Services**: Business logic layer
 - **Repositories**: Data access layer
 - **Patterns Applied**: GoF patterns used
+- **Role-Based Access Control (RBAC)**: Authorization and permission details
+
+## Security & Authorization
+
+All modules include RBAC implementation details:
+- **Permission Matrices**: Role-based access control tables
+- **@PreAuthorize Examples**: Method-level security annotations
+- **Repository Filtering**: Role-based query filtering patterns
+- **SecurityService Integration**: Helper methods for role checks
+
+**See**: 
+- `auth-module.md` Section 14.4 for complete RBAC implementation details
+- `docs/security/roles-and-permissions.md` for permission matrix
 
 ---
 

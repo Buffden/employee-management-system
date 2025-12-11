@@ -22,10 +22,28 @@ User -> Frontend: 2. Select location
 User -> Frontend: 3. Optionally select department head
 User -> Frontend: 4. Click "Create Department"
 
-Frontend -> Gateway: 5. POST /api/departments\n(DepartmentRequestDTO)
-Gateway -> Controller: 6. Forward request
+Frontend -> Gateway: 5. POST /api/departments\nAuthorization: Bearer {token}\n(DepartmentRequestDTO)
+Gateway -> Gateway: 6. Forward to Backend
 
-Controller -> Service: 7. create(DepartmentRequestDTO)
+participant "JwtAuthenticationFilter" as JwtFilter
+participant "SecurityService" as SecurityService
+
+Gateway -> JwtFilter: 7. Intercept request
+JwtFilter -> JwtFilter: 8. Validate JWT token
+JwtFilter -> JwtFilter: 9. Extract role from token
+JwtFilter -> Controller: 10. Forward request
+
+Controller -> Controller: 11. Check @PreAuthorize\n(hasRole('SYSTEM_ADMIN'))
+
+alt Insufficient permissions
+    Controller --> Gateway: 12. HTTP 403 Forbidden
+    Gateway --> Frontend: 13. Access denied
+    Frontend --> User: 14. Show error message
+else Authorized
+    Controller -> SecurityService: 15. getCurrentUserRole()
+    SecurityService --> Controller: 16. Role (must be 'SYSTEM_ADMIN')
+    
+    Controller -> Service: 17. create(DepartmentRequestDTO)
 
 alt Department head is provided
     Service -> EmpRepo: 8. getById(departmentHeadId)
@@ -46,27 +64,42 @@ DB --> DeptRepo: 19. Optional<Department>
 DeptRepo --> Service: 20. Optional (empty if new)
 
 alt Department name exists
-    Service --> Controller: 21. Throw exception: "Department name already exists"
-    Controller --> Gateway: 22. HTTP 400 Bad Request
-    Gateway --> Frontend: 23. Error response
-    Frontend --> User: 24. Display error message
+    Service --> Controller: 18. Throw exception: "Department name already exists"
+    Controller --> Gateway: 19. HTTP 400 Bad Request
+    Gateway --> Frontend: 20. Error response
+    Frontend --> User: 21. Display error message
 else Department name is unique
-    Service -> Mapper: 25. toEntity(DTO, location, head)
-    Mapper --> Service: 26. Department entity
+    Service -> Mapper: 22. toEntity(DTO, location, head)
+    Mapper --> Service: 23. Department entity
     
-    Service -> DeptRepo: 27. save(Department)
-    DeptRepo -> DB: 28. INSERT INTO department
-    DB --> DeptRepo: 29. Saved department
-    DeptRepo --> Service: 30. Department
+    Service -> DeptRepo: 24. save(Department)
+    DeptRepo -> DB: 25. INSERT INTO department
+    DB --> DeptRepo: 26. Saved department
+    DeptRepo --> Service: 27. Department
     
-    Service -> Mapper: 31. toResponseDTO(Department)
-    Mapper --> Service: 32. DepartmentResponseDTO
+    Service -> Mapper: 28. toResponseDTO(Department)
+    Mapper --> Service: 29. DepartmentResponseDTO
     
-    Service --> Controller: 33. DepartmentResponseDTO
-    Controller --> Gateway: 34. HTTP 201 Created
-    Gateway --> Frontend: 35. Response with department data
-    Frontend -> User: 36. Display success message and department details
+    Service --> Controller: 30. DepartmentResponseDTO
+    Controller --> Gateway: 31. HTTP 201 Created
+    Gateway --> Frontend: 32. Response with department data
+    Frontend -> User: 33. Display success message and department details
 end
+
+note right of JwtFilter
+  **RBAC:**
+  - Validates JWT token
+  - Extracts role
+  - Sets SecurityContext
+end note
+
+note right of Controller
+  **Authorization:**
+  Only SYSTEM_ADMIN
+  can create departments
+  @PreAuthorize enforces
+  this at method level
+end note
 
 note right of Service
   **Business Rules:**

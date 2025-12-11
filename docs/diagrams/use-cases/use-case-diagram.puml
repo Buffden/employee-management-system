@@ -126,5 +126,14 @@ note right of Emp
   Own profile & tasks
 end note
 
+note bottom of Admin
+  **RBAC Implementation:**
+  - All roles defined in User entity
+  - JWT tokens include role claims
+  - @PreAuthorize enforces permissions
+  - Repository-level filtering by role
+  - See: docs/security/roles-and-permissions.md
+end note
+
 @enduml
 

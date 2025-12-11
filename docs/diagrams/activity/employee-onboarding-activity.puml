@@ -6,7 +6,9 @@ title Employee Onboarding - Activity Diagram
 
 start
 
-:HR Manager creates employee record;
+partition "RBAC: HR Manager or System Admin" {
+  :HR Manager/System Admin creates employee record;
+}
 :Assign department;
 :Assign location;
 :Optionally assign manager;

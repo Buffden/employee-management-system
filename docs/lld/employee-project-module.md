@@ -10,33 +10,19 @@ The Employee-Project module manages the many-to-many relationship between employ
 
 **Location**: `backend/src/main/java/com/ems/employee_management_system/models/EmployeeProject.java`
 
-```java
-@Entity
-@IdClass(EmployeeProject.EmployeeProjectId.class)
-public class EmployeeProject {
-    @Id
-    @ManyToOne
-    @JoinColumn(name = "employee_id")
-    private Employee employee;
-    
-    @Id
-    @ManyToOne
-    @JoinColumn(name = "project_id")
-    private Project project;
-    
-    private String role;
-    private LocalDate assignedDate;
-    
-    // Composite key class
-    public static class EmployeeProjectId implements Serializable {
-        private UUID employee;
-        private UUID project;
-        // equals and hashCode
-    }
-    
-    // Getters and setters
-}
-```
+**Fields**:
+
+| Field | Type | Constraints | Description |
+|-------|------|-------------|-------------|
+| `employee` | `Employee` | `@Id`, `@ManyToOne`, `@JoinColumn(name="employee_id")` | Employee (part of composite key) |
+| `project` | `Project` | `@Id`, `@ManyToOne`, `@JoinColumn(name="project_id")` | Project (part of composite key) |
+| `role` | `String` | - | Employee's role in project |
+| `assignedDate` | `LocalDate` | - | Date when employee was assigned |
+
+**Composite Key Class**: `EmployeeProjectId`
+- Implements `Serializable`
+- Contains `employee` (UUID) and `project` (UUID)
+- Implements `equals()` and `hashCode()`
 
 **Relationships**:
 - `@ManyToOne` → Employee (employee, part of composite key)
@@ -50,26 +36,37 @@ public class EmployeeProject {
 
 ## 3. DTOs
 
-### 3.1 EmployeeProjectDTO
+### 3.1 EmployeeProjectRequestDTO
 
-**Location**: `backend/src/main/java/com/ems/employee_management_system/dtos/EmployeeProjectDTO.java`
-
-```java
-public class EmployeeProjectDTO {
-    private UUID employeeId;
-    private UUID projectId;
-    private String role;
-    private LocalDate assignedDate;
-    
-    // Getters and setters
-}
-```
+**Location**: `backend/src/main/java/com/ems/employee_management_system/dtos/EmployeeProjectRequestDTO.java`
 
 **Fields**:
-- `employeeId` (UUID, required): Reference to employee
-- `projectId` (UUID, required): Reference to project
-- `role` (String, optional): Employee's role in project
-- `assignedDate` (Date, optional): Date when employee was assigned
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `employeeId` | `UUID` | Employee ID (part of composite key) |
+| `projectId` | `UUID` | Project ID (part of composite key) |
+| `role` | `String` | Employee's role in project |
+| `assignedDate` | `LocalDate` | Date when employee was assigned |
+
+**Note**: Both `employeeId` and `projectId` together form the composite key
+
+### 3.2 EmployeeProjectResponseDTO
+
+**Location**: `backend/src/main/java/com/ems/employee_management_system/dtos/EmployeeProjectResponseDTO.java`
+
+**Fields**:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `employeeId` | `UUID` | Employee ID (part of composite key) |
+| `projectId` | `UUID` | Project ID (part of composite key) |
+| `employeeName` | `String` | Denormalized employee name (firstName + lastName) |
+| `projectName` | `String` | Denormalized project name |
+| `role` | `String` | Employee's role in project |
+| `assignedDate` | `LocalDate` | Date when employee was assigned |
+
+**Note**: Uses denormalized names (`employeeName`, `projectName`) for better API responses
 
 ## 4. Controllers
 
@@ -79,22 +76,12 @@ public class EmployeeProjectDTO {
 
 **Endpoints**:
 
-| Method | Endpoint | Description | Status Code |
-|--------|----------|-------------|-------------|
-| GET | `/api/employee-projects` | Get all employee-project assignments | 200 |
-| GET | `/api/employee-projects/{employeeId}/{projectId}` | Get assignment by composite key | 200, 404 |
-| POST | `/api/employee-projects` | Create new assignment | 201, 400 |
-| PUT | `/api/employee-projects/{employeeId}/{projectId}` | Update assignment | 200, 404, 400 |
-| DELETE | `/api/employee-projects/{employeeId}/{projectId}` | Delete assignment | 204, 404 |
-
-**Endpoints**:
-
 | Method | Endpoint | Description | Request | Response |
 |--------|----------|-------------|---------|----------|
-| GET | `/api/employee-projects` | Get all assignments | - | `List<EmployeeProjectDTO>` |
-| GET | `/api/employee-projects/{employeeId}/{projectId}` | Get assignment by composite key | - | `EmployeeProjectDTO` |
-| POST | `/api/employee-projects` | Create assignment | `EmployeeProjectDTO` | `EmployeeProjectDTO` |
-| PUT | `/api/employee-projects/{employeeId}/{projectId}` | Update assignment | `EmployeeProjectDTO` | `EmployeeProjectDTO` |
+| GET | `/api/employee-projects` | Get all assignments | - | `List<EmployeeProjectResponseDTO>` |
+| GET | `/api/employee-projects/{employeeId}/{projectId}` | Get assignment by composite key | - | `EmployeeProjectResponseDTO` |
+| POST | `/api/employee-projects` | Create assignment | `EmployeeProjectRequestDTO` | `EmployeeProjectResponseDTO` |
+| PUT | `/api/employee-projects/{employeeId}/{projectId}` | Update assignment | `EmployeeProjectRequestDTO` | `EmployeeProjectResponseDTO` |
 | DELETE | `/api/employee-projects/{employeeId}/{projectId}` | Delete assignment | - | `void` |
 
 **Dependencies**:
@@ -106,7 +93,7 @@ public class EmployeeProjectDTO {
 **Note**: Uses composite key (`employeeId`, `projectId`) for identification
 
 **Patterns Applied**:
-- **Adapter Pattern**: EmployeeProjectMapper converts Entity ↔ DTO
+- **Adapter Pattern**: EmployeeProjectMapper converts Entity ↔ DTO (similar to EmployeeMapper, DepartmentMapper, LocationMapper, ProjectMapper, TaskMapper pattern)
 
 ## 5. Services
 
@@ -163,30 +150,16 @@ public interface EmployeeProjectRepository extends JpaRepository<EmployeeProject
 
 **Pattern**: Adapter Pattern
 
-```java
-public class EmployeeProjectMapper {
-    public static EmployeeProjectDTO toDTO(EmployeeProject ep) {
-        EmployeeProjectDTO dto = new EmployeeProjectDTO();
-        dto.setEmployeeId(ep.getEmployee().getId());
-        dto.setProjectId(ep.getProject().getId());
-        dto.setRole(ep.getRole());
-        dto.setAssignedDate(ep.getAssignedDate());
-        return dto;
-    }
-    
-    public static EmployeeProject toEntity(
-            EmployeeProjectDTO dto, 
-            Employee employee, 
-            Project project) {
-        EmployeeProject ep = new EmployeeProject();
-        ep.setEmployee(employee);
-        ep.setProject(project);
-        ep.setRole(dto.getRole());
-        ep.setAssignedDate(dto.getAssignedDate());
-        return ep;
-    }
-}
-```
+**Methods**:
+
+| Method | Parameters | Return Type | Description |
+|--------|------------|-------------|-------------|
+| `toResponseDTO(EmployeeProject ep)` | `ep` | `EmployeeProjectResponseDTO` | Convert Entity to Response DTO (includes denormalized names) |
+| `toEntity(EmployeeProjectRequestDTO dto, Employee employee, Project project)` | `dto`, `employee`, `project` | `EmployeeProject` | Convert Request DTO to Entity (resolves relationships) |
+
+**Responsibilities**:
+- Maps Entity to Response DTO (includes denormalized employeeName and projectName)
+- Maps Request DTO to Entity (relationships resolved by IDs in controller)
 
 ## 8. Design Patterns Summary
 
@@ -229,7 +202,79 @@ public class EmployeeProjectMapper {
 - All find operations use `EmployeeProjectId` composite key object
 - Path variables in controller are converted to `EmployeeProjectId`
 
-## 12. API Endpoint Patterns
+## 12. Role-Based Access Control
+
+| Operation | System Admin | HR Manager | Department Manager | Employee |
+|-----------|--------------|------------|-------------------|----------|
+| **View All Assignments** | ✅ | ✅ | ✅ | ❌ |
+| **View Own Department Assignments** | ✅ | ✅ | ✅ | ❌ |
+| **View Own Assignments** | ✅ | ✅ | ✅ | ✅ |
+| **Create Assignment** | ✅ | ❌ | ✅ (own dept projects) | ❌ |
+| **Update Assignment** | ✅ | ❌ | ✅ (own dept projects) | ❌ |
+| **Delete Assignment** | ✅ | ❌ | ✅ (own dept projects) | ❌ |
+
+### 12.1 Implementation Details
+
+**Service Layer Authorization**:
+
+**Example - EmployeeProjectService**:
+```java
+@PreAuthorize("hasRole('SYSTEM_ADMIN') or " +
+              "(hasRole('DEPARTMENT_MANAGER') and @securityService.isProjectInOwnDepartment(#dto.projectId))")
+public EmployeeProjectResponseDTO create(EmployeeProjectRequestDTO dto) {
+    // Validate project is in Department Manager's department
+    if (securityService.hasRole("DEPARTMENT_MANAGER")) {
+        UUID userDepartmentId = securityService.getCurrentUserDepartmentId();
+        Project project = projectRepository.findById(dto.getProjectId()).orElseThrow();
+        if (!project.getDepartment().getId().equals(userDepartmentId)) {
+            throw new AccessDeniedException("Can only assign employees to projects in own department");
+        }
+    }
+    // ... create logic
+}
+
+@PreAuthorize("hasAnyRole('SYSTEM_ADMIN', 'HR_MANAGER', 'DEPARTMENT_MANAGER', 'EMPLOYEE')")
+public Page<EmployeeProjectResponseDTO> getAll(Pageable pageable) {
+    String role = securityService.getCurrentUserRole();
+    UUID departmentId = securityService.getCurrentUserDepartmentId();
+    UUID userId = securityService.getCurrentUserId();
+    
+    return employeeProjectRepository.findAllFilteredByRole(role, departmentId, userId, pageable)
+        .map(mapper::toResponseDTO);
+}
+```
+
+**Repository-Level Filtering**:
+```java
+@Query("SELECT ep FROM EmployeeProject ep WHERE " +
+       "(:role = 'SYSTEM_ADMIN' OR :role = 'HR_MANAGER') OR " +
+       "(:role = 'DEPARTMENT_MANAGER' AND ep.project.department.id = :departmentId) OR " +
+       "(:role = 'EMPLOYEE' AND ep.employee.id = :userId)")
+Page<EmployeeProject> findAllFilteredByRole(@Param("role") String role,
+                                            @Param("departmentId") UUID departmentId,
+                                            @Param("userId") UUID userId,
+                                            Pageable pageable);
+```
+
+**Controller Layer**:
+```java
+@PostMapping
+@PreAuthorize("hasRole('SYSTEM_ADMIN') or hasRole('DEPARTMENT_MANAGER')")
+public ResponseEntity<EmployeeProjectResponseDTO> create(@Valid @RequestBody EmployeeProjectRequestDTO dto) { ... }
+
+@GetMapping
+@PreAuthorize("hasAnyRole('SYSTEM_ADMIN', 'HR_MANAGER', 'DEPARTMENT_MANAGER', 'EMPLOYEE')")
+public ResponseEntity<PaginatedResponseDTO<EmployeeProjectResponseDTO>> getAll(...) { ... }
+```
+
+**Department Manager Scope**:
+- Can only manage assignments for projects in their department
+- Department determined by `user.employee.department`
+- Validation: `@securityService.isProjectInOwnDepartment(projectId)`
+
+**See**: `docs/security/roles-and-permissions.md` for complete permission matrix
+
+## 13. API Endpoint Patterns
 
 **Composite Key in URLs**:
 - **GET/PUT/DELETE**: `/api/employee-projects/{employeeId}/{projectId}`
@@ -246,7 +291,7 @@ POST /api/employee-projects
 }
 ```
 
-## 13. Future Enhancements
+## 14. Future Enhancements
 
 - **Assignment History**: Track assignment start and end dates
 - **Allocation Percentage**: Track percentage of time allocated to project

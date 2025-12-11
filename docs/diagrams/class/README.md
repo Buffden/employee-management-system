@@ -10,11 +10,12 @@ This directory contains PlantUML class diagrams visualizing the class structure 
 **Purpose**: Shows all domain entities and their relationships.
 
 **Includes**:
-- All 6 domain entities (Employee, Department, Location, Project, Task, EmployeeProject)
+- All 7 domain entities (Employee, Department, Location, Project, Task, EmployeeProject, **User**)
 - Entity attributes with types and constraints
 - Relationships between entities (@ManyToOne, @OneToMany)
 - Self-referential relationships (Employee → Employee manager)
 - Many-to-many relationships (EmployeeProject)
+- **RBAC**: User entity for authentication and authorization
 
 **Use When**:
 - Understanding the data model
@@ -66,12 +67,13 @@ This directory contains PlantUML class diagrams visualizing the class structure 
 **Purpose**: High-level view of the entire system across all layers.
 
 **Includes**:
-- All Controllers (6 controllers)
-- All Services (6 services + DashboardFacadeService)
-- All Repositories (6 repository interfaces)
-- All Entities (6 entities)
-- All DTOs (6 DTOs + Dashboard DTOs)
-- All Mappers (6 mappers)
+- All Controllers (7 controllers including AuthController)
+- All Services (7 services + DashboardFacadeService + AuthService + SecurityService)
+- All Repositories (7 repository interfaces including UserRepository)
+- All Entities (7 entities including User)
+- All DTOs (7 DTOs + Dashboard DTOs + Auth DTOs)
+- All Mappers (7 mappers including UserMapper)
+- **Security Layer**: SecurityConfig, JwtAuthenticationFilter, UserDetailsServiceImpl, SecurityService
 - Design Patterns: Facade, Factory Method, Strategy
 
 **Use When**:
@@ -147,11 +149,29 @@ plantuml -tpdf domain-model-class-diagram.puml
 3. Test diagram renders correctly
 4. Update this README if needed
 
+## Security & RBAC in Class Diagrams
+
+**User Entity**:
+- Domain model includes `User` entity for authentication
+- Links to `Employee` (optional) for Department Manager/Employee roles
+- Role stored in `User.role` field
+
+**Security Layer** (in Complete System Class Diagram):
+- `SecurityConfig` - Spring Security configuration
+- `JwtAuthenticationFilter` - JWT token validation
+- `UserDetailsServiceImpl` - User loading for authentication
+- `SecurityService` - RBAC helper methods (13 methods)
+
+**See**: 
+- `docs/security/roles-and-permissions.md` for permission matrix
+- `docs/lld/auth-module.md` for RBAC implementation details
+
 ## Related Documentation
 
 - **Class Taxonomy**: `docs/class-taxonomy.md` - Detailed class classification
 - **LLD Documentation**: `docs/lld/` - Module-specific low-level design
 - **Design Patterns**: `docs/design-patterns/` - Pattern applications
+- **Security**: `docs/security/roles-and-permissions.md` - RBAC permissions
 
 ---
 

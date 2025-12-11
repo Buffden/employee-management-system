@@ -130,6 +130,23 @@ This document provides a comprehensive classification of all classes and objects
   - `@ManyToOne` → `Project` (project)
 - **Classification**: Association Entity
 
+#### User
+- **Class Name**: `User`
+- **Type**: JPA Entity
+- **Purpose**: Represents system user account for authentication and authorization
+- **Key Attributes**:
+  - `id` (UUID, Primary Key)
+  - `username` (String, Unique, Required)
+  - `password` (String, Required, BCrypt hashed)
+  - `email` (String, Optional)
+  - `role` (String, Required) - Values: `SYSTEM_ADMIN`, `HR_MANAGER`, `DEPARTMENT_MANAGER`, `EMPLOYEE`
+  - `createdAt` (LocalDateTime, Required)
+  - `lastLogin` (LocalDateTime, Optional)
+- **Relationships**:
+  - `@ManyToOne` → `Employee` (employee, optional link to employee record)
+- **Classification**: Security/Authentication Entity
+- **See**: `docs/security/roles-and-permissions.md` for role definitions
+
 ---
 
 ## 2. Backend Data Transfer Objects (DTOs)
@@ -170,6 +187,28 @@ This document provides a comprehensive classification of all classes and objects
 - **Type**: Request/Response DTO
 - **Purpose**: Transfers employee-project assignment data
 - **Classification**: Data Transfer Object
+
+### 2.2 Authentication DTOs
+
+#### AuthRequestDTO
+- **Type**: Request DTO
+- **Purpose**: Transfers login credentials (username, password)
+- **Classification**: Authentication DTO
+
+#### AuthResponseDTO
+- **Type**: Response DTO
+- **Purpose**: Transfers authentication response (token, refreshToken, user info)
+- **Classification**: Authentication DTO
+
+#### UserDTO
+- **Type**: Response DTO
+- **Purpose**: Transfers user information (id, username, email, role, employeeId)
+- **Classification**: Authentication DTO
+
+#### RefreshTokenRequestDTO
+- **Type**: Request DTO
+- **Purpose**: Transfers refresh token for token renewal
+- **Classification**: Authentication DTO
 
 ---
 
@@ -218,6 +257,31 @@ This document provides a comprehensive classification of all classes and objects
 - **Methods**: Assignment management operations
 - **Classification**: Business Service
 
+#### AuthService
+- **Type**: Authentication Service
+- **Purpose**: Handles user authentication and token management
+- **Methods**: `authenticate()`, `refreshToken()`, `logout()`
+- **Dependencies**: `UserRepository`, `JWTManager`, `PasswordEncoder`
+- **Classification**: Security Service
+
+#### JWTManager
+- **Type**: Utility/Manager (Singleton Pattern)
+- **Purpose**: JWT token generation and validation
+- **Methods**: `generateToken()`, `generateRefreshToken()`, `validateToken()`
+- **Classification**: Security Utility
+
+#### SecurityService
+- **Type**: Security Helper Service
+- **Purpose**: Provides RBAC helper methods for role-based access checks
+- **Methods**: 
+  - `getCurrentUser()`, `getCurrentUserId()`, `getCurrentUserRole()`
+  - `getCurrentUserDepartmentId()`, `getCurrentUserEmployeeId()`
+  - `isInOwnDepartment()`, `isOwnDepartment()`, `isOwnRecord()`
+  - `isProjectInOwnDepartment()`, `isTaskProjectInOwnDepartment()`, `isTaskAssignedToUser()`
+- **Dependencies**: `SecurityContextHolder`, `UserRepository`
+- **Classification**: Security Service
+- **See**: `docs/lld/auth-module.md` Section 14.4.2 for complete API
+
 ---
 
 ## 4. Backend Controller Layer
@@ -265,6 +329,12 @@ This document provides a comprehensive classification of all classes and objects
 - **Endpoints**: Assignment management endpoints
 - **Classification**: API Endpoint Controller
 
+#### AuthController
+- **Type**: REST Controller
+- **Base Path**: `/api/auth`
+- **Endpoints**: POST `/login`, POST `/logout`, POST `/refresh`
+- **Classification**: Authentication Controller
+
 ---
 
 ## 5. Backend Repository Layer
@@ -310,6 +380,13 @@ This document provides a comprehensive classification of all classes and objects
 - **Type**: JPA Repository Interface
 - **Extends**: `JpaRepository<EmployeeProject, EmployeeProjectId>`
 - **Purpose**: Data access for EmployeeProject entity
+- **Classification**: Data Access Object
+
+#### UserRepository
+- **Type**: JPA Repository Interface
+- **Extends**: `JpaRepository<User, UUID>`
+- **Purpose**: Data access for User entity (authentication)
+- **Methods**: `findByUsername()`, `findByEmail()`, `findByEmployeeId()`
 - **Classification**: Data Access Object
 
 ---
@@ -359,6 +436,12 @@ This document provides a comprehensive classification of all classes and objects
 - **Methods**: `toDTO()`, `toEntity()`
 - **Classification**: Transformation Utility
 
+#### UserMapper
+- **Type**: Static Mapper Utility
+- **Purpose**: Converts between User entity and UserDTO
+- **Methods**: `toDTO()`
+- **Classification**: Transformation Utility
+
 ---
 
 ## 7. Backend Configuration
@@ -368,7 +451,98 @@ This document provides a comprehensive classification of all classes and objects
 **Pattern**: Configuration Pattern  
 **Location**: `backend/src/main/java/com/ems/employee_management_system/config/`
 
-### 7.1 Configuration Classes
+### 7.1 Security Configuration
+
+#### SecurityConfig
+- **Type**: Spring Security Configuration
+- **Purpose**: Configures Spring Security filter chain, JWT authentication, and method-level security
+- **Key Components**:
+  - `SecurityFilterChain` - Main security filter chain configuration
+  - `PasswordEncoder` - BCrypt password encoder (strength 10)
+  - `UserDetailsService` - User loading for authentication
+- **Annotations**: `@Configuration`, `@EnableWebSecurity`, `@EnableMethodSecurity`
+- **Configuration**:
+  - Public endpoints: `/api/auth/**`
+  - Protected endpoints: All `/api/**` (require authentication)
+  - JWT filter: Applied before authentication filter
+  - Method security: `@PreAuthorize` annotations enabled
+- **Classification**: Security Configuration
+- **See**: `docs/lld/auth-module.md` Section 5.3 for detailed configuration
+
+#### JwtAuthenticationFilter
+- **Type**: Spring Security Filter
+- **Purpose**: Intercepts requests, validates JWT tokens, and sets authentication context
+- **Flow**:
+  1. Extract JWT from `Authorization: Bearer <token>` header
+  2. Validate token signature and expiration
+  3. Extract user details (username, role) from token claims
+  4. Create `Authentication` object with authorities
+  5. Set authentication in `SecurityContextHolder`
+- **Dependencies**: `JWTManager`, `UserDetailsService`
+- **Classification**: Security Filter
+- **See**: `docs/lld/auth-module.md` Section 5.4 for implementation details
+
+#### UserDetailsServiceImpl
+- **Type**: Spring Security UserDetailsService Implementation
+- **Purpose**: Loads user details from database for authentication
+- **Key Method**: `loadUserByUsername(String username)`
+- **Responsibilities**:
+  - Load user from database by username
+  - Convert `User` entity to Spring Security `UserDetails`
+  - Map role to Spring Security authorities
+- **Dependencies**: `UserRepository`
+- **Classification**: Security Service
+- **See**: `docs/lld/auth-module.md` Section 5.5 for implementation details
+
+#### CustomAuthenticationEntryPoint
+- **Type**: Spring Security AuthenticationEntryPoint Implementation
+- **Purpose**: Handles unauthenticated requests (401 Unauthorized)
+- **Key Method**: `commence(...)` - Returns 401 JSON error response
+- **Responsibilities**:
+  - Intercepts requests without valid authentication
+  - Returns JSON error response with 401 status
+  - Logs unauthorized access attempts
+- **Classification**: Security Component
+- **See**: `docs/lld/auth-module.md` Section 5.6 for implementation details
+
+#### CustomAccessDeniedHandler
+- **Type**: Spring Security AccessDeniedHandler Implementation
+- **Purpose**: Handles unauthorized requests (403 Forbidden)
+- **Key Method**: `handle(...)` - Returns 403 JSON error response
+- **Responsibilities**:
+  - Intercepts requests with valid authentication but insufficient permissions
+  - Returns JSON error response with 403 status
+  - Logs access denied attempts with user and resource information
+- **Classification**: Security Component
+- **See**: `docs/lld/auth-module.md` Section 5.7 for implementation details
+
+#### DataInitializer
+- **Type**: Spring Boot CommandLineRunner Configuration
+- **Purpose**: Creates initial admin user on application startup
+- **Key Method**: `initDatabase(...)` - CommandLineRunner bean
+- **Responsibilities**:
+  - Checks if admin user exists
+  - Creates admin user if not found
+  - Uses `PasswordEncoder` for password hashing
+  - Logs creation status
+- **Dependencies**: `UserRepository`, `PasswordEncoder`
+- **Classification**: Initialization Component
+- **See**: `docs/lld/auth-module.md` Section 5.9 for implementation details
+
+#### GlobalExceptionHandler
+- **Type**: Spring `@ControllerAdvice` Exception Handler
+- **Purpose**: Centralized exception handling for security-related exceptions
+- **Key Methods**:
+  - `handleAccessDeniedException(...)` - Returns 403 Forbidden
+  - `handleAuthenticationException(...)` - Returns 401 Unauthorized
+- **Security Exception Handlers**:
+  - `AccessDeniedException` → 403 Forbidden
+  - `AuthenticationException` → 401 Unauthorized
+  - `BadCredentialsException` → 401 Unauthorized
+- **Classification**: Exception Handler
+- **See**: `docs/lld/auth-module.md` Section 5.8 for implementation details
+
+### 7.2 Configuration Classes
 
 #### WebConfig
 - **Type**: Spring Configuration Class

@@ -10,32 +10,17 @@ The Location module handles physical office location management including CRUD o
 
 **Location**: `backend/src/main/java/com/ems/employee_management_system/models/Location.java`
 
-```java
-@Entity
-public class Location {
-    @Id
-    @GeneratedValue(strategy = GenerationType.AUTO)
-    private UUID id;
-    
-    @Column(nullable = false, unique = true)
-    private String name;
-    
-    private String address;
-    
-    @Column(nullable = false)
-    private String city;
-    
-    @Column(nullable = false)
-    private String state;
-    
-    @Column(nullable = false)
-    private String country = "USA";
-    
-    private String postalCode;
-    
-    // Getters and setters
-}
-```
+**Fields**:
+
+| Field | Type | Constraints | Description |
+|-------|------|-------------|-------------|
+| `id` | `UUID` | `@Id`, `@GeneratedValue` | Primary key |
+| `name` | `String` | `@Column(nullable=false, unique=true)` | Location name (unique) |
+| `address` | `String` | - | Street address |
+| `city` | `String` | `@Column(nullable=false)` | City name |
+| `state` | `String` | `@Column(nullable=false)` | State/Province |
+| `country` | `String` | `@Column(nullable=false)`, Default: `"USA"` | Country |
+| `postalCode` | `String` | - | ZIP/Postal code |
 
 **Relationships**:
 - Referenced by `Employee` (Many-to-One)
@@ -43,34 +28,38 @@ public class Location {
 
 ## 3. DTOs
 
-### 3.1 LocationDTO
+### 3.1 LocationRequestDTO
 
-**Location**: `backend/src/main/java/com/ems/employee_management_system/dtos/LocationDTO.java`
-
-**Pattern**: Simple DTO (no builder pattern needed for simple entity)
-
-```java
-public class LocationDTO {
-    private UUID id;
-    private String name;
-    private String address;
-    private String city;
-    private String state;
-    private String country;
-    private String postalCode;
-    
-    // Getters and setters
-}
-```
+**Location**: `backend/src/main/java/com/ems/employee_management_system/dtos/LocationRequestDTO.java`
 
 **Fields**:
-- `id` (UUID): Location unique identifier
-- `name` (String, required, unique): Location name
-- `address` (String, optional): Street address
-- `city` (String, required): City name
-- `state` (String, required): State/Province
-- `country` (String, required, default: "USA"): Country
-- `postalCode` (String, optional): ZIP/Postal code
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `name` | `String` | Location name |
+| `address` | `String` | Street address |
+| `city` | `String` | City name |
+| `state` | `String` | State/Province |
+| `country` | `String` | Country (default: "USA") |
+| `postalCode` | `String` | ZIP/Postal code |
+
+**Note**: No `id` field (auto-generated on server side)
+
+### 3.2 LocationResponseDTO
+
+**Location**: `backend/src/main/java/com/ems/employee_management_system/dtos/LocationResponseDTO.java`
+
+**Fields**:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `id` | `UUID` | Location unique identifier |
+| `name` | `String` | Location name |
+| `address` | `String` | Street address |
+| `city` | `String` | City name |
+| `state` | `String` | State/Province |
+| `country` | `String` | Country |
+| `postalCode` | `String` | ZIP/Postal code |
 
 ## 4. Controllers
 
@@ -80,22 +69,12 @@ public class LocationDTO {
 
 **Endpoints**:
 
-| Method | Endpoint | Description | Status Code |
-|--------|----------|-------------|-------------|
-| GET | `/api/locations` | Get all locations | 200 |
-| GET | `/api/locations/{id}` | Get location by ID | 200, 404 |
-| POST | `/api/locations` | Create new location | 201, 400 |
-| PUT | `/api/locations/{id}` | Update location | 200, 404, 400 |
-| DELETE | `/api/locations/{id}` | Delete location | 204, 404 |
-
-**Endpoints**:
-
 | Method | Endpoint | Description | Request | Response |
 |--------|----------|-------------|---------|----------|
-| GET | `/api/locations` | Get all locations | - | `List<LocationDTO>` |
-| GET | `/api/locations/{id}` | Get location by ID | - | `LocationDTO` |
-| POST | `/api/locations` | Create location | `LocationDTO` | `LocationDTO` |
-| PUT | `/api/locations/{id}` | Update location | `LocationDTO` | `LocationDTO` |
+| GET | `/api/locations` | Get all locations | - | `List<LocationResponseDTO>` |
+| GET | `/api/locations/{id}` | Get location by ID | - | `LocationResponseDTO` |
+| POST | `/api/locations` | Create location | `LocationRequestDTO` | `LocationResponseDTO` |
+| PUT | `/api/locations/{id}` | Update location | `LocationRequestDTO` | `LocationResponseDTO` |
 | DELETE | `/api/locations/{id}` | Delete location | - | `void` |
 
 **Dependencies**:
@@ -103,7 +82,7 @@ public class LocationDTO {
 - `LocationMapper` - Entity ↔ DTO conversion
 
 **Patterns Applied**:
-- **Adapter Pattern**: LocationMapper converts Entity ↔ DTO
+- **Adapter Pattern**: LocationMapper converts Entity ↔ DTO (similar to EmployeeMapper and DepartmentMapper pattern)
 
 ## 5. Services
 
@@ -158,12 +137,12 @@ public interface LocationRepository extends JpaRepository<Location, UUID> {
 
 | Method | Parameters | Return Type | Description |
 |--------|------------|-------------|-------------|
-| `toDTO(Location location)` | `location` | `LocationDTO` | Convert Entity to DTO |
-| `toEntity(LocationDTO dto)` | `dto` | `Location` | Convert DTO to Entity |
+| `toResponseDTO(Location location)` | `location` | `LocationResponseDTO` | Convert Entity to Response DTO |
+| `toEntity(LocationRequestDTO dto)` | `dto` | `Location` | Convert Request DTO to Entity (ID not set) |
 
-**Pattern**: Adapter Pattern
-- Maps Location entity to LocationDTO
-- Maps LocationDTO to Location entity
+**Responsibilities**:
+- Maps Entity to Response DTO (includes id)
+- Maps Request DTO to Entity (excludes id, auto-generated by JPA)
 
 ## 8. Design Patterns Summary
 
@@ -185,6 +164,78 @@ public interface LocationRepository extends JpaRepository<Location, UUID> {
 1. **Name Uniqueness**: Location name must be unique across all locations
 2. **Referential Integrity**: Cannot delete location if referenced by employees or departments
 3. **Default Country**: If country not provided, defaults to "USA"
+
+## 10.1 Role-Based Access Control
+
+| Operation | System Admin | HR Manager | Department Manager | Employee |
+|-----------|--------------|------------|-------------------|----------|
+| **View All Locations** | ✅ | ✅ | ✅ | ❌ |
+| **View Location** | ✅ | ✅ | ✅ | ❌ |
+| **Create Location** | ✅ | ✅ | ❌ | ❌ |
+| **Update Location** | ✅ | ✅ | ❌ | ❌ |
+| **Delete Location** | ✅ | ❌ | ❌ | ❌ |
+
+### 10.1.1 Implementation Details
+
+**Service Layer Authorization**:
+
+**Example - LocationService**:
+```java
+@PreAuthorize("hasAnyRole('SYSTEM_ADMIN', 'HR_MANAGER')")
+public LocationResponseDTO create(LocationRequestDTO dto) { ... }
+
+@PreAuthorize("hasAnyRole('SYSTEM_ADMIN', 'HR_MANAGER')")
+public LocationResponseDTO update(UUID id, LocationRequestDTO dto) { ... }
+
+@PreAuthorize("hasRole('SYSTEM_ADMIN')")
+public void delete(UUID id) {
+    // Check if location is referenced by employees or departments
+    if (locationRepository.countEmployeesByLocation(id) > 0 ||
+        locationRepository.countDepartmentsByLocation(id) > 0) {
+        throw new IllegalStateException("Cannot delete location with associated employees or departments");
+    }
+    // ... delete logic
+}
+
+@PreAuthorize("hasAnyRole('SYSTEM_ADMIN', 'HR_MANAGER', 'DEPARTMENT_MANAGER')")
+public Page<LocationResponseDTO> getAll(Pageable pageable) {
+    // All authenticated roles can view, but only System Admin and HR Manager can modify
+    // Uses filtered repository method for consistency with other modules
+    String role = securityService.getCurrentUserRole();
+    return locationRepository.findAllFilteredByRole(role, pageable)
+        .map(mapper::toResponseDTO);
+}
+```
+
+**Controller Layer**:
+```java
+@PostMapping
+@PreAuthorize("hasAnyRole('SYSTEM_ADMIN', 'HR_MANAGER')")
+public ResponseEntity<LocationResponseDTO> create(@Valid @RequestBody LocationRequestDTO dto) { ... }
+
+@PutMapping("/{id}")
+@PreAuthorize("hasAnyRole('SYSTEM_ADMIN', 'HR_MANAGER')")
+public ResponseEntity<LocationResponseDTO> update(@PathVariable UUID id, 
+                                                   @Valid @RequestBody LocationRequestDTO dto) { ... }
+
+@DeleteMapping("/{id}")
+@PreAuthorize("hasRole('SYSTEM_ADMIN')")
+public ResponseEntity<Void> delete(@PathVariable UUID id) { ... }
+```
+
+**Repository-Level Filtering**:
+```java
+@Query("SELECT l FROM Location l WHERE " +
+       "(:role = 'SYSTEM_ADMIN' OR :role = 'HR_MANAGER') OR " +
+       "(:role = 'DEPARTMENT_MANAGER') OR " +
+       "(:role = 'EMPLOYEE')")
+Page<Location> findAllFilteredByRole(@Param("role") String role,
+                                     Pageable pageable);
+```
+
+**Note**: Location management is restricted to System Admin and HR Manager only. Department Managers and Employees have read-only access. All roles can view locations, but filtering is applied for consistency with other modules.
+
+**See**: `docs/security/roles-and-permissions.md` for complete permission matrix
 
 ## 11. Sequence Diagram
 
