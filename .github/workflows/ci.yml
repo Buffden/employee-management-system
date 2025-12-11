@@ -39,12 +39,7 @@ jobs:
       
       - name: Run Maven tests
         working-directory: ./backend
-        env:
-          DB_HOST: localhost
-          DB_PORT: 5432
-          DB_NAME: ems_db
-          DB_USER: postgres
-          DB_PWD: postgres
+        # Tests use H2 in-memory database (no external DB needed)
         run: |
           mvn clean test
       
