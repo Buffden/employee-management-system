@@ -1,3 +1,25 @@
+.form-container {
+  padding: 20px;
+}
+
 mat-form-field {
-    padding: 10px;
+  width: 100%;
+  margin-bottom: 16px;
+}
+
+.form-actions {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 20px;
+}
+
+.left-actions, .right-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.error-message {
+  margin-bottom: 16px;
+  text-align: center;
 }

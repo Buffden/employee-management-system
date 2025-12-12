@@ -1,10 +1,19 @@
 import { CommonModule } from '@angular/common';
 import { Component, EventEmitter, Input, OnInit, Output } from '@angular/core';
 import { SharedModule } from '../../../../shared/shared.module';
-import { DialogData } from '../../../../shared/models/dialog';
+import { DialogData, overlayType } from '../../../../shared/models/dialog';
 import { Department, DepartmentFormField } from '../../../../shared/models/department.model';
 import { FormMode } from '../../../../shared/models/table';
 import { FormBuilder, FormControl, FormGroup, Validators } from '@angular/forms';
+import { DepartmentService } from '../../services/department.service';
+import { LocationService } from '../../../locations/services/location.service';
+import { MatDialog } from '@angular/material/dialog';
+import { AuthService } from '../../../../core/services/auth.service';
+import { ConfirmationDialogComponent } from '../../../../shared/components/confirmation-dialog/confirmation-dialog.component';
+import { defaultTableConfig } from '../../../../shared/components/table/table.config';
+import { Location } from '../../../../shared/models/location.model';
+import { FilterOption } from '../../../../shared/models/paginated-response.model';
+import { finalize } from 'rxjs/operators';
 
 @Component({
   selector: 'app-department-form',
@@ -20,6 +29,10 @@ export class DepartmentFormComponent implements OnInit {
   FormFields: DepartmentFormField[] = [];
   initialFormValues = {};
   mode: FormMode = FormMode.ADD;
+  isSubmitting = false;
+  errorMessage: string | null = null;
+  locations: Location[] = [];
+  loadingLocations = false;
   departmentForm = new FormGroup({
     name: new FormControl(''),
     description: new FormControl(''),
@@ -31,14 +44,57 @@ export class DepartmentFormComponent implements OnInit {
   });
 
   constructor(
-    private fb: FormBuilder,
+    private readonly fb: FormBuilder,
+    private readonly departmentService: DepartmentService,
+    private readonly locationService: LocationService,
+    private readonly matDialog: MatDialog,
+    private readonly authService: AuthService
   ) { }
 
   ngOnInit() {
     this.initForm();
+    // Use locations from filters (passed via DialogData) instead of making redundant API call
+    if (this.department?.filters && this.department.filters['locations'] && this.department.filters['locations'].length > 0) {
+      const locationFilters = this.department.filters['locations'];
+      this.locations = locationFilters.map((loc: FilterOption) => {
+        const valueParts = loc.value ? loc.value.split(',').map((s: string) => s.trim()) : [];
+        return {
+          id: loc.id,
+          name: loc.label,
+          city: valueParts[0] || '',
+          state: valueParts[1] || '',
+          country: 'USA', // Default country (filters don't include country)
+          address: '',
+          postalCode: ''
+        } as Location;
+      });
+      console.log('Loaded locations from filters:', this.locations.length);
+    } else {
+      // Fallback: if locations not available in dialog data, load from API
+      // This should rarely happen, but provides a safety net
+      console.warn('Locations not found in filters, falling back to API call');
+      this.loadLocations();
+    }
     if (this.department?.config.mode === 'edit') {
       this.loadDepartmentDetails();
     }
+  }
+
+  loadLocations(): void {
+    // Fallback method: only used if locations not available in dialog data
+    this.loadingLocations = true;
+    this.locationService.getAllLocations().pipe(
+      finalize(() => this.loadingLocations = false)
+    ).subscribe({
+      next: (locations) => {
+        this.locations = locations || [];
+        console.log('Loaded locations from API (fallback):', this.locations.length);
+      },
+      error: (error) => {
+        console.error('Error loading locations:', error);
+        this.errorMessage = 'Failed to load locations. Please refresh and try again.';
+      }
+    });
   }
 
   initForm() {
@@ -72,49 +128,330 @@ export class DepartmentFormComponent implements OnInit {
     if (this.department?.config.mode === 'add') {
       this.addDepartment();
     } else {
-      this.updateDepartment(this.department as DialogData);
+      this.updateDepartment();
     }
   }
 
-  addDepartment() {
-    let departmentData = this.departmentForm!.value;
-    departmentData = {
-      ...departmentData,
-      budget: typeof departmentData.budget === 'string' && departmentData.budget !== '' ? Number(departmentData.budget) : departmentData.budget,
-      budgetUtilization: typeof departmentData.budgetUtilization === 'string' && departmentData.budgetUtilization !== '' ? Number(departmentData.budgetUtilization) : departmentData.budgetUtilization,
-      performanceMetric: typeof departmentData.performanceMetric === 'string' && departmentData.performanceMetric !== '' ? Number(departmentData.performanceMetric) : departmentData.performanceMetric,
-      departmentHeadId: departmentData.departmentHeadId === '' || departmentData.departmentHeadId === 'null' ? null : departmentData.departmentHeadId
+  addDepartment(): void {
+    if (this.departmentForm.invalid) {
+      return;
+    }
+
+    this.isSubmitting = true;
+    this.errorMessage = null;
+
+    // Clean data: only include non-empty values for optional fields
+    const formValue = this.departmentForm.getRawValue();
+    const departmentData: Record<string, string | number | null> = {
+      name: (formValue['name'] || '').trim(),
+      description: (formValue['description'] || '').trim(),
+      locationId: (formValue['locationId'] || '').trim() || null,
     };
-    this.departmentResponse.emit({ content: departmentData } as DialogData);
+
+    // Only include numeric fields if they have values
+    const budget = formValue['budget'];
+    if (budget !== null && budget !== undefined) {
+      if (typeof budget === 'number') {
+        departmentData['budget'] = budget;
+      } else {
+        const budgetStr = String(budget);
+        if (budgetStr.trim() !== '') {
+          const budgetNum = Number(budgetStr);
+          if (!Number.isNaN(budgetNum)) {
+            departmentData['budget'] = budgetNum;
+          }
+        }
+      }
+    }
+    const budgetUtilization = formValue['budgetUtilization'];
+    if (budgetUtilization !== null && budgetUtilization !== undefined) {
+      if (typeof budgetUtilization === 'number') {
+        departmentData['budgetUtilization'] = budgetUtilization;
+      } else {
+        const budgetUtilStr = String(budgetUtilization);
+        if (budgetUtilStr.trim() !== '') {
+          const budgetUtilNum = Number(budgetUtilStr);
+          if (!Number.isNaN(budgetUtilNum)) {
+            departmentData['budgetUtilization'] = budgetUtilNum;
+          }
+        }
+      }
+    }
+    const performanceMetric = formValue['performanceMetric'];
+    if (performanceMetric !== null && performanceMetric !== undefined) {
+      if (typeof performanceMetric === 'number') {
+        departmentData['performanceMetric'] = performanceMetric;
+      } else {
+        const perfMetricStr = String(performanceMetric);
+        if (perfMetricStr.trim() !== '') {
+          const perfMetricNum = Number(perfMetricStr);
+          if (!Number.isNaN(perfMetricNum)) {
+            departmentData['performanceMetric'] = perfMetricNum;
+          }
+        }
+      }
+    }
+    const departmentHeadId = formValue['departmentHeadId'];
+    if (departmentHeadId && typeof departmentHeadId === 'string' && departmentHeadId.trim() !== '' && departmentHeadId !== 'null') {
+      departmentData['departmentHeadId'] = departmentHeadId.trim();
+    }
+
+    this.departmentService.addDepartment(departmentData).pipe(
+      finalize(() => this.isSubmitting = false)
+    ).subscribe({
+      next: (response) => {
+        console.log('Department added successfully:', response);
+        this.errorMessage = null;
+        this.departmentResponse.emit({
+          title: this.department?.title || '',
+          content: response,
+          viewController: overlayType.NODATA,
+          config: this.department?.config || defaultTableConfig,
+          returnToPage: this.department?.returnToPage
+        } as DialogData);
+        // Dispatch a custom event to refresh the department list
+        globalThis.window.dispatchEvent(new CustomEvent('departmentAdded'));
+      },
+      error: (error) => {
+        console.error('Error adding department:', error);
+        console.error('Error status:', error.status);
+        console.error('Error response:', error.error);
+        
+        // Extract error message for display
+        let errorMsg = '';
+        
+        if (error.error) {
+          console.error('Error message:', error.error.message);
+          console.error('Error details:', JSON.stringify(error.error, null, 2));
+          
+          // Handle validation errors with field-level details
+          if (error.error.fieldErrors && error.error.fieldErrors.length > 0) {
+            console.error('Validation errors:', error.error.fieldErrors);
+            const fieldErrors = error.error.fieldErrors.map((fe: { field: string; message: string; rejectedValue?: unknown }) => {
+              const fieldName = fe.field.charAt(0).toUpperCase() + fe.field.slice(1).replaceAll(/([A-Z])/g, ' $1');
+              let msg = `${fieldName}: ${fe.message}`;
+              if (fe.rejectedValue !== null && fe.rejectedValue !== undefined) {
+                const rejectedValueStr = typeof fe.rejectedValue === 'object' ? JSON.stringify(fe.rejectedValue) : String(fe.rejectedValue);
+                msg += ` (received: ${rejectedValueStr})`;
+              }
+              return msg;
+            }).join('; ');
+            errorMsg = `Validation failed: ${fieldErrors}`;
+            error.error.fieldErrors.forEach((fieldError: { field: string; rejectedValue: unknown; message: string }) => {
+              console.error(`Field: ${fieldError.field}, Value: ${fieldError.rejectedValue}, Message: ${fieldError.message}`);
+            });
+          } else if (error.error.message) {
+            // Handle business rule errors (like duplicate name)
+            errorMsg = error.error.message;
+          } else {
+            errorMsg = 'Failed to add department. Please check the console for details.';
+          }
+        } else {
+          errorMsg = 'Failed to add department. Unknown error occurred.';
+        }
+        
+        this.errorMessage = errorMsg;
+      }
+    });
   }
 
-  updateDepartment(department: DialogData) {
-    let departmentData = this.departmentForm!.value;
-    departmentData = {
-      ...departmentData,
-      budget: typeof departmentData.budget === 'string' && departmentData.budget !== '' ? Number(departmentData.budget) : departmentData.budget,
-      budgetUtilization: typeof departmentData.budgetUtilization === 'string' && departmentData.budgetUtilization !== '' ? Number(departmentData.budgetUtilization) : departmentData.budgetUtilization,
-      performanceMetric: typeof departmentData.performanceMetric === 'string' && departmentData.performanceMetric !== '' ? Number(departmentData.performanceMetric) : departmentData.performanceMetric,
-      departmentHeadId: departmentData.departmentHeadId === '' || departmentData.departmentHeadId === 'null' ? null : departmentData.departmentHeadId
+  updateDepartment(): void {
+    if (this.departmentForm.invalid) {
+      return;
+    }
+
+    const departmentId = (this.department?.content as Department)?.id;
+    if (!departmentId) {
+      console.error('Department ID is required for update');
+      this.errorMessage = 'Department ID is missing for update.';
+      return;
+    }
+
+    this.isSubmitting = true;
+    this.errorMessage = null;
+
+    // Clean data: only include non-empty values for optional fields
+    const formValue = this.departmentForm.getRawValue();
+    const departmentData: Record<string, string | number | null> = {
+      name: (formValue['name'] || '').trim(),
+      description: (formValue['description'] || '').trim(),
+      locationId: (formValue['locationId'] || '').trim() || null,
     };
-    this.departmentResponse.emit({ content: departmentData } as DialogData);
+
+    // Only include numeric fields if they have values
+    const budget = formValue['budget'];
+    if (budget !== null && budget !== undefined) {
+      if (typeof budget === 'number') {
+        departmentData['budget'] = budget;
+      } else {
+        const budgetStr = String(budget);
+        if (budgetStr.trim() !== '') {
+          const budgetNum = Number(budgetStr);
+          if (!Number.isNaN(budgetNum)) {
+            departmentData['budget'] = budgetNum;
+          }
+        }
+      }
+    }
+    const budgetUtilization = formValue['budgetUtilization'];
+    if (budgetUtilization !== null && budgetUtilization !== undefined) {
+      if (typeof budgetUtilization === 'number') {
+        departmentData['budgetUtilization'] = budgetUtilization;
+      } else {
+        const budgetUtilStr = String(budgetUtilization);
+        if (budgetUtilStr.trim() !== '') {
+          const budgetUtilNum = Number(budgetUtilStr);
+          if (!Number.isNaN(budgetUtilNum)) {
+            departmentData['budgetUtilization'] = budgetUtilNum;
+          }
+        }
+      }
+    }
+    const performanceMetric = formValue['performanceMetric'];
+    if (performanceMetric !== null && performanceMetric !== undefined) {
+      if (typeof performanceMetric === 'number') {
+        departmentData['performanceMetric'] = performanceMetric;
+      } else {
+        const perfMetricStr = String(performanceMetric);
+        if (perfMetricStr.trim() !== '') {
+          const perfMetricNum = Number(perfMetricStr);
+          if (!Number.isNaN(perfMetricNum)) {
+            departmentData['performanceMetric'] = perfMetricNum;
+          }
+        }
+      }
+    }
+    const departmentHeadId = formValue['departmentHeadId'];
+    if (departmentHeadId && typeof departmentHeadId === 'string' && departmentHeadId.trim() !== '' && departmentHeadId !== 'null') {
+      departmentData['departmentHeadId'] = departmentHeadId.trim();
+    }
+
+    this.departmentService.updateDepartment(departmentId, departmentData).pipe(
+      finalize(() => this.isSubmitting = false)
+    ).subscribe({
+      next: (response) => {
+        console.log('Department updated successfully:', response);
+        this.errorMessage = null;
+        this.departmentResponse.emit({
+          title: this.department?.title || '',
+          content: response,
+          viewController: overlayType.NODATA,
+          config: this.department?.config || defaultTableConfig,
+          returnToPage: this.department?.returnToPage
+        } as DialogData);
+      },
+      error: (error) => {
+        console.error('Error updating department:', error);
+        console.error('Error status:', error.status);
+        console.error('Error response:', error.error);
+        
+        // Extract error message for display
+        let errorMsg = '';
+        
+        if (error.error) {
+          console.error('Error message:', error.error.message);
+          console.error('Error details:', JSON.stringify(error.error, null, 2));
+          
+          // Handle validation errors with field-level details
+          if (error.error.fieldErrors && error.error.fieldErrors.length > 0) {
+            console.error('Validation errors:', error.error.fieldErrors);
+            const fieldErrors = error.error.fieldErrors.map((fe: { field: string; message: string; rejectedValue?: unknown }) => {
+              const fieldName = fe.field.charAt(0).toUpperCase() + fe.field.slice(1).replaceAll(/([A-Z])/g, ' $1');
+              let msg = `${fieldName}: ${fe.message}`;
+              if (fe.rejectedValue !== null && fe.rejectedValue !== undefined) {
+                const rejectedValueStr = typeof fe.rejectedValue === 'object' ? JSON.stringify(fe.rejectedValue) : String(fe.rejectedValue);
+                msg += ` (received: ${rejectedValueStr})`;
+              }
+              return msg;
+            }).join('; ');
+            errorMsg = `Validation failed: ${fieldErrors}`;
+            error.error.fieldErrors.forEach((fieldError: { field: string; rejectedValue: unknown; message: string }) => {
+              console.error(`Field: ${fieldError.field}, Value: ${fieldError.rejectedValue}, Message: ${fieldError.message}`);
+            });
+          } else if (error.error.message) {
+            // Handle business rule errors
+            errorMsg = error.error.message;
+          } else {
+            errorMsg = 'Failed to update department. Please check the console for details.';
+          }
+        } else {
+          errorMsg = 'Failed to update department. Unknown error occurred.';
+        }
+        
+        this.errorMessage = errorMsg;
+      }
+    });
   }
 
   submitButtonText() {
     return this.department?.config.mode === 'add' ? 'Add Department' : 'Update Department';
   }
 
-  isSubmitDisabled(): boolean {
-    if (this.mode === 'add') {
-      return this.departmentForm.invalid;
-    } else if (this.mode === 'edit') {
-      return (
-        this.departmentForm.invalid ||
-        JSON.stringify(this.initialFormValues) ===
-        JSON.stringify(this.departmentForm.getRawValue())
-      );
+  canDeleteDepartment(): boolean {
+    return this.department?.config.mode === 'edit' && (this.authService.isAdmin() || this.authService.isHRManager());
+  }
+
+  onDeleteClick(): void {
+    const departmentName = (this.department?.content as Department)?.name || 'this department';
+    const dialogRef = this.matDialog.open(ConfirmationDialogComponent, {
+      width: '400px',
+      data: {
+        title: 'Delete Department',
+        message: `Are you sure you want to delete '${departmentName}'?`,
+        confirmText: 'Delete',
+        cancelText: 'Cancel',
+        warning: 'This action is irreversible and cannot be undone.'
+      }
+    });
+
+    dialogRef.afterClosed().subscribe(result => {
+      if (result === true) {
+        this.deleteDepartment();
+      }
+    });
+  }
+
+  deleteDepartment(): void {
+    const departmentId = (this.department?.content as Department)?.id;
+    if (!departmentId) {
+      console.error('Department ID is required for deletion');
+      this.errorMessage = 'Department ID is missing for deletion.';
+      return;
     }
-    return true;
+
+    this.isSubmitting = true;
+    this.departmentService.deleteDepartment(departmentId).pipe(
+      finalize(() => this.isSubmitting = false)
+    ).subscribe({
+      next: () => {
+        console.log('Department deleted successfully');
+        this.errorMessage = null;
+        // Emit a response to close the dialog and notify the parent to refresh
+        this.departmentResponse.emit({
+          title: this.department?.title || '',
+          content: { id: departmentId, deleted: true } as Department & { deleted: boolean },
+          viewController: overlayType.NODATA,
+          config: this.department?.config || defaultTableConfig,
+          returnToPage: this.department?.returnToPage
+        } as DialogData);
+        // Dispatch a custom event to refresh the department list
+        globalThis.window.dispatchEvent(new CustomEvent('departmentDeleted'));
+      },
+      error: (error) => {
+        console.error('Error deleting department:', error);
+        let errorMsg = 'Failed to delete department. ';
+        if (error.error && error.error.message) {
+          errorMsg += error.error.message;
+        } else {
+          errorMsg += 'An unknown error occurred.';
+        }
+        this.errorMessage = errorMsg;
+      }
+    });
+  }
+
+  isSubmitDisabled(): boolean {
+    return this.departmentForm.invalid || this.isSubmitting;
   }
 
   isFieldInvalid(field: DepartmentFormField): boolean {
@@ -122,11 +459,65 @@ export class DepartmentFormComponent implements OnInit {
   }
 
   dialogClose() {
-    console.log('dialog close');
-    this.departmentResponse.emit({} as DialogData);
+    this.departmentResponse.emit({ 
+      title: this.department?.title || '',
+      content: {},
+      viewController: this.department?.viewController || overlayType.NODATA,
+      config: this.department?.config || defaultTableConfig
+    } as DialogData);
   }
 
   createFormFields(): DepartmentFormField[] {
-    return this.department?.config.columns?.map((column) => column.formField).filter((field): field is DepartmentFormField => field !== undefined) || [];
+    return [
+      {
+        label: 'Department Name',
+        formControlName: 'name',
+        placeholder: 'Enter department name',
+        errorMessage: 'Department name is required (max 100 characters)',
+        required: true
+      },
+      {
+        label: 'Description',
+        formControlName: 'description',
+        placeholder: 'Enter description',
+        errorMessage: 'Description is required (max 1000 characters)',
+        required: true
+      },
+      {
+        label: 'Location',
+        formControlName: 'locationId',
+        placeholder: 'Select location',
+        errorMessage: 'Location is required',
+        type: 'select',
+        required: true
+      },
+      {
+        label: 'Budget',
+        formControlName: 'budget',
+        placeholder: 'Enter budget (optional)',
+        errorMessage: 'Budget must be a positive number',
+        type: 'number'
+      },
+      {
+        label: 'Budget Utilization',
+        formControlName: 'budgetUtilization',
+        placeholder: 'Enter budget utilization (optional)',
+        errorMessage: 'Budget utilization must be a positive number',
+        type: 'number'
+      },
+      {
+        label: 'Performance Metric',
+        formControlName: 'performanceMetric',
+        placeholder: 'Enter performance metric (optional)',
+        errorMessage: 'Performance metric must be a positive number',
+        type: 'number'
+      },
+      {
+        label: 'Department Head ID',
+        formControlName: 'departmentHeadId',
+        placeholder: 'Enter department head ID (optional)',
+        errorMessage: 'Department head ID must be a valid UUID',
+      },
+    ];
   }
 }
