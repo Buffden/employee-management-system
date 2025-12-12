@@ -277,10 +277,10 @@ jobs:
         if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
         id: verify-changed-files
         run: |
-          if [ -n "$(git status --porcelain docs/03-DIAGRAMS/exported)" ]; then
+          if [ -n "$(git status --porcelain docs/diagrams/exported)" ]; then
             echo "changed=true" >> $GITHUB_OUTPUT
             echo "Diagrams were generated or updated"
-            git status docs/03-DIAGRAMS/exported
+            git status docs/diagrams/exported
           else
             echo "changed=false" >> $GITHUB_OUTPUT
             echo "No diagram changes detected"
