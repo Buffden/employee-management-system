@@ -2,7 +2,7 @@ name: Generate UML Diagrams
 
 on:
   push:
-    branches: [ main, develop ]
+    branches: [ main, develop, 'ci-cd/**' ]
     paths:
       - 'docs/diagrams/**/*.puml'
       - '.github/workflows/generate-diagrams.yml'
