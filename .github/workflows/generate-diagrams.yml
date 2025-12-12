@@ -143,9 +143,18 @@ jobs:
           success_count=0
           fail_count=0
           
+          # Count total files to process
+          total_files=$(wc -l < puml_files.txt)
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo "Starting PNG generation for $total_files PlantUML file(s)"
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo ""
+          
+          file_index=0
           while IFS= read -r puml_file; do
+            file_index=$((file_index + 1))
             echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-            echo "Processing: $puml_file"
+            echo "[$file_index/$total_files] Processing: $puml_file"
             echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
             
             rel_path=$(echo "$puml_file" | sed 's|^docs/diagrams/||' | sed 's|\.puml$||')
@@ -161,7 +170,7 @@ jobs:
             
             # Use proven pattern from battle-arena repository
             # Key: Use $(pwd) directly in the -o flag for reliable path resolution
-            echo "Processing: $puml_file -> $png_output_dir"
+            echo "Output directory: $png_output_dir"
             echo "Current directory: $(pwd)"
             echo "Full output path: $(pwd)/$png_output_dir"
             
@@ -251,6 +260,7 @@ jobs:
             echo ""
           done < puml_files.txt
           
+          echo ""
           echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
           echo "Generation Summary:"
           echo "  ✓ Successful: $success_count"
@@ -267,6 +277,9 @@ jobs:
             echo "Please check the PlantUML syntax for the failed files above."
             exit 1
           fi
+          
+          echo ""
+          echo "✅ All diagrams generated successfully!"
 
       - name: Create artifacts summary
         run: |
@@ -382,9 +395,18 @@ jobs:
           success_count=0
           fail_count=0
           
+          # Count total files to process
+          total_files=$(wc -l < puml_files.txt)
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo "Starting PNG generation for $total_files PlantUML file(s)"
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo ""
+          
+          file_index=0
           while IFS= read -r puml_file; do
+            file_index=$((file_index + 1))
             echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-            echo "Processing: $puml_file"
+            echo "[$file_index/$total_files] Processing: $puml_file"
             echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
             
             rel_path=$(echo "$puml_file" | sed 's|^docs/diagrams/||' | sed 's|\.puml$||')
@@ -400,7 +422,7 @@ jobs:
             
             # Use proven pattern from battle-arena repository
             # Key: Use $(pwd) directly in the -o flag for reliable path resolution
-            echo "Processing: $puml_file -> $png_output_dir"
+            echo "Output directory: $png_output_dir"
             echo "Current directory: $(pwd)"
             echo "Full output path: $(pwd)/$png_output_dir"
             
