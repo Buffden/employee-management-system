@@ -1,0 +1,82 @@
+@startuml Logout - Sequence Diagram
+' Workflow test - updated
+skinparam linetype ortho
+skinparam sequenceArrowThickness 2
+skinparam roundcorner 20
+skinparam maxmessagesize 60
+
+title Logout - Sequence Diagram
+
+actor "User" as User
+participant "Angular Frontend" as Frontend
+participant "Nginx Gateway" as Gateway
+participant "Auth Controller" as Controller
+participant "Auth Service" as Service
+database "PostgreSQL" as DB
+
+User -> Frontend: 1. Click "Logout" in user dropdown
+Frontend -> Frontend: 2. Show logout confirmation dialog\n(optional)
+
+alt User cancels
+    Frontend -> User: 3a. Cancel logout
+    Frontend -> Frontend: 3b. Keep user logged in
+else User confirms
+    User -> Frontend: 4. Confirm logout
+    
+    alt Backend Token Invalidation (Optional)
+        Frontend -> Gateway: 5. POST /api/auth/logout\nAuthorization: Bearer {token}
+        
+        Gateway -> Gateway: 6. Forward to Backend
+        
+        participant "JwtAuthenticationFilter" as JwtFilter
+        
+        Gateway -> JwtFilter: 7. Intercept request
+        JwtFilter -> JwtFilter: 8. Validate JWT token
+        JwtFilter -> JwtFilter: 9. Extract user info from token
+        JwtFilter -> Controller: 10. Forward request
+        
+        Controller -> Service: 11. logout(token)
+        
+        alt Token Blacklist Implementation
+            Service -> Service: 12. Add token to blacklist\n(if blacklist is implemented)
+            Service -> DB: 13. INSERT INTO token_blacklist\n(token, expiry_time)
+            DB --> Service: 14. Token blacklisted
+        else Stateless JWT (No Blacklist)
+            Service -> Service: 15. Token remains valid until expiration\n(stateless JWT approach)
+        end
+        
+        Service --> Controller: 16. Success response
+        Controller --> Gateway: 17. HTTP 200 OK
+        Gateway --> Frontend: 18. Logout success response
+    end
+    
+    Frontend -> Frontend: 19. Remove JWT token from localStorage
+    Frontend -> Frontend: 20. Remove user information from storage
+    Frontend -> Frontend: 21. Clear cached data
+    Frontend -> Frontend: 22. Clear authentication state
+    Frontend -> Frontend: 23. Clear any role/permission data
+    
+    Frontend -> Frontend: 24. Redirect to login page
+    Frontend -> User: 25. Display login page
+    Frontend -> User: 26. Show message: "Logged out successfully"
+end
+
+note right of Frontend
+  **Client-Side Cleanup:**
+  - Remove JWT token
+  - Clear user data
+  - Clear cached data
+  - Clear auth state
+  - Redirect to login
+end note
+
+note right of Service
+  **Token Management:**
+  - Stateless JWT: Token remains valid
+    until expiration (default)
+  - Token Blacklist: Token invalidated
+    immediately (optional enhancement)
+end note
+
+@enduml
+

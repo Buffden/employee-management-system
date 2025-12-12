@@ -1,0 +1,103 @@
+@startuml Employee Growth Chart - Sequence Diagram
+' Workflow test - updated
+skinparam linetype ortho
+skinparam sequenceArrowThickness 2
+skinparam roundcorner 20
+skinparam maxmessagesize 60
+
+title View Employee Growth Chart - Sequence Diagram
+
+actor "HR Manager" as User
+participant "Angular Frontend" as Frontend
+participant "Nginx Gateway" as Gateway
+participant "Dashboard Controller" as Controller
+participant "Dashboard Service" as Service
+participant "Employee Repository" as EmpRepo
+database "PostgreSQL" as DB
+
+User -> Frontend: 1. Navigate to Dashboard
+User -> Frontend: 2. View dashboard metrics (UC-DB-001)
+User -> Frontend: 3. Click on "Employee Growth" chart
+Frontend -> Gateway: 4. GET /api/dashboard/growth\nAuthorization: Bearer {token}
+
+Gateway -> Gateway: 5. Forward to Backend
+
+participant "JwtAuthenticationFilter" as JwtFilter
+participant "SecurityService" as SecurityService
+
+Gateway -> JwtFilter: 6. Intercept request
+JwtFilter -> JwtFilter: 7. Validate JWT token
+JwtFilter -> JwtFilter: 8. Extract role from token
+JwtFilter -> JwtFilter: 9. Set SecurityContext
+JwtFilter -> Controller: 10. Forward request
+
+Controller -> Controller: 11. Check @PreAuthorize\n(hasRole('SYSTEM_ADMIN') or hasRole('HR_MANAGER'))
+
+alt Insufficient permissions
+    Controller --> Gateway: 12. HTTP 403 Forbidden
+    Gateway --> Frontend: 13. Access denied
+    Frontend --> User: 14. Show error message
+else Authorized
+    Controller -> SecurityService: 15. getCurrentUserRole()
+    SecurityService --> Controller: 16. Role (e.g., 'HR_MANAGER')
+    
+    Controller -> Service: 17. getEmployeeGrowth(timeRange)
+    
+    Service -> Service: 18. Determine time range\n(monthly, quarterly, yearly)
+    
+    alt Monthly Growth
+        Service -> EmpRepo: 19. countEmployeesByMonth()
+        EmpRepo -> DB: 20. SELECT DATE_TRUNC('month', joining_date) as month,\n       COUNT(*) as count\nFROM employee\nGROUP BY DATE_TRUNC('month', joining_date)\nORDER BY month ASC
+        DB --> EmpRepo: 21. Monthly employee counts
+        EmpRepo --> Service: 22. List<GrowthDataPoint>
+        
+    else Quarterly Growth
+        Service -> EmpRepo: 23. countEmployeesByQuarter()
+        EmpRepo -> DB: 24. SELECT DATE_TRUNC('quarter', joining_date) as quarter,\n       COUNT(*) as count\nFROM employee\nGROUP BY DATE_TRUNC('quarter', joining_date)\nORDER BY quarter ASC
+        DB --> EmpRepo: 25. Quarterly employee counts
+        EmpRepo --> Service: 26. List<GrowthDataPoint>
+        
+    else Yearly Growth
+        Service -> EmpRepo: 27. countEmployeesByYear()
+        EmpRepo -> DB: 28. SELECT DATE_TRUNC('year', joining_date) as year,\n       COUNT(*) as count\nFROM employee\nGROUP BY DATE_TRUNC('year', joining_date)\nORDER BY year ASC
+        DB --> EmpRepo: 29. Yearly employee counts
+        EmpRepo --> Service: 30. List<GrowthDataPoint>
+    end
+    
+    Service -> Service: 31. Calculate cumulative counts\n(if needed for line chart)
+    Service -> Service: 32. Calculate growth rate\n(percentage change)
+    Service -> Service: 33. Construct EmployeeGrowthDTO
+    
+    Service --> Controller: 34. EmployeeGrowthDTO
+    Controller --> Gateway: 35. HTTP 200 OK
+    Gateway --> Frontend: 36. Response with growth data
+    Frontend -> Frontend: 37. Render growth chart\n(line chart or bar chart)
+    Frontend -> User: 38. Display employee growth chart:\n- Time series data\n- Employee count over time\n- Growth trends
+end
+
+note right of JwtFilter
+  **RBAC:**
+  - Validates JWT token
+  - Extracts role (HR_MANAGER/SYSTEM_ADMIN)
+  - Sets SecurityContext
+end note
+
+note right of Controller
+  **Authorization:**
+  @PreAuthorize checks role
+  Only HR_MANAGER and
+  SYSTEM_ADMIN can view
+  growth charts
+end note
+
+note right of Service
+  **Growth Data:**
+  - Time series aggregation
+  - Monthly/Quarterly/Yearly
+  - Cumulative counts
+  - Growth rate calculation
+  - Chart-ready format
+end note
+
+@enduml
+
