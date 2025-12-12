@@ -169,31 +169,20 @@ jobs:
               png_output_dir="$output_base"
             fi
             
-            # Simplified approach matching Battle Arena: Trust PlantUML's exit code
-            # Only add minimal file renaming since PlantUML uses @startuml title for filename
+            # Match Battle Arena exactly: Trust PlantUML's exit code
             echo "Processing: $puml_file -> $png_output_dir"
             
             if java -jar plantuml.jar -tpng "$puml_file" -o "$(pwd)/$png_output_dir"; then
-              # PlantUML succeeded - check if PNG needs renaming (uses @startuml title, not filename)
+              # PlantUML succeeded - optionally rename PNG if it has different name (handles @startuml title)
               png_file="$png_output_dir/$filename.png"
-              
-              # Check if PNG exists with expected name, if not, find and rename it
               if [ ! -f "$png_file" ]; then
                 found_png=$(find "$png_output_dir" -maxdepth 1 -name "*.png" -type f 2>/dev/null | head -1)
                 if [ -n "$found_png" ] && [ -f "$found_png" ]; then
-                  echo "⚠ Renaming PNG from $(basename "$found_png") to $filename.png"
-                  mv "$found_png" "$png_file"
+                  mv "$found_png" "$png_file" 2>/dev/null || true
                 fi
               fi
-              
-              if [ -f "$png_file" ]; then
-                file_size=$(du -h "$png_file" | cut -f1)
-                echo "✅ Generated: $png_file (Size: $file_size)"
-                ((success_count++))
-              else
-                echo "✅ Generated: $puml_file (PNG may have different name)"
-                ((success_count++))
-              fi
+              echo "✅ Generated: $puml_file"
+              ((success_count++))
             else
               echo "❌ Failed: $puml_file"
               failed_files+=("$puml_file")
@@ -363,31 +352,20 @@ jobs:
               png_output_dir="$output_base"
             fi
             
-            # Simplified approach matching Battle Arena: Trust PlantUML's exit code
-            # Only add minimal file renaming since PlantUML uses @startuml title for filename
+            # Match Battle Arena exactly: Trust PlantUML's exit code
             echo "Processing: $puml_file -> $png_output_dir"
             
             if java -jar plantuml.jar -tpng "$puml_file" -o "$(pwd)/$png_output_dir"; then
-              # PlantUML succeeded - check if PNG needs renaming (uses @startuml title, not filename)
+              # PlantUML succeeded - optionally rename PNG if it has different name (handles @startuml title)
               png_file="$png_output_dir/$filename.png"
-              
-              # Check if PNG exists with expected name, if not, find and rename it
               if [ ! -f "$png_file" ]; then
                 found_png=$(find "$png_output_dir" -maxdepth 1 -name "*.png" -type f 2>/dev/null | head -1)
                 if [ -n "$found_png" ] && [ -f "$found_png" ]; then
-                  echo "⚠ Renaming PNG from $(basename "$found_png") to $filename.png"
-                  mv "$found_png" "$png_file"
+                  mv "$found_png" "$png_file" 2>/dev/null || true
                 fi
               fi
-              
-              if [ -f "$png_file" ]; then
-                file_size=$(du -h "$png_file" | cut -f1)
-                echo "✅ Generated: $png_file (Size: $file_size)"
-                ((success_count++))
-              else
-                echo "✅ Generated: $puml_file (PNG may have different name)"
-                ((success_count++))
-              fi
+              echo "✅ Generated: $puml_file"
+              ((success_count++))
             else
               echo "❌ Failed: $puml_file"
               failed_files+=("$puml_file")
