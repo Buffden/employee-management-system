@@ -1,0 +1,121 @@
+@startuml Project List - Sequence Diagram
+' Workflow test - updated
+skinparam linetype ortho
+skinparam sequenceArrowThickness 2
+skinparam roundcorner 20
+skinparam maxmessagesize 60
+
+title View Project List - Sequence Diagram
+
+actor "User" as User
+participant "Angular Frontend" as Frontend
+participant "Nginx Gateway" as Gateway
+participant "Project Controller" as Controller
+participant "Project Service" as Service
+participant "Project Repository" as ProjRepo
+participant "EmployeeProject Repository" as EmpProjRepo
+database "PostgreSQL" as DB
+
+User -> Frontend: 1. Navigate to Project List page
+Frontend -> Gateway: 2. GET /api/projects\n?page=0&size=10&sortBy=name&sortOrder=ASC\nAuthorization: Bearer {token}
+
+Gateway -> Gateway: 3. Forward to Backend
+
+participant "JwtAuthenticationFilter" as JwtFilter
+participant "SecurityService" as SecurityService
+
+Gateway -> JwtFilter: 4. Intercept request
+JwtFilter -> JwtFilter: 5. Validate JWT token
+JwtFilter -> JwtFilter: 6. Extract claims (username, role, userId, departmentId)
+JwtFilter -> JwtFilter: 7. Set SecurityContext
+JwtFilter -> Controller: 8. Forward request
+
+Controller -> Controller: 9. Check @PreAuthorize\n(hasAnyRole('SYSTEM_ADMIN', 'DEPARTMENT_MANAGER', 'EMPLOYEE'))
+
+alt Insufficient permissions
+    Controller --> Gateway: 10. HTTP 403 Forbidden
+    Gateway --> Frontend: 11. Access denied
+    Frontend --> User: 12. Show error message
+else Authorized
+    Controller -> SecurityService: 13. getCurrentUserRole()\ngetCurrentUserId()\ngetCurrentUserDepartmentId()
+    SecurityService --> Controller: 14. Role, UserId, DepartmentId
+    
+    Controller -> Service: 15. getAll(page, size, sortBy, sortOrder, userRole, userId, departmentId)
+    
+    alt Role is SYSTEM_ADMIN
+        Service -> ProjRepo: 16. findAllFilteredByRole(pageable, 'SYSTEM_ADMIN', null, null)
+        ProjRepo -> DB: 17. SELECT * FROM project\nORDER BY name ASC\nLIMIT 10 OFFSET 0
+        DB --> ProjRepo: 18. All projects
+        ProjRepo --> Service: 19. Page<Project>
+        
+    else Role is DEPARTMENT_MANAGER
+        Service -> ProjRepo: 20. findAllFilteredByRole(pageable, 'DEPARTMENT_MANAGER', null, departmentId)
+        ProjRepo -> DB: 21. SELECT * FROM project\nWHERE department_id = ?\nORDER BY name ASC\nLIMIT 10 OFFSET 0
+        DB --> ProjRepo: 22. Projects in department
+        ProjRepo --> Service: 23. Page<Project>
+        
+    else Role is EMPLOYEE
+        Service -> EmpProjRepo: 24. findProjectIdsByEmployeeId(userId)
+        EmpProjRepo -> DB: 25. SELECT project_id FROM employee_project\nWHERE employee_id = ?
+        DB --> EmpProjRepo: 26. Project IDs
+        EmpProjRepo --> Service: 27. List<UUID> (projectIds)
+        
+        Service -> ProjRepo: 28. findAllByIdIn(projectIds, pageable)
+        ProjRepo -> DB: 29. SELECT * FROM project\nWHERE id IN (?)\nORDER BY name ASC\nLIMIT 10 OFFSET 0
+        DB --> ProjRepo: 30. Assigned projects
+        ProjRepo --> Service: 31. Page<Project>
+    end
+    
+    Service -> Service: 32. Load related entities\n(department, projectManager)
+    Service -> ProjRepo: 33. Load department and manager for each project
+    ProjRepo -> DB: 34. JOIN queries for related data
+    DB --> ProjRepo: 35. Projects with relations
+    ProjRepo --> Service: 36. Page<Project> with relations
+    
+    Service -> Service: 37. Convert to ProjectResponseDTO list
+    Service -> Service: 38. Create PaginatedResponseDTO
+    
+    Service --> Controller: 39. PaginatedResponseDTO<ProjectResponseDTO>
+    Controller --> Gateway: 40. HTTP 200 OK
+    Gateway --> Frontend: 41. Response with paginated project list
+    Frontend -> Frontend: 42. Display project table with:\n- Name, Description\n- Department\n- Project Manager\n- Status
+    Frontend -> User: 43. Show project list (filtered by role)
+    
+    alt User applies filters
+        User -> Frontend: 44. Select filter (department, status)
+        Frontend -> Gateway: 45. GET /api/projects?departmentId=...&status=...
+        Gateway -> Service: 46. Apply additional filters
+        Service -> ProjRepo: 47. Apply filters to query
+        ProjRepo -> DB: 48. Filtered query
+        DB --> ProjRepo: 49. Filtered projects
+        ProjRepo --> Service: 50. Filtered results
+        Service --> Frontend: 51. Filtered project list
+        Frontend -> User: 52. Show filtered results
+    end
+end
+
+note right of JwtFilter
+  **RBAC:**
+  - Validates JWT token
+  - Extracts role, userId, departmentId
+  - Sets SecurityContext
+end note
+
+note right of Controller
+  **Authorization:**
+  @PreAuthorize checks role
+  Multiple roles allowed:
+  SYSTEM_ADMIN, DEPARTMENT_MANAGER,
+  EMPLOYEE
+end note
+
+note right of Service
+  **Role-Based Filtering:**
+  - SYSTEM_ADMIN: All projects
+  - DEPARTMENT_MANAGER: Own department only
+  - EMPLOYEE: Assigned projects only
+  Uses repository-level filtering
+end note
+
+@enduml
+

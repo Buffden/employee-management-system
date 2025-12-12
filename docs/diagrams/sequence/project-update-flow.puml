@@ -1,0 +1,165 @@
+@startuml Project Update - Sequence Diagram
+' Workflow test - updated
+skinparam linetype ortho
+skinparam sequenceArrowThickness 2
+skinparam roundcorner 20
+skinparam maxmessagesize 60
+
+title Project Update - Sequence Diagram
+
+actor "Department Manager" as User
+participant "Angular Frontend" as Frontend
+participant "Nginx Gateway" as Gateway
+participant "Project Controller" as Controller
+participant "Project Service" as Service
+participant "Project Mapper" as Mapper
+participant "Project Repository" as ProjRepo
+participant "Department Repository" as DeptRepo
+participant "Employee Repository" as EmpRepo
+database "PostgreSQL" as DB
+
+User -> Frontend: 1. Navigate to project details
+User -> Frontend: 2. Click "Edit" button
+Frontend -> Frontend: 3. Load project data and display edit form
+User -> Frontend: 4. Modify project information\n(name, description, budget, etc.)
+User -> Frontend: 5. Optionally change department
+User -> Frontend: 6. Optionally change project manager
+User -> Frontend: 7. Click "Save Changes"
+
+Frontend -> Gateway: 8. PUT /api/projects/{id}\n(ProjectRequestDTO)\nAuthorization: Bearer {token}
+
+Gateway -> Gateway: 9. Forward to Backend
+
+participant "JwtAuthenticationFilter" as JwtFilter
+participant "SecurityService" as SecurityService
+
+Gateway -> JwtFilter: 10. Intercept request
+JwtFilter -> JwtFilter: 11. Validate JWT token
+JwtFilter -> JwtFilter: 12. Extract role and department from token
+JwtFilter -> JwtFilter: 13. Set SecurityContext
+JwtFilter -> Controller: 14. Forward request
+
+Controller -> Controller: 15. Check @PreAuthorize\n(hasRole('SYSTEM_ADMIN') or hasRole('DEPARTMENT_MANAGER'))
+
+alt Insufficient permissions
+    Controller --> Gateway: 16. HTTP 403 Forbidden
+    Gateway --> Frontend: 17. Access denied
+    Frontend --> User: 18. Show error message
+else Authorized
+    Controller -> SecurityService: 19. getCurrentUserRole()\ngetCurrentUserDepartmentId()
+    SecurityService --> Controller: 20. Role, DepartmentId
+    
+    Controller -> Service: 21. update(projectId, ProjectRequestDTO, userRole, userDepartmentId)
+    
+    Service -> ProjRepo: 22. findById(projectId)
+    ProjRepo -> DB: 23. SELECT * FROM project WHERE id = ?
+    DB --> ProjRepo: 24. Project data
+    ProjRepo --> Service: 25. Existing Project entity
+    
+    alt Project not found
+        Service --> Controller: 26. Throw ProjectNotFoundException
+        Controller --> Gateway: 27. HTTP 404 Not Found
+        Gateway --> Frontend: 28. Error response
+        Frontend --> User: 29. Show error: "Project not found"
+    else Project found
+        alt Department Manager
+            Service -> Service: 30. Check if existing project is in user's department
+            Service -> Service: 31. Compare project.departmentId with userDepartmentId
+            
+            alt Project not in user's department
+                Service --> Controller: 32. Throw AccessDeniedException
+                Controller --> Gateway: 33. HTTP 403 Forbidden
+                Gateway --> Frontend: 34. Error response
+                Frontend --> User: 35. Show error: "You can only update projects in your department"
+            end
+        end
+        
+        alt Department changed
+            Service -> DeptRepo: 36. findById(newDepartmentId)
+            DeptRepo -> DB: 37. SELECT * FROM department WHERE id = ?
+            DB --> DeptRepo: 38. Department data
+            DeptRepo --> Service: 39. New Department entity
+            
+            alt Department not found
+                Service --> Controller: 40. Throw DepartmentNotFoundException
+                Controller --> Gateway: 41. HTTP 404 Not Found
+                Gateway --> Frontend: 42. Error response
+                Frontend --> User: 43. Show error: "Department not found"
+            else Department Manager changing department
+                Service -> Service: 44. Check if new department == userDepartmentId
+                
+                alt New department not user's department
+                    Service --> Controller: 45. Throw AccessDeniedException\n"Cannot change to different department"
+                    Controller --> Gateway: 46. HTTP 403 Forbidden
+                    Gateway --> Frontend: 47. Error response
+                    Frontend --> User: 48. Show error: "You can only assign projects to your department"
+                end
+            end
+        end
+        
+        alt Project Manager changed
+            Service -> EmpRepo: 49. findById(newProjectManagerId)
+            EmpRepo -> DB: 50. SELECT * FROM employee WHERE id = ?
+            DB --> EmpRepo: 51. Employee data
+            EmpRepo --> Service: 52. Project Manager entity
+            
+            alt Project Manager not found
+                Service --> Controller: 53. Throw EmployeeNotFoundException
+                Controller --> Gateway: 54. HTTP 404 Not Found
+                Gateway --> Frontend: 55. Error response
+                Frontend --> User: 56. Show error: "Project Manager not found"
+            end
+        end
+        
+        Service -> Service: 57. Validate other fields\n(budget >= 0, start date validation, etc.)
+        
+        alt Validation fails
+            Service --> Controller: 58. Throw ValidationException
+            Controller --> Gateway: 59. HTTP 400 Bad Request
+            Gateway --> Frontend: 60. Error response
+            Frontend --> User: 61. Show validation errors
+        else Validation passes
+            Service -> Mapper: 62. updateEntity(existingProject, DTO, dept, mgr)
+            Mapper --> Service: 63. Updated Project entity
+            
+            Service -> ProjRepo: 64. save(Project)
+            ProjRepo -> DB: 65. UPDATE project SET ... WHERE id = ?
+            DB --> ProjRepo: 66. Updated project
+            ProjRepo --> Service: 67. Project entity
+            
+            Service -> Mapper: 68. toResponseDTO(Project)
+            Mapper --> Service: 69. ProjectResponseDTO
+            
+            Service --> Controller: 70. ProjectResponseDTO
+            Controller --> Gateway: 71. HTTP 200 OK
+            Gateway --> Frontend: 72. Response with updated project
+            Frontend -> User: 73. Display success: "Project updated successfully"
+            Frontend -> Frontend: 74. Refresh project details view
+        end
+    end
+end
+
+note right of JwtFilter
+  **RBAC:**
+  - Validates JWT token
+  - Extracts role and department
+  - Sets SecurityContext
+end note
+
+note right of Controller
+  **Authorization:**
+  @PreAuthorize checks role
+  Department Managers can only
+  update projects in their department
+end note
+
+note right of Service
+  **Business Rules:**
+  - Budget must be non-negative
+  - Department Manager constraint
+  - Project Manager must exist
+  - Department must exist
+end note
+
+@enduml
+

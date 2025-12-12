@@ -1,0 +1,166 @@
+@startuml Employee Update - Sequence Diagram
+' Workflow test - updated
+skinparam linetype ortho
+skinparam sequenceArrowThickness 2
+skinparam roundcorner 20
+skinparam maxmessagesize 60
+
+title Employee Update - Sequence Diagram
+
+actor "HR Manager" as User
+participant "Angular Frontend" as Frontend
+participant "Nginx Gateway" as Gateway
+participant "Employee Controller" as Controller
+participant "Employee Service" as Service
+participant "Validation Service" as Validation
+participant "Employee Mapper" as Mapper
+participant "Employee Repository" as Repository
+participant "Department Repository" as DeptRepo
+participant "Location Repository" as LocRepo
+database "PostgreSQL" as DB
+
+User -> Frontend: 1. Navigate to employee details
+User -> Frontend: 2. Click "Edit" button
+Frontend -> Frontend: 3. Load employee data and display edit form
+User -> Frontend: 4. Modify employee information\n(name, designation, salary, etc.)
+User -> Frontend: 5. Optionally change department or location
+User -> Frontend: 6. Optionally change manager
+User -> Frontend: 7. Click "Save Changes"
+
+Frontend -> Gateway: 8. PUT /api/employees/{id}\n(EmployeeRequestDTO)\nAuthorization: Bearer {token}
+
+Gateway -> Gateway: 9. Forward to Backend
+
+participant "JwtAuthenticationFilter" as JwtFilter
+participant "SecurityService" as SecurityService
+
+Gateway -> JwtFilter: 10. Intercept request
+JwtFilter -> JwtFilter: 11. Validate JWT token
+JwtFilter -> JwtFilter: 12. Extract role from token
+JwtFilter -> JwtFilter: 13. Set SecurityContext
+JwtFilter -> Controller: 14. Forward request
+
+Controller -> Controller: 15. Check @PreAuthorize\n(hasRole('SYSTEM_ADMIN') or hasRole('HR_MANAGER'))
+
+alt Insufficient permissions
+    Controller --> Gateway: 16. HTTP 403 Forbidden
+    Gateway --> Frontend: 17. Access denied
+    Frontend --> User: 18. Show error message
+else Authorized
+    Controller -> SecurityService: 19. getCurrentUserRole()
+    SecurityService --> Controller: 20. Role (e.g., 'HR_MANAGER')
+    
+    Controller -> Service: 21. update(employeeId, EmployeeRequestDTO)
+    
+    Service -> Repository: 22. findById(employeeId)
+    Repository -> DB: 23. SELECT * FROM employee WHERE id = ?
+    DB --> Repository: 24. Employee data
+    Repository --> Service: 25. Existing Employee entity
+    
+    alt Employee not found
+        Service --> Controller: 26. Throw EmployeeNotFoundException
+        Controller --> Gateway: 27. HTTP 404 Not Found
+        Gateway --> Frontend: 28. Error response
+        Frontend --> User: 29. Show error: "Employee not found"
+    else Employee found
+        alt Department changed
+            Service -> DeptRepo: 30. findById(newDepartmentId)
+            DeptRepo -> DB: 31. SELECT * FROM department WHERE id = ?
+            DB --> DeptRepo: 32. Department data
+            DeptRepo --> Service: 33. New Department entity
+            
+            alt Department not found
+                Service --> Controller: 34. Throw DepartmentNotFoundException
+                Controller --> Gateway: 35. HTTP 404 Not Found
+                Gateway --> Frontend: 36. Error response
+                Frontend --> User: 37. Show error: "Department not found"
+            end
+        end
+        
+        alt Location changed
+            Service -> LocRepo: 38. findById(newLocationId)
+            LocRepo -> DB: 39. SELECT * FROM location WHERE id = ?
+            DB --> LocRepo: 40. Location data
+            LocRepo --> Service: 41. New Location entity
+            
+            alt Location not found
+                Service --> Controller: 42. Throw LocationNotFoundException
+                Controller --> Gateway: 43. HTTP 404 Not Found
+                Gateway --> Frontend: 44. Error response
+                Frontend --> User: 45. Show error: "Location not found"
+            end
+        end
+        
+        alt Manager is provided
+            Service -> Validation: 46. validateManagerInDepartment(managerId, departmentId)
+            Validation -> Repository: 47. getById(managerId)
+            Repository -> DB: 48. SELECT * FROM employee WHERE id = ?
+            DB --> Repository: 49. Manager data
+            Repository --> Validation: 50. Manager entity
+            
+            Validation -> Validation: 51. Check manager.departmentId == employee.departmentId
+            
+            alt Manager in different department
+                Validation --> Service: 52. Validation failed
+                Service --> Controller: 53. Throw ValidationException\n"Manager must be in same department"
+                Controller --> Gateway: 54. HTTP 400 Bad Request
+                Gateway --> Frontend: 55. Error response
+                Frontend --> User: 56. Show error: "Manager must be in the same department as the employee"
+            else Manager in same department
+                Validation --> Service: 57. Validation passed
+            end
+        end
+        
+        Service -> Service: 58. Validate other fields\n(salary > 0, performance rating 0-5.0, etc.)
+        
+        alt Validation fails
+            Service --> Controller: 59. Throw ValidationException
+            Controller --> Gateway: 60. HTTP 400 Bad Request
+            Gateway --> Frontend: 61. Error response
+            Frontend --> User: 62. Show validation errors
+        else Validation passes
+            Service -> Mapper: 63. updateEntity(existingEmployee, DTO, dept, loc, mgr)
+            Mapper --> Service: 64. Updated Employee entity
+            
+            Service -> Repository: 65. save(Employee)
+            Repository -> DB: 66. UPDATE employee SET ... WHERE id = ?
+            DB --> Repository: 67. Updated employee
+            Repository --> Service: 68. Employee entity
+            
+            Service -> Mapper: 69. toResponseDTO(Employee)
+            Mapper --> Service: 70. EmployeeResponseDTO
+            
+            Service --> Controller: 71. EmployeeResponseDTO
+            Controller --> Gateway: 72. HTTP 200 OK
+            Gateway --> Frontend: 73. Response with updated employee
+            Frontend -> User: 74. Display success: "Employee updated successfully"
+            Frontend -> Frontend: 75. Refresh employee details view
+        end
+    end
+end
+
+note right of JwtFilter
+  **RBAC:**
+  - Validates JWT token
+  - Extracts role (HR_MANAGER/SYSTEM_ADMIN)
+  - Sets SecurityContext
+end note
+
+note right of Controller
+  **Authorization:**
+  @PreAuthorize checks role
+  Only HR_MANAGER and
+  SYSTEM_ADMIN can update
+end note
+
+note right of Validation
+  **Business Rules:**
+  - Manager must be in same department
+  - Salary must be positive
+  - Performance rating: 0.0-5.0
+  - Email is immutable
+  - Joining date is immutable
+end note
+
+@enduml
+
