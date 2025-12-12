@@ -1,0 +1,140 @@
+@startuml Task Update Status - Sequence Diagram
+' Workflow test - updated
+skinparam linetype ortho
+skinparam sequenceArrowThickness 2
+skinparam roundcorner 20
+skinparam maxmessagesize 60
+
+title Update Task Status - Sequence Diagram
+
+actor "User" as User
+participant "Angular Frontend" as Frontend
+participant "Nginx Gateway" as Gateway
+participant "Task Controller" as Controller
+participant "Task Service" as Service
+participant "Task Repository" as TaskRepo
+participant "EmployeeProject Repository" as EmpProjRepo
+database "PostgreSQL" as DB
+
+User -> Frontend: 1. Navigate to task details
+User -> Frontend: 2. Select new status from dropdown\n(TODO, IN_PROGRESS, COMPLETED, CANCELLED)
+User -> Frontend: 3. Click "Update Status"
+
+Frontend -> Gateway: 4. PUT /api/tasks/{id}/status\n(TaskStatusUpdateDTO)\nAuthorization: Bearer {token}
+
+Gateway -> Gateway: 5. Forward to Backend
+
+participant "JwtAuthenticationFilter" as JwtFilter
+participant "SecurityService" as SecurityService
+
+Gateway -> JwtFilter: 6. Intercept request
+JwtFilter -> JwtFilter: 7. Validate JWT token
+JwtFilter -> JwtFilter: 8. Extract claims (username, role, userId)
+JwtFilter -> JwtFilter: 9. Set SecurityContext
+JwtFilter -> Controller: 10. Forward request
+
+Controller -> Controller: 11. Check @PreAuthorize\n(hasAnyRole('SYSTEM_ADMIN', 'DEPARTMENT_MANAGER', 'EMPLOYEE'))
+
+alt Insufficient permissions
+    Controller --> Gateway: 12. HTTP 403 Forbidden
+    Gateway --> Frontend: 13. Access denied
+    Frontend --> User: 14. Show error message
+else Authorized
+    Controller -> SecurityService: 15. getCurrentUserRole()\ngetCurrentUserId()
+    SecurityService --> Controller: 16. Role, UserId
+    
+    Controller -> Service: 17. updateStatus(taskId, newStatus, userRole, userId)
+    
+    Service -> TaskRepo: 18. findById(taskId)
+    TaskRepo -> DB: 19. SELECT * FROM task WHERE id = ?
+    DB --> TaskRepo: 20. Task data
+    TaskRepo --> Service: 21. Task entity
+    
+    alt Task not found
+        Service --> Controller: 22. Throw TaskNotFoundException
+        Controller --> Gateway: 23. HTTP 404 Not Found
+        Gateway --> Frontend: 24. Error response
+        Frontend --> User: 25. Show error: "Task not found"
+    else Task found
+        Service -> Service: 26. Validate permission to update
+        
+        alt Role is SYSTEM_ADMIN
+            Service -> Service: 27. Permission granted (can update any task)
+        else Role is DEPARTMENT_MANAGER
+            Service -> Service: 28. Check if task's project is in user's department
+            Service -> TaskRepo: 29. Get project for task
+            TaskRepo -> DB: 30. SELECT project_id FROM task WHERE id = ?
+            DB --> TaskRepo: 31. Project ID
+            TaskRepo --> Service: 32. Project ID
+            
+            Service -> Service: 33. Check if project.departmentId == userDepartmentId
+            
+            alt Project not in user's department
+                Service --> Controller: 34. Throw AccessDeniedException
+                Controller --> Gateway: 35. HTTP 403 Forbidden
+                Gateway --> Frontend: 36. Error response
+                Frontend --> User: 37. Show error: "You can only update tasks in your department's projects"
+            else Project in user's department
+                Service -> Service: 38. Permission granted
+            end
+        else Role is EMPLOYEE
+            Service -> TaskRepo: 39. Check if task.assignedEmployeeId == userId
+            TaskRepo -> DB: 40. SELECT assigned_employee_id FROM task WHERE id = ?
+            DB --> TaskRepo: 41. Assigned employee ID
+            TaskRepo --> Service: 42. Assigned employee ID
+            
+            alt Employee not assigned to task
+                Service --> Controller: 43. Throw AccessDeniedException
+                Controller --> Gateway: 44. HTTP 403 Forbidden
+                Gateway --> Frontend: 45. Error response
+                Frontend --> User: 46. Show error: "You must be assigned to this task or be a manager"
+            else Employee assigned to task
+                Service -> Service: 47. Permission granted
+            end
+        end
+        
+        Service -> Service: 48. Validate status transition\n(optional: enforce valid state transitions)
+        Service -> Service: 49. Update task status
+        Service -> Service: 50. Set updated timestamp
+        
+        Service -> TaskRepo: 51. save(Task)
+        TaskRepo -> DB: 52. UPDATE task SET status = ?, updated_at = ? WHERE id = ?
+        DB --> TaskRepo: 53. Updated task
+        TaskRepo --> Service: 54. Task entity
+        
+        Service -> Service: 55. Construct TaskResponseDTO
+        
+        Service --> Controller: 56. TaskResponseDTO
+        Controller --> Gateway: 57. HTTP 200 OK
+        Gateway --> Frontend: 58. Response with updated task
+        Frontend -> User: 59. Display success: "Task status updated successfully"
+        Frontend -> Frontend: 60. Refresh task details view
+    end
+end
+
+note right of JwtFilter
+  **RBAC:**
+  - Validates JWT token
+  - Extracts role, userId
+  - Sets SecurityContext
+end note
+
+note right of Controller
+  **Authorization:**
+  @PreAuthorize checks role
+  Custom permission check:
+  - Assigned employee OR
+  - Manager of project
+end note
+
+note right of Service
+  **Permission Logic:**
+  - SYSTEM_ADMIN: Can update any task
+  - DEPARTMENT_MANAGER: Can update tasks
+    in their department's projects
+  - EMPLOYEE: Can only update tasks
+    they are assigned to
+end note
+
+@enduml
+

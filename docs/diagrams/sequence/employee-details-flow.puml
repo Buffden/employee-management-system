@@ -1,0 +1,128 @@
+@startuml Employee Details - Sequence Diagram
+' Workflow test - updated
+skinparam linetype ortho
+skinparam sequenceArrowThickness 2
+skinparam roundcorner 20
+skinparam maxmessagesize 60
+
+title View Employee Details - Sequence Diagram
+
+actor "User" as User
+participant "Angular Frontend" as Frontend
+participant "Nginx Gateway" as Gateway
+participant "Employee Controller" as Controller
+participant "Employee Service" as Service
+participant "Employee Repository" as EmpRepo
+participant "EmployeeProject Repository" as EmpProjRepo
+database "PostgreSQL" as DB
+
+User -> Frontend: 1. Click on employee in list\nor navigate to employee details
+Frontend -> Gateway: 2. GET /api/employees/{id}\nAuthorization: Bearer {token}
+
+Gateway -> Gateway: 3. Forward to Backend
+
+participant "JwtAuthenticationFilter" as JwtFilter
+participant "SecurityService" as SecurityService
+
+Gateway -> JwtFilter: 4. Intercept request
+JwtFilter -> JwtFilter: 5. Validate JWT token
+JwtFilter -> JwtFilter: 6. Extract claims (username, role, userId, departmentId)
+JwtFilter -> JwtFilter: 7. Set SecurityContext
+JwtFilter -> Controller: 8. Forward request
+
+Controller -> Controller: 9. Check @PreAuthorize\n(hasAnyRole('SYSTEM_ADMIN', 'HR_MANAGER', 'DEPARTMENT_MANAGER', 'EMPLOYEE'))
+
+alt Insufficient permissions
+    Controller --> Gateway: 10. HTTP 403 Forbidden
+    Gateway --> Frontend: 11. Access denied
+    Frontend --> User: 12. Show error message
+else Authorized
+    Controller -> SecurityService: 13. getCurrentUserRole()\ngetCurrentUserId()\ngetCurrentUserDepartmentId()
+    SecurityService --> Controller: 14. Role, UserId, DepartmentId
+    
+    Controller -> Service: 15. getById(employeeId, userRole, userId, departmentId)
+    
+    Service -> EmpRepo: 16. findById(employeeId)
+    EmpRepo -> DB: 17. SELECT * FROM employee WHERE id = ?
+    DB --> EmpRepo: 18. Employee data
+    EmpRepo --> Service: 19. Employee entity
+    
+    alt Employee not found
+        Service --> Controller: 20. Throw EmployeeNotFoundException
+        Controller --> Gateway: 21. HTTP 404 Not Found
+        Gateway --> Frontend: 22. Error response
+        Frontend --> User: 23. Show error: "Employee not found"
+    else Employee found
+        Service -> Service: 24. Check access permission
+        
+        alt Role is SYSTEM_ADMIN or HR_MANAGER
+            Service -> Service: 25. Access granted (can view any employee)
+        else Role is DEPARTMENT_MANAGER
+            Service -> Service: 26. Check if employee.departmentId == userDepartmentId
+            
+            alt Employee not in user's department
+                Service --> Controller: 27. Throw AccessDeniedException
+                Controller --> Gateway: 28. HTTP 403 Forbidden
+                Gateway --> Frontend: 29. Error response
+                Frontend --> User: 30. Show error: "You can only view employees in your department"
+            else Employee in user's department
+                Service -> Service: 31. Access granted
+            end
+        else Role is EMPLOYEE
+            Service -> Service: 32. Check if employee.id matches user's employee ID
+            
+            alt Employee ID mismatch
+                Service --> Controller: 33. Throw AccessDeniedException
+                Controller --> Gateway: 34. HTTP 403 Forbidden
+                Gateway --> Frontend: 35. Error response
+                Frontend --> User: 36. Show error: "You can only view your own profile"
+            else Employee ID matches
+                Service -> Service: 37. Access granted (viewing own profile)
+            end
+        end
+        
+        Service -> EmpRepo: 38. Load related entities\n(department, location, manager)
+        EmpRepo -> DB: 39. JOIN queries for related data
+        DB --> EmpRepo: 40. Related entities
+        EmpRepo --> Service: 41. Employee with relations
+        
+        Service -> EmpProjRepo: 42. findByEmployeeId(employeeId)
+        EmpProjRepo -> DB: 43. SELECT * FROM employee_project\nWHERE employee_id = ?
+        DB --> EmpProjRepo: 44. Project assignments
+        EmpProjRepo --> Service: 45. List<EmployeeProject>
+        
+        Service -> Service: 46. Construct EmployeeResponseDTO\nwith all details
+        
+        Service --> Controller: 47. EmployeeResponseDTO
+        Controller --> Gateway: 48. HTTP 200 OK
+        Gateway --> Frontend: 49. Response with employee data
+        Frontend -> Frontend: 50. Display employee details in modal/page
+        Frontend -> User: 51. Show employee information:\n- Profile\n- Department & Location\n- Manager\n- Assigned Projects
+    end
+end
+
+note right of JwtFilter
+  **RBAC:**
+  - Validates JWT token
+  - Extracts role, userId, departmentId
+  - Sets SecurityContext
+end note
+
+note right of Controller
+  **Authorization:**
+  @PreAuthorize checks role
+  Multiple roles allowed:
+  SYSTEM_ADMIN, HR_MANAGER,
+  DEPARTMENT_MANAGER, EMPLOYEE
+end note
+
+note right of Service
+  **Role-Based Access:**
+  - SYSTEM_ADMIN: All employees
+  - HR_MANAGER: All employees
+  - DEPARTMENT_MANAGER: Own department only
+  - EMPLOYEE: Own profile only
+end note
+
+@enduml
+

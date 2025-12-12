@@ -1,0 +1,136 @@
+@startuml Project Details - Sequence Diagram
+' Workflow test - updated
+skinparam linetype ortho
+skinparam sequenceArrowThickness 2
+skinparam roundcorner 20
+skinparam maxmessagesize 60
+
+title View Project Details - Sequence Diagram
+
+actor "User" as User
+participant "Angular Frontend" as Frontend
+participant "Nginx Gateway" as Gateway
+participant "Project Controller" as Controller
+participant "Project Service" as Service
+participant "Project Repository" as ProjRepo
+participant "EmployeeProject Repository" as EmpProjRepo
+participant "Task Repository" as TaskRepo
+database "PostgreSQL" as DB
+
+User -> Frontend: 1. Click on project in list\nor navigate to project details
+Frontend -> Gateway: 2. GET /api/projects/{id}\nAuthorization: Bearer {token}
+
+Gateway -> Gateway: 3. Forward to Backend
+
+participant "JwtAuthenticationFilter" as JwtFilter
+participant "SecurityService" as SecurityService
+
+Gateway -> JwtFilter: 4. Intercept request
+JwtFilter -> JwtFilter: 5. Validate JWT token
+JwtFilter -> JwtFilter: 6. Extract claims (username, role, userId, departmentId)
+JwtFilter -> JwtFilter: 7. Set SecurityContext
+JwtFilter -> Controller: 8. Forward request
+
+Controller -> Controller: 9. Check @PreAuthorize\n(hasAnyRole('SYSTEM_ADMIN', 'DEPARTMENT_MANAGER', 'EMPLOYEE'))
+
+alt Insufficient permissions
+    Controller --> Gateway: 10. HTTP 403 Forbidden
+    Gateway --> Frontend: 11. Access denied
+    Frontend --> User: 12. Show error message
+else Authorized
+    Controller -> SecurityService: 13. getCurrentUserRole()\ngetCurrentUserId()\ngetCurrentUserDepartmentId()
+    SecurityService --> Controller: 14. Role, UserId, DepartmentId
+    
+    Controller -> Service: 15. getById(projectId, userRole, userId, departmentId)
+    
+    Service -> ProjRepo: 16. findById(projectId)
+    ProjRepo -> DB: 17. SELECT * FROM project WHERE id = ?
+    DB --> ProjRepo: 18. Project data
+    ProjRepo --> Service: 19. Project entity
+    
+    alt Project not found
+        Service --> Controller: 20. Throw ProjectNotFoundException
+        Controller --> Gateway: 21. HTTP 404 Not Found
+        Gateway --> Frontend: 22. Error response
+        Frontend --> User: 23. Show error: "Project not found"
+    else Project found
+        Service -> Service: 24. Check access permission
+        
+        alt Role is SYSTEM_ADMIN
+            Service -> Service: 25. Access granted (can view any project)
+        else Role is DEPARTMENT_MANAGER
+            Service -> Service: 26. Check if project.departmentId == userDepartmentId
+            
+            alt Project not in user's department
+                Service --> Controller: 27. Throw AccessDeniedException
+                Controller --> Gateway: 28. HTTP 403 Forbidden
+                Gateway --> Frontend: 29. Error response
+                Frontend --> User: 30. Show error: "You can only view projects in your department"
+            else Project in user's department
+                Service -> Service: 31. Access granted
+            end
+        else Role is EMPLOYEE
+            Service -> EmpProjRepo: 32. existsByProjectIdAndEmployeeId(projectId, userId)
+            EmpProjRepo -> DB: 33. SELECT COUNT(*) FROM employee_project\nWHERE project_id = ? AND employee_id = ?
+            DB --> EmpProjRepo: 34. Assignment exists
+            EmpProjRepo --> Service: 35. Boolean (is assigned)
+            
+            alt Employee not assigned to project
+                Service --> Controller: 36. Throw AccessDeniedException
+                Controller --> Gateway: 37. HTTP 403 Forbidden
+                Gateway --> Frontend: 38. Error response
+                Frontend --> User: 39. Show error: "You can only view projects you are assigned to"
+            else Employee assigned to project
+                Service -> Service: 40. Access granted
+            end
+        end
+        
+        Service -> ProjRepo: 41. Load related entities\n(department, projectManager)
+        ProjRepo -> DB: 42. JOIN queries for related data
+        DB --> ProjRepo: 43. Related entities
+        ProjRepo --> Service: 44. Project with relations
+        
+        Service -> EmpProjRepo: 45. findByProjectId(projectId)
+        EmpProjRepo -> DB: 46. SELECT * FROM employee_project\nWHERE project_id = ?
+        DB --> EmpProjRepo: 47. Employee assignments
+        EmpProjRepo --> Service: 48. List<EmployeeProject>
+        
+        Service -> TaskRepo: 49. findByProjectId(projectId)
+        TaskRepo -> DB: 50. SELECT * FROM task WHERE project_id = ?
+        DB --> TaskRepo: 51. Tasks
+        TaskRepo --> Service: 52. List<Task>
+        
+        Service -> Service: 53. Construct ProjectResponseDTO\nwith all details
+        
+        Service --> Controller: 54. ProjectResponseDTO
+        Controller --> Gateway: 55. HTTP 200 OK
+        Gateway --> Frontend: 56. Response with project data
+        Frontend -> Frontend: 57. Display project details in modal/page
+        Frontend -> User: 58. Show project information:\n- Project details\n- Department\n- Project Manager\n- Assigned Employees\n- Tasks
+    end
+end
+
+note right of JwtFilter
+  **RBAC:**
+  - Validates JWT token
+  - Extracts role, userId, departmentId
+  - Sets SecurityContext
+end note
+
+note right of Controller
+  **Authorization:**
+  @PreAuthorize checks role
+  Multiple roles allowed:
+  SYSTEM_ADMIN, DEPARTMENT_MANAGER,
+  EMPLOYEE
+end note
+
+note right of Service
+  **Role-Based Access:**
+  - SYSTEM_ADMIN: All projects
+  - DEPARTMENT_MANAGER: Own department only
+  - EMPLOYEE: Assigned projects only
+end note
+
+@enduml
+

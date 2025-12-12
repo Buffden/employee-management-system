@@ -1,0 +1,139 @@
+@startuml Project Assign Employee - Sequence Diagram
+' Workflow test - updated
+skinparam linetype ortho
+skinparam sequenceArrowThickness 2
+skinparam roundcorner 20
+skinparam maxmessagesize 60
+
+title Assign Employee to Project - Sequence Diagram
+
+actor "Department Manager" as User
+participant "Angular Frontend" as Frontend
+participant "Nginx Gateway" as Gateway
+participant "Project Controller" as Controller
+participant "EmployeeProject Service" as Service
+participant "EmployeeProject Repository" as EmpProjRepo
+participant "Employee Repository" as EmpRepo
+participant "Project Repository" as ProjRepo
+database "PostgreSQL" as DB
+
+User -> Frontend: 1. Navigate to project details
+User -> Frontend: 2. Click "Assign Employee" button
+Frontend -> Frontend: 3. Display assignment form\n(employee selection, role selection)
+User -> Frontend: 4. Select employee and role
+User -> Frontend: 5. Click "Assign"
+
+Frontend -> Gateway: 6. POST /api/projects/{projectId}/employees\n(EmployeeProjectRequestDTO)\nAuthorization: Bearer {token}
+
+Gateway -> Gateway: 7. Forward to Backend
+
+participant "JwtAuthenticationFilter" as JwtFilter
+participant "SecurityService" as SecurityService
+
+Gateway -> JwtFilter: 8. Intercept request
+JwtFilter -> JwtFilter: 9. Validate JWT token
+JwtFilter -> JwtFilter: 10. Extract role and department from token
+JwtFilter -> JwtFilter: 11. Set SecurityContext
+JwtFilter -> Controller: 12. Forward request
+
+Controller -> Controller: 13. Check @PreAuthorize\n(hasRole('SYSTEM_ADMIN') or hasRole('DEPARTMENT_MANAGER'))
+
+alt Insufficient permissions
+    Controller --> Gateway: 14. HTTP 403 Forbidden
+    Gateway --> Frontend: 15. Access denied
+    Frontend --> User: 16. Show error message
+else Authorized
+    Controller -> SecurityService: 17. getCurrentUserRole()\ngetCurrentUserDepartmentId()
+    SecurityService --> Controller: 18. Role, DepartmentId
+    
+    Controller -> Service: 19. assignEmployeeToProject(projectId, employeeId, role, userRole, userDepartmentId)
+    
+    Service -> ProjRepo: 20. findById(projectId)
+    ProjRepo -> DB: 21. SELECT * FROM project WHERE id = ?
+    DB --> ProjRepo: 22. Project data
+    ProjRepo --> Service: 23. Project entity
+    
+    alt Project not found
+        Service --> Controller: 24. Throw ProjectNotFoundException
+        Controller --> Gateway: 25. HTTP 404 Not Found
+        Gateway --> Frontend: 26. Error response
+        Frontend --> User: 27. Show error: "Project not found"
+    else Project found
+        alt Department Manager
+            Service -> Service: 28. Check if project.departmentId == userDepartmentId
+            
+            alt Project not in user's department
+                Service --> Controller: 29. Throw AccessDeniedException
+                Controller --> Gateway: 30. HTTP 403 Forbidden
+                Gateway --> Frontend: 31. Error response
+                Frontend --> User: 32. Show error: "You can only assign employees to projects in your department"
+            end
+        end
+        
+        Service -> EmpRepo: 33. findById(employeeId)
+        EmpRepo -> DB: 34. SELECT * FROM employee WHERE id = ?
+        DB --> EmpRepo: 35. Employee data
+        EmpRepo --> Service: 36. Employee entity
+        
+        alt Employee not found
+            Service --> Controller: 37. Throw EmployeeNotFoundException
+            Controller --> Gateway: 38. HTTP 404 Not Found
+            Gateway --> Frontend: 39. Error response
+            Frontend --> User: 40. Show error: "Employee not found"
+        else Employee found
+            Service -> EmpProjRepo: 41. existsByProjectIdAndEmployeeId(projectId, employeeId)
+            EmpProjRepo -> DB: 42. SELECT COUNT(*) FROM employee_project\nWHERE project_id = ? AND employee_id = ?
+            DB --> EmpProjRepo: 43. Assignment exists
+            EmpProjRepo --> Service: 44. Boolean (already assigned)
+            
+            alt Employee already assigned
+                Service --> Controller: 45. Throw BusinessException\n"Employee already assigned to project"
+                Controller --> Gateway: 46. HTTP 400 Bad Request
+                Gateway --> Frontend: 47. Error response
+                Frontend --> User: 48. Show error: "Employee is already assigned to this project"
+            else Employee not assigned
+                Service -> Service: 49. Create EmployeeProject entity
+                Service -> Service: 50. Set project, employee, role
+                Service -> Service: 51. Set status = 'ACTIVE'
+                Service -> Service: 52. Set assignedAt timestamp
+                
+                Service -> EmpProjRepo: 53. save(EmployeeProject)
+                EmpProjRepo -> DB: 54. INSERT INTO employee_project\n(project_id, employee_id, role, status, assigned_at)
+                DB --> EmpProjRepo: 55. Saved assignment
+                EmpProjRepo --> Service: 56. EmployeeProject entity
+                
+                Service -> Service: 57. Construct EmployeeProjectResponseDTO
+                Service --> Controller: 58. EmployeeProjectResponseDTO
+                Controller --> Gateway: 59. HTTP 201 Created
+                Gateway --> Frontend: 60. Response with assignment data
+                Frontend -> User: 61. Display success: "Employee assigned to project successfully"
+                Frontend -> Frontend: 62. Refresh project details view
+            end
+        end
+    end
+end
+
+note right of JwtFilter
+  **RBAC:**
+  - Validates JWT token
+  - Extracts role and department
+  - Sets SecurityContext
+end note
+
+note right of Controller
+  **Authorization:**
+  @PreAuthorize checks role
+  Department Managers can only
+  assign to projects in their department
+end note
+
+note right of Service
+  **Business Rules:**
+  - Employee must exist
+  - Project must exist
+  - Employee cannot be assigned twice
+  - Department Manager constraint
+end note
+
+@enduml
+

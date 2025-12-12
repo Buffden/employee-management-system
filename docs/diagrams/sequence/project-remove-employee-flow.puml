@@ -1,0 +1,119 @@
+@startuml Project Remove Employee - Sequence Diagram
+' Workflow test - updated
+skinparam linetype ortho
+skinparam sequenceArrowThickness 2
+skinparam roundcorner 20
+skinparam maxmessagesize 60
+
+title Remove Employee from Project - Sequence Diagram
+
+actor "Department Manager" as User
+participant "Angular Frontend" as Frontend
+participant "Nginx Gateway" as Gateway
+participant "Project Controller" as Controller
+participant "EmployeeProject Service" as Service
+participant "EmployeeProject Repository" as EmpProjRepo
+participant "Project Repository" as ProjRepo
+database "PostgreSQL" as DB
+
+User -> Frontend: 1. Navigate to project details
+User -> Frontend: 2. Click "Remove" button next to employee
+Frontend -> User: 3. Show confirmation dialog
+
+User -> Frontend: 4. Confirm removal
+Frontend -> Gateway: 5. DELETE /api/projects/{projectId}/employees/{employeeId}\nAuthorization: Bearer {token}
+
+Gateway -> Gateway: 6. Forward to Backend
+
+participant "JwtAuthenticationFilter" as JwtFilter
+participant "SecurityService" as SecurityService
+
+Gateway -> JwtFilter: 7. Intercept request
+JwtFilter -> JwtFilter: 8. Validate JWT token
+JwtFilter -> JwtFilter: 9. Extract role and department from token
+JwtFilter -> JwtFilter: 10. Set SecurityContext
+JwtFilter -> Controller: 11. Forward request
+
+Controller -> Controller: 12. Check @PreAuthorize\n(hasRole('SYSTEM_ADMIN') or hasRole('DEPARTMENT_MANAGER'))
+
+alt Insufficient permissions
+    Controller --> Gateway: 13. HTTP 403 Forbidden
+    Gateway --> Frontend: 14. Access denied
+    Frontend --> User: 15. Show error message
+else Authorized
+    Controller -> SecurityService: 16. getCurrentUserRole()\ngetCurrentUserDepartmentId()
+    SecurityService --> Controller: 17. Role, DepartmentId
+    
+    Controller -> Service: 18. removeEmployeeFromProject(projectId, employeeId, userRole, userDepartmentId)
+    
+    Service -> ProjRepo: 19. findById(projectId)
+    ProjRepo -> DB: 20. SELECT * FROM project WHERE id = ?
+    DB --> ProjRepo: 21. Project data
+    ProjRepo --> Service: 22. Project entity
+    
+    alt Project not found
+        Service --> Controller: 23. Throw ProjectNotFoundException
+        Controller --> Gateway: 24. HTTP 404 Not Found
+        Gateway --> Frontend: 25. Error response
+        Frontend --> User: 26. Show error: "Project not found"
+    else Project found
+        alt Department Manager
+            Service -> Service: 27. Check if project.departmentId == userDepartmentId
+            
+            alt Project not in user's department
+                Service --> Controller: 28. Throw AccessDeniedException
+                Controller --> Gateway: 29. HTTP 403 Forbidden
+                Gateway --> Frontend: 30. Error response
+                Frontend --> User: 31. Show error: "You can only remove employees from projects in your department"
+            end
+        end
+        
+        Service -> EmpProjRepo: 32. findByProjectIdAndEmployeeId(projectId, employeeId)
+        EmpProjRepo -> DB: 33. SELECT * FROM employee_project\nWHERE project_id = ? AND employee_id = ?
+        DB --> EmpProjRepo: 34. Assignment data
+        EmpProjRepo --> Service: 35. EmployeeProject entity
+        
+        alt Assignment not found
+            Service --> Controller: 36. Throw EmployeeProjectNotFoundException
+            Controller --> Gateway: 37. HTTP 404 Not Found
+            Gateway --> Frontend: 38. Error response
+            Frontend --> User: 39. Show error: "Employee is not assigned to this project"
+        else Assignment found
+            Service -> EmpProjRepo: 40. delete(EmployeeProject)
+            EmpProjRepo -> DB: 41. DELETE FROM employee_project\nWHERE project_id = ? AND employee_id = ?
+            DB --> EmpProjRepo: 42. Deleted assignment
+            EmpProjRepo --> Service: 43. Success
+            
+            Service --> Controller: 44. Success response
+            Controller --> Gateway: 45. HTTP 200 OK or HTTP 204 No Content
+            Gateway --> Frontend: 46. Success response
+            Frontend -> User: 47. Display success: "Employee removed from project successfully"
+            Frontend -> Frontend: 48. Refresh project details view
+        end
+    end
+end
+
+note right of JwtFilter
+  **RBAC:**
+  - Validates JWT token
+  - Extracts role and department
+  - Sets SecurityContext
+end note
+
+note right of Controller
+  **Authorization:**
+  @PreAuthorize checks role
+  Department Managers can only
+  remove from projects in their department
+end note
+
+note right of Service
+  **Business Rules:**
+  - Assignment must exist
+  - Project must exist
+  - Department Manager constraint
+  - No cascade deletion of employee
+end note
+
+@enduml
+

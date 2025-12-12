@@ -1,0 +1,130 @@
+@startuml Employee Delete - Sequence Diagram
+' Workflow test - updated
+skinparam linetype ortho
+skinparam sequenceArrowThickness 2
+skinparam roundcorner 20
+skinparam maxmessagesize 60
+
+title Employee Delete - Sequence Diagram
+
+actor "HR Manager" as User
+participant "Angular Frontend" as Frontend
+participant "Nginx Gateway" as Gateway
+participant "Employee Controller" as Controller
+participant "Employee Service" as Service
+participant "Employee Repository" as EmpRepo
+participant "EmployeeProject Repository" as EmpProjRepo
+database "PostgreSQL" as DB
+
+User -> Frontend: 1. Navigate to employee details
+User -> Frontend: 2. Click "Delete" button
+Frontend -> User: 3. Show confirmation dialog
+
+User -> Frontend: 4. Confirm deletion
+Frontend -> Gateway: 5. DELETE /api/employees/{id}\nAuthorization: Bearer {token}
+
+Gateway -> Gateway: 6. Forward to Backend
+
+participant "JwtAuthenticationFilter" as JwtFilter
+participant "SecurityService" as SecurityService
+
+Gateway -> JwtFilter: 7. Intercept request
+JwtFilter -> JwtFilter: 8. Validate JWT token
+JwtFilter -> JwtFilter: 9. Extract role from token
+JwtFilter -> JwtFilter: 10. Set SecurityContext
+JwtFilter -> Controller: 11. Forward request
+
+Controller -> Controller: 12. Check @PreAuthorize\n(hasRole('SYSTEM_ADMIN') or hasRole('HR_MANAGER'))
+
+alt Insufficient permissions
+    Controller --> Gateway: 13. HTTP 403 Forbidden
+    Gateway --> Frontend: 14. Access denied
+    Frontend --> User: 15. Show error message
+else Authorized
+    Controller -> SecurityService: 16. getCurrentUserRole()
+    SecurityService --> Controller: 17. Role (e.g., 'HR_MANAGER')
+    
+    Controller -> Service: 18. delete(employeeId)
+    
+    Service -> EmpRepo: 19. findById(employeeId)
+    EmpRepo -> DB: 20. SELECT * FROM employee WHERE id = ?
+    DB --> EmpRepo: 21. Employee data
+    EmpRepo --> Service: 22. Employee entity
+    
+    alt Employee not found
+        Service --> Controller: 23. Throw EmployeeNotFoundException
+        Controller --> Gateway: 24. HTTP 404 Not Found
+        Gateway --> Frontend: 25. Error response
+        Frontend --> User: 26. Show error: "Employee not found"
+    else Employee found
+        Service -> EmpProjRepo: 27. findActiveAssignmentsByEmployeeId(employeeId)
+        EmpProjRepo -> DB: 28. SELECT * FROM employee_project\nWHERE employee_id = ?\nAND status = 'ACTIVE'
+        DB --> EmpProjRepo: 29. Active assignments
+        EmpProjRepo --> Service: 30. List<EmployeeProject>
+        
+        alt Employee has active assignments
+            Service --> Controller: 31. Throw BusinessException\n"Cannot delete employee with active project assignments"
+            Controller --> Gateway: 32. HTTP 400 Bad Request
+            Gateway --> Frontend: 33. Error response
+            Frontend --> User: 34. Show error: "Cannot delete employee.\nEmployee has active project assignments.\nPlease remove employee from all active projects before deletion."
+            Frontend -> Frontend: 35. Display list of active projects
+        else No active assignments
+            Service -> Service: 36. Handle manager relationships\n(employees reporting to this employee)
+            
+            alt Employee is a manager
+                Service -> EmpRepo: 37. findEmployeesByManagerId(employeeId)
+                EmpRepo -> DB: 38. SELECT * FROM employee WHERE manager_id = ?
+                DB --> EmpRepo: 39. Reporting employees
+                EmpRepo --> Service: 40. List<Employee>
+                
+                Service -> Service: 41. Set manager_id = NULL\nfor reporting employees
+                Service -> EmpRepo: 42. saveAll(reportingEmployees)
+                EmpRepo -> DB: 43. UPDATE employee SET manager_id = NULL\nWHERE manager_id = ?
+                DB --> EmpRepo: 44. Updated employees
+            end
+            
+            Service -> EmpProjRepo: 45. deleteByEmployeeId(employeeId)
+            EmpProjRepo -> DB: 46. DELETE FROM employee_project\nWHERE employee_id = ?
+            DB --> EmpProjRepo: 47. Deleted assignments
+            
+            Service -> EmpRepo: 48. delete(employeeId)
+            EmpRepo -> DB: 49. DELETE FROM employee WHERE id = ?
+            DB --> EmpRepo: 50. Deleted employee
+            EmpRepo --> Service: 51. Success
+            
+            Service --> Controller: 52. Success response
+            Controller --> Gateway: 53. HTTP 200 OK or HTTP 204 No Content
+            Gateway --> Frontend: 54. Success response
+            Frontend -> User: 55. Display success: "Employee deleted successfully"
+            Frontend -> Frontend: 56. Redirect to employee list
+        end
+    end
+end
+
+note right of JwtFilter
+  **RBAC:**
+  - Validates JWT token
+  - Extracts role (HR_MANAGER/SYSTEM_ADMIN)
+  - Sets SecurityContext
+end note
+
+note right of Controller
+  **Authorization:**
+  @PreAuthorize checks role
+  before method execution
+  Only HR_MANAGER and
+  SYSTEM_ADMIN can delete
+end note
+
+note right of Service
+  **Business Rules:**
+  - Employee cannot be deleted
+    if has active project assignments
+  - Manager relationships are updated
+    (set to NULL for reporting employees)
+  - EmployeeProject assignments
+    are cascade deleted
+end note
+
+@enduml
+
