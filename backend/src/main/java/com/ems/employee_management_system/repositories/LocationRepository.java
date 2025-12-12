@@ -21,12 +21,7 @@ public interface LocationRepository extends JpaRepository<Location, UUID> {
     @Query("SELECT COUNT(d) FROM Department d WHERE d.location.id = :locationId")
     Long countDepartmentsByLocation(@Param("locationId") UUID locationId);
 
-    @Query("""
-        SELECT l FROM Location l
-        WHERE (:role = '" + UserRole.SYSTEM_ADMIN.getValue() + "' OR :role = '" + UserRole.HR_MANAGER.getValue() + "')
-           OR (:role = '" + UserRole.DEPARTMENT_MANAGER.getValue() + "')
-           OR (:role = '" + UserRole.EMPLOYEE.getValue() + "')
-        """)
+    @Query("SELECT l FROM Location l")
     Page<Location> findAllFilteredByRole(@Param("role") String role,
                                          Pageable pageable);
 } 
