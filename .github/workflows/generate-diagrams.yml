@@ -2,7 +2,7 @@ name: Generate UML Diagrams
 
 on:
   push:
-    branches: [ main, develop ]
+    branches: [ main, develop, 'ci-cd/**' ]
     paths:
       - 'docs/diagrams/**/*.puml'
       - '.github/workflows/generate-diagrams.yml'
@@ -67,18 +67,18 @@ jobs:
             changed_puml=$(git diff --name-only ${{ github.event.before }}..${{ github.sha }} | grep -E '\.puml$' || true)
             
             if [ -n "$changed_puml" ]; then
-              echo "📝 Changed .puml files detected:"
+              echo "Changed .puml files detected:"
               echo "$changed_puml" | sed 's/^/  - /'
               # Save changed files for next step
               echo "$changed_puml" > /tmp/changed_puml.txt
               echo "generate_mode=changed" >> $GITHUB_OUTPUT
             else
-              echo "ℹ️ No .puml files changed in this push"
+              echo "No .puml files changed in this push"
               echo "generate_mode=all" >> $GITHUB_OUTPUT
             fi
           else
             # workflow_dispatch: generate all diagrams
-            echo "🔧 Manual trigger: generating all diagrams"
+            echo "Manual trigger: generating all diagrams"
             echo "generate_mode=all" >> $GITHUB_OUTPUT
           fi
           
@@ -90,11 +90,11 @@ jobs:
           
           # Determine which files to process
           if [ "${{ steps.changed-diagrams.outputs.generate_mode }}" == "changed" ]; then
-            echo "🎯 Generating only changed diagrams..."
+            echo "Generating only changed diagrams..."
             files_to_process=$(cat /tmp/changed_puml.txt)
             puml_count=$(echo "$files_to_process" | grep -c . || echo "0")
           else
-            echo "🔄 Generating all diagrams..."
+            echo "Generating all diagrams..."
             files_to_process=$(find docs/diagrams -name "*.puml" -type f)
             puml_count=$(find docs/diagrams -name "*.puml" -type f | wc -l)
           fi
@@ -119,7 +119,7 @@ jobs:
             
             # Verify file exists
             if [ ! -f "$file" ]; then
-              echo "⚠️ Warning: File not found: $file"
+              echo "Warning: File not found: $file"
               continue
             fi
             
@@ -129,12 +129,32 @@ jobs:
             output_dir="docs/diagrams/exported/$(dirname "$relative_path")"
             mkdir -p "$output_dir"
             
+            # Get expected PNG filename (based on input filename)
+            filename=$(basename "$file" .puml)
+            expected_png="$output_dir/$filename.png"
+            
             echo "Processing: $file -> $output_dir"
             if java -jar plantuml.jar -tpng "$file" -o "$(pwd)/$output_dir"; then
-              echo "✅ Generated: $file"
-              processed=$((processed + 1))
+              # PlantUML may use @startuml title for filename instead of input filename
+              # Check if PNG exists with expected name, if not, find and rename it
+              if [ ! -f "$expected_png" ]; then
+                found_png=$(find "$output_dir" -maxdepth 1 -name "*.png" -type f 2>/dev/null | head -1)
+                if [ -n "$found_png" ] && [ -f "$found_png" ]; then
+                  echo "Renaming PNG from $(basename "$found_png") to $filename.png"
+                  mv "$found_png" "$expected_png" || true
+                fi
+              fi
+              
+              if [ -f "$expected_png" ]; then
+                file_size=$(du -h "$expected_png" | cut -f1)
+                echo "Generated: $expected_png (Size: $file_size)"
+                processed=$((processed + 1))
+              else
+                echo "Generated: $file (PNG may have different name, but PlantUML reported success)"
+                processed=$((processed + 1))
+              fi
             else
-              echo "❌ Failed: $file"
+              echo "Failed: $file"
               failed=$((failed + 1))
               failed_files="$failed_files\n  - $file"
             fi
@@ -142,9 +162,9 @@ jobs:
           
           echo ""
           echo "=== Generation Summary ==="
-          echo "✅ Successfully generated: $processed diagram(s)"
+          echo "Successfully generated: $processed diagram(s)"
           if [ $failed -gt 0 ]; then
-            echo "❌ Failed: $failed diagram(s)"
+            echo "Failed: $failed diagram(s)"
             echo -e "Failed files:$failed_files"
             exit 1
           fi
@@ -168,13 +188,13 @@ jobs:
             if [ -n "$changed_files" ]; then
               echo "skip_validation=false" >> $GITHUB_OUTPUT
               echo "validate_mode=changed" >> $GITHUB_OUTPUT
-              echo "✅ Validation needed: .puml files changed in this PR"
+              echo "Validation needed: .puml files changed in this PR"
               echo "Changed files:"
               echo "$changed_files" | sed 's/^/  - /'
               echo "$changed_files" > /tmp/changed_puml_validation.txt
             else
               echo "skip_validation=true" >> $GITHUB_OUTPUT
-              echo "⏭️ Skipping validation: No .puml files changed in this PR"
+              echo "Skipping validation: No .puml files changed in this PR"
             fi
           elif [ "${{ github.event_name }}" == "push" ]; then
             # Push: Check what .puml files changed in this push
@@ -183,19 +203,19 @@ jobs:
             if [ -n "$changed_files" ]; then
               echo "skip_validation=false" >> $GITHUB_OUTPUT
               echo "validate_mode=changed" >> $GITHUB_OUTPUT
-              echo "✅ Validation needed: .puml files changed in this push"
+              echo "Validation needed: .puml files changed in this push"
               echo "Changed files:"
               echo "$changed_files" | sed 's/^/  - /'
               echo "$changed_files" > /tmp/changed_puml_validation.txt
             else
               echo "skip_validation=true" >> $GITHUB_OUTPUT
-              echo "⏭️ Skipping validation: No .puml files changed in this push"
+              echo "Skipping validation: No .puml files changed in this push"
             fi
           else
             # workflow_dispatch: Validate all files (manual trigger)
             echo "skip_validation=false" >> $GITHUB_OUTPUT
             echo "validate_mode=all" >> $GITHUB_OUTPUT
-            echo "✅ Validation needed: Manual trigger - validating all files"
+            echo "Validation needed: Manual trigger - validating all files"
           fi
           
       - name: Validate diagrams
@@ -208,11 +228,11 @@ jobs:
           
           # Determine which files to validate
           if [ "${{ steps.check-validation.outputs.validate_mode }}" == "changed" ]; then
-            echo "🎯 Validating only changed files..."
+            echo "Validating only changed files..."
             files_to_validate=$(cat /tmp/changed_puml_validation.txt)
             puml_count=$(echo "$files_to_validate" | grep -c . || echo "0")
           else
-            echo "🔄 Validating all files (manual trigger)..."
+            echo "Validating all files (manual trigger)..."
             files_to_validate=$(find docs/diagrams -name "*.puml" -type f)
             puml_count=$(find docs/diagrams -name "*.puml" -type f | wc -l)
           fi
@@ -233,17 +253,17 @@ jobs:
             
             # Verify file exists
             if [ ! -f "$file" ]; then
-              echo "⚠️ Warning: File not found: $file"
+              echo "Warning: File not found: $file"
               continue
             fi
             
             echo "Validating: $file"
             if ! java -jar plantuml.jar -checkmetadata "$file" >/dev/null 2>&1; then
-              echo "❌ Error: Validation failed for $file"
+              echo "Error: Validation failed for $file"
               errors=$((errors + 1))
               failed_files="$failed_files\n  - $file"
             else
-              echo "✅ Valid: $file"
+              echo "Valid: $file"
             fi
           done <<< "$files_to_validate"
           
@@ -253,13 +273,13 @@ jobs:
             echo "=== Validation Errors Summary ==="
             echo -e "Failed files:$failed_files"
             echo ""
-            echo "❌ Error: $errors diagram(s) have validation errors"
+            echo "Error: $errors diagram(s) have validation errors"
             echo "Please fix the syntax errors in the PlantUML files above."
             rm -f /tmp/changed_puml_validation.txt
             exit 1
           fi
           
-          echo "✅ All $puml_count diagram(s) validated successfully"
+          echo "All $puml_count diagram(s) validated successfully"
           rm -f /tmp/changed_puml_validation.txt
           
       - name: Skip validation notice
@@ -267,9 +287,9 @@ jobs:
         if: steps.check-validation.outputs.skip_validation == 'true'
         run: |
           if [ "${{ github.event_name }}" == "pull_request" ]; then
-            echo "⏭️ Validation skipped: No .puml files changed in this PR"
+            echo "Validation skipped: No .puml files changed in this PR"
           else
-            echo "⏭️ Validation skipped: No .puml files changed in this push"
+            echo "Validation skipped: No .puml files changed in this push"
           fi
           
       - name: Check for changes
@@ -277,10 +297,10 @@ jobs:
         if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
         id: verify-changed-files
         run: |
-          if [ -n "$(git status --porcelain docs/03-DIAGRAMS/exported)" ]; then
+          if [ -n "$(git status --porcelain docs/diagrams/exported)" ]; then
             echo "changed=true" >> $GITHUB_OUTPUT
             echo "Diagrams were generated or updated"
-            git status docs/03-DIAGRAMS/exported
+            git status docs/diagrams/exported
           else
             echo "changed=false" >> $GITHUB_OUTPUT
             echo "No diagram changes detected"
@@ -311,18 +331,18 @@ jobs:
       - name: Create summary
         if: always()
         run: |
-          echo "## 📊 UML Diagrams Workflow Summary" >> $GITHUB_STEP_SUMMARY
+          echo "## UML Diagrams Workflow Summary" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           
           # Show event type
           if [ "${{ github.event_name }}" == "pull_request" ]; then
-            echo "**Event Type:** 🔍 Pull Request Validation" >> $GITHUB_STEP_SUMMARY
+            echo "**Event Type:** Pull Request Validation" >> $GITHUB_STEP_SUMMARY
             echo "**Purpose:** Validate PlantUML syntax before merge" >> $GITHUB_STEP_SUMMARY
           elif [ "${{ github.event_name }}" == "push" ]; then
-            echo "**Event Type:** 🚀 Push/Merge (Generate & Commit)" >> $GITHUB_STEP_SUMMARY
+            echo "**Event Type:** Push/Merge (Generate & Commit)" >> $GITHUB_STEP_SUMMARY
             echo "**Purpose:** Generate diagrams and commit to branch" >> $GITHUB_STEP_SUMMARY
           else
-            echo "**Event Type:** 🔧 Manual Trigger" >> $GITHUB_STEP_SUMMARY
+            echo "**Event Type:** Manual Trigger" >> $GITHUB_STEP_SUMMARY
           fi
           echo "" >> $GITHUB_STEP_SUMMARY
 
@@ -333,7 +353,7 @@ jobs:
             echo "### Generated Diagrams" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
             if [ $png_count -gt 0 ]; then
-                echo "✅ **$png_count diagram(s) generated successfully**" >> $GITHUB_STEP_SUMMARY
+                echo "**$png_count diagram(s) generated successfully**" >> $GITHUB_STEP_SUMMARY
                 echo "" >> $GITHUB_STEP_SUMMARY
                 find docs/diagrams/exported -name "*.png" -type f | head -10 | while read file; do
                 echo "- \`$file\`" >> $GITHUB_STEP_SUMMARY
@@ -342,12 +362,12 @@ jobs:
                   echo "- ... and $((png_count - 10)) more" >> $GITHUB_STEP_SUMMARY
                 fi
             else
-                echo "⚠️ No diagrams were generated." >> $GITHUB_STEP_SUMMARY
+                echo "No diagrams were generated." >> $GITHUB_STEP_SUMMARY
               fi
             else
               echo "### Generated Diagrams" >> $GITHUB_STEP_SUMMARY
               echo "" >> $GITHUB_STEP_SUMMARY
-              echo "⚠️ Export directory does not exist." >> $GITHUB_STEP_SUMMARY
+              echo "Export directory does not exist." >> $GITHUB_STEP_SUMMARY
               png_count=0
             fi
           else
@@ -368,6 +388,6 @@ jobs:
           
           if [ $puml_count -eq 0 ]; then
             echo "" >> $GITHUB_STEP_SUMMARY
-            echo "⚠️ **Warning:** No PlantUML source files found in \`docs/diagrams/\`" >> $GITHUB_STEP_SUMMARY
+            echo "**Warning:** No PlantUML source files found in \`docs/diagrams/\`" >> $GITHUB_STEP_SUMMARY
           fi
 
