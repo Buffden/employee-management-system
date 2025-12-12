@@ -1,0 +1,274 @@
+name: PlantUML Diagrams
+
+on:
+  pull_request:
+    branches:
+      - main
+      - develop
+    paths:
+      - 'docs/**/*.puml'
+      - '.github/workflows/generate-diagrams.yml'
+  push:
+    branches:
+      - main
+      - develop
+    paths:
+      - 'docs/**/*.puml'
+      - '.github/workflows/generate-diagrams.yml'
+  workflow_dispatch: # Allow manual triggering
+
+jobs:
+  validate-puml:
+    name: Validate PlantUML Files
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Install Graphviz (required for some PlantUML diagrams)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y graphviz
+
+      - name: Download PlantUML JAR
+        run: |
+          mkdir -p ~/plantuml
+          wget -O ~/plantuml/plantuml.jar https://github.com/plantuml/plantuml/releases/download/v1.2024.3/plantuml-1.2024.3.jar
+
+      - name: Find changed PlantUML files
+        id: find-puml
+        run: |
+          if [ "${{ github.event.pull_request.base.sha }}" != "" ]; then
+            # Get changed .puml files in the PR
+            git diff --name-only --diff-filter=ACMR "${{ github.event.pull_request.base.sha }}" HEAD | grep '\.puml$' > changed_puml_files.txt || true
+          else
+            # Fallback: find all .puml files
+            find docs -name "*.puml" -type f > changed_puml_files.txt
+          fi
+          
+          if [ ! -s changed_puml_files.txt ]; then
+            echo "No PlantUML files changed in this PR"
+            echo "changed_files=0" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+          
+          echo "Changed PlantUML files:"
+          cat changed_puml_files.txt
+          echo "changed_files=$(wc -l < changed_puml_files.txt)" >> $GITHUB_OUTPUT
+
+      - name: Validate PlantUML syntax
+        if: steps.find-puml.outputs.changed_files != '0'
+        run: |
+          validation_failed=0
+          mkdir -p /tmp/plantuml_validation
+          
+          while IFS= read -r puml_file; do
+            if [ -f "$puml_file" ]; then
+              echo "Validating: $puml_file"
+              # Try to generate PNG to /dev/null to validate syntax
+              # If it succeeds, the file is valid
+              if java -jar ~/plantuml/plantuml.jar \
+                -tpng \
+                -o /tmp/plantuml_validation \
+                -charset UTF-8 \
+                -quiet \
+                "$puml_file" 2>&1 | grep -i "error\|exception\|failed" > /dev/null; then
+                echo "✗ Invalid: $puml_file"
+                validation_failed=1
+              else
+                echo "✓ Valid: $puml_file"
+              fi
+            fi
+          done < changed_puml_files.txt
+          
+          if [ $validation_failed -eq 1 ]; then
+            echo "::error::Some PlantUML files have syntax errors. Please fix them before merging."
+            exit 1
+          fi
+          
+          echo "::notice::All PlantUML files are valid!"
+
+  generate-diagrams:
+    name: Generate PNG Diagrams from PlantUML
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Install Graphviz (required for some PlantUML diagrams)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y graphviz
+
+      - name: Download PlantUML JAR
+        run: |
+          mkdir -p ~/plantuml
+          wget -O ~/plantuml/plantuml.jar https://github.com/plantuml/plantuml/releases/download/v1.2024.3/plantuml-1.2024.3.jar
+
+      - name: Find all PlantUML files
+        id: find-puml
+        run: |
+          find docs -name "*.puml" -type f > puml_files.txt
+          echo "Found $(wc -l < puml_files.txt) PlantUML files"
+          cat puml_files.txt
+
+      - name: Create PNG output directory
+        run: |
+          mkdir -p docs/diagrams/generated
+          echo "Created output directory: docs/diagrams/generated"
+
+      - name: Generate PNG diagrams
+        run: |
+          output_base="docs/diagrams/generated"
+          while IFS= read -r puml_file; do
+            echo "Processing: $puml_file"
+            
+            # Extract path relative to docs/diagrams/
+            # e.g., docs/diagrams/architecture/system-overview.puml -> architecture/system-overview
+            rel_path=$(echo "$puml_file" | sed 's|^docs/diagrams/||' | sed 's|\.puml$||')
+            filename=$(basename "$puml_file" .puml)
+            subdir=$(dirname "$rel_path")
+            
+            # Create subdirectory structure in output folder
+            if [ "$subdir" != "." ]; then
+              png_output_dir="$output_base/$subdir"
+              mkdir -p "$png_output_dir"
+            else
+              png_output_dir="$output_base"
+            fi
+            
+            # Generate high-quality PNG with 300 DPI for better quality
+            # -tpng: PNG format
+            # -o: output directory (organized by subdirectory)
+            # -SDPI=300: High resolution (300 DPI)
+            # -charset UTF-8: Support UTF-8 characters
+            java -jar ~/plantuml/plantuml.jar \
+              -tpng \
+              -o "$png_output_dir" \
+              -SDPI=300 \
+              -charset UTF-8 \
+              -quiet \
+              "$puml_file"
+            
+            # Verify PNG was created
+            png_file="$png_output_dir/$filename.png"
+            if [ -f "$png_file" ]; then
+              file_size=$(du -h "$png_file" | cut -f1)
+              echo "✓ Generated: $png_file (Size: $file_size)"
+            else
+              echo "✗ Failed to generate PNG for: $puml_file"
+              exit 1
+            fi
+          done < puml_files.txt
+
+      - name: List generated PNG files
+        run: |
+          echo "Generated PNG files:"
+          find docs/diagrams/generated -name "*.png" -type f | sort
+
+      - name: Commit generated PNG files
+        if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop')
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          
+          # Check if there are any changes
+          if [ -n "$(git status --porcelain)" ]; then
+            git add docs/diagrams/generated/**/*.png
+            git commit -m "chore: auto-generate PNG diagrams from PlantUML files [skip ci]" || exit 0
+            git push
+          else
+            echo "No changes to commit"
+          fi
+
+      - name: Create artifacts summary
+        run: |
+          echo "# Generated PlantUML Diagrams" >> artifacts_summary.md
+          echo "" >> artifacts_summary.md
+          echo "## Summary" >> artifacts_summary.md
+          echo "" >> artifacts_summary.md
+          echo "Generated on: $(date -u +"%Y-%m-%d %H:%M:%S UTC")" >> artifacts_summary.md
+          echo "Workflow Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" >> artifacts_summary.md
+          echo "" >> artifacts_summary.md
+          echo "## Generated PNG Files" >> artifacts_summary.md
+          echo "" >> artifacts_summary.md
+          find docs/diagrams/generated -name "*.png" -type f | sort | while read png_file; do
+            file_size=$(du -h "$png_file" | cut -f1)
+            rel_path=$(echo "$png_file" | sed 's|^docs/diagrams/generated/||')
+            echo "- \`$rel_path\` ($file_size)" >> artifacts_summary.md
+          done
+          echo "" >> artifacts_summary.md
+          echo "## Directory Structure" >> artifacts_summary.md
+          echo "\`\`\`" >> artifacts_summary.md
+          tree -L 3 docs/diagrams/generated || find docs/diagrams/generated -type d | sort | sed 's|[^/]*/| |g' >> artifacts_summary.md
+          echo "\`\`\`" >> artifacts_summary.md
+          cat artifacts_summary.md
+
+      - name: Upload PNG diagrams as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: plantuml-diagrams-png
+          path: docs/diagrams/generated/**/*.png
+          retention-days: 90
+          compression-level: 6
+
+      - name: Upload artifacts summary
+        uses: actions/upload-artifact@v4
+        with:
+          name: diagrams-summary
+          path: artifacts_summary.md
+          retention-days: 90
+
+      - name: Create downloadable ZIP archive
+        run: |
+          cd docs/diagrams/generated
+          zip -r ../../../plantuml-diagrams.zip . -q
+          cd ../../..
+          echo "Created plantuml-diagrams.zip ($(du -h plantuml-diagrams.zip | cut -f1))"
+
+      - name: Upload ZIP archive as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: plantuml-diagrams-zip
+          path: plantuml-diagrams.zip
+          retention-days: 90
+
+      - name: Workflow summary
+        if: success()
+        run: |
+          echo "## ✅ PlantUML Diagrams Generated Successfully" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 📊 Statistics" >> $GITHUB_STEP_SUMMARY
+          png_count=$(find docs/diagrams/generated -name "*.png" -type f | wc -l)
+          total_size=$(du -sh docs/diagrams/generated | cut -f1)
+          echo "- **Total PNG files**: $png_count" >> $GITHUB_STEP_SUMMARY
+          echo "- **Total size**: $total_size" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 📦 Artifacts Available" >> $GITHUB_STEP_SUMMARY
+          echo "- **PNG Diagrams**: Individual PNG files (300 DPI)" >> $GITHUB_STEP_SUMMARY
+          echo "- **ZIP Archive**: Complete download package" >> $GITHUB_STEP_SUMMARY
+          echo "- **Summary**: Generation report" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 📥 Download" >> $GITHUB_STEP_SUMMARY
+          echo "Check the 'Artifacts' section below to download the generated diagrams." >> $GITHUB_STEP_SUMMARY
+
