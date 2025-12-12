@@ -1,0 +1,105 @@
+@startuml Department Search - Sequence Diagram
+' Workflow test - updated
+skinparam linetype ortho
+skinparam sequenceArrowThickness 2
+skinparam roundcorner 20
+skinparam maxmessagesize 60
+
+title Search Departments - Sequence Diagram
+
+actor "HR Manager" as User
+participant "Angular Frontend" as Frontend
+participant "Nginx Gateway" as Gateway
+participant "Department Controller" as Controller
+participant "Department Service" as Service
+participant "Department Repository" as DeptRepo
+database "PostgreSQL" as DB
+
+User -> Frontend: 1. Enter search query in search bar\n(department name or description)
+User -> Frontend: 2. Click search button or press Enter
+Frontend -> Gateway: 3. GET /api/departments/search?q={query}\nAuthorization: Bearer {token}
+
+Gateway -> Gateway: 4. Forward to Backend
+
+participant "JwtAuthenticationFilter" as JwtFilter
+participant "SecurityService" as SecurityService
+
+Gateway -> JwtFilter: 5. Intercept request
+JwtFilter -> JwtFilter: 6. Validate JWT token
+JwtFilter -> JwtFilter: 7. Extract role from token
+JwtFilter -> JwtFilter: 8. Set SecurityContext
+JwtFilter -> Controller: 9. Forward request
+
+Controller -> Controller: 10. Check @PreAuthorize\n(hasRole('SYSTEM_ADMIN') or hasRole('HR_MANAGER'))
+
+alt Insufficient permissions
+    Controller --> Gateway: 11. HTTP 403 Forbidden
+    Gateway --> Frontend: 12. Access denied
+    Frontend --> User: 13. Show error: "Only HR Managers and System Administrators can search departments"
+else Authorized
+    Controller -> SecurityService: 14. getCurrentUserRole()
+    SecurityService --> Controller: 15. Role (e.g., 'HR_MANAGER')
+    
+    Controller -> Service: 16. searchDepartments(query)
+    
+    alt Empty search query
+        Service -> Service: 17. Return empty list
+    else Valid search query
+        Service -> DeptRepo: 18. searchByNameOrDescription(query)
+        DeptRepo -> DB: 19. SELECT * FROM department\nWHERE LOWER(name) LIKE LOWER(?)\n   OR LOWER(description) LIKE LOWER(?)
+        DB --> DeptRepo: 20. Matching departments
+        DeptRepo --> Service: 21. List<Department>
+        
+        Service -> Service: 22. Load related entities\n(location, department head)
+        Service -> DeptRepo: 23. Load relations for each department
+        DeptRepo -> DB: 24. JOIN queries for related data
+        DB --> DeptRepo: 25. Departments with relations
+        DeptRepo --> Service: 26. List<Department> with relations
+        
+        Service -> Service: 27. Calculate employee counts for each department
+        Service -> DeptRepo: 28. Count employees per department
+        DeptRepo -> DB: 29. SELECT department_id, COUNT(*) FROM employee\nGROUP BY department_id
+        DB --> DeptRepo: 30. Employee counts
+        DeptRepo --> Service: 31. Map<UUID, Integer> (departmentId -> count)
+        
+        Service -> Service: 32. Convert to DepartmentResponseDTO list\nwith employee counts
+        Service --> Controller: 33. List<DepartmentResponseDTO>
+        
+        alt No results found
+            Controller --> Gateway: 34. HTTP 200 OK (empty list)
+            Gateway --> Frontend: 35. Empty list response
+            Frontend -> User: 36. Display "No departments found"
+        else Results found
+            Controller --> Gateway: 37. HTTP 200 OK
+            Gateway --> Frontend: 38. Response with search results
+            Frontend -> Frontend: 39. Display search results list
+            Frontend -> User: 40. Show matching departments:\n- Name, Description\n- Location\n- Employee Count
+        end
+    end
+end
+
+note right of JwtFilter
+  **RBAC:**
+  - Validates JWT token
+  - Extracts role (HR_MANAGER/SYSTEM_ADMIN)
+  - Sets SecurityContext
+end note
+
+note right of Controller
+  **Authorization:**
+  @PreAuthorize checks role
+  Only HR_MANAGER and
+  SYSTEM_ADMIN can search departments
+end note
+
+note right of Service
+  **Search Logic:**
+  - Case-insensitive partial matching
+  - Searches: name, description
+  - Includes employee counts
+  - No role-based filtering
+    (all authorized users see all departments)
+end note
+
+@enduml
+

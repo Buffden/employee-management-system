@@ -1,0 +1,112 @@
+@startuml Task Delete - Sequence Diagram
+' Workflow test - updated
+skinparam linetype ortho
+skinparam sequenceArrowThickness 2
+skinparam roundcorner 20
+skinparam maxmessagesize 60
+
+title Task Delete - Sequence Diagram
+
+actor "Department Manager" as User
+participant "Angular Frontend" as Frontend
+participant "Nginx Gateway" as Gateway
+participant "Task Controller" as Controller
+participant "Task Service" as Service
+participant "Task Repository" as TaskRepo
+participant "Project Repository" as ProjRepo
+database "PostgreSQL" as DB
+
+User -> Frontend: 1. Navigate to task details
+User -> Frontend: 2. Click "Delete" button
+Frontend -> User: 3. Show confirmation dialog
+
+User -> Frontend: 4. Confirm deletion
+Frontend -> Gateway: 5. DELETE /api/tasks/{id}\nAuthorization: Bearer {token}
+
+Gateway -> Gateway: 6. Forward to Backend
+
+participant "JwtAuthenticationFilter" as JwtFilter
+participant "SecurityService" as SecurityService
+
+Gateway -> JwtFilter: 7. Intercept request
+JwtFilter -> JwtFilter: 8. Validate JWT token
+JwtFilter -> JwtFilter: 9. Extract role and department from token
+JwtFilter -> JwtFilter: 10. Set SecurityContext
+JwtFilter -> Controller: 11. Forward request
+
+Controller -> Controller: 12. Check @PreAuthorize\n(hasRole('SYSTEM_ADMIN') or hasRole('DEPARTMENT_MANAGER'))
+
+alt Insufficient permissions
+    Controller --> Gateway: 13. HTTP 403 Forbidden
+    Gateway --> Frontend: 14. Access denied
+    Frontend --> User: 15. Show error message
+else Authorized
+    Controller -> SecurityService: 16. getCurrentUserRole()\ngetCurrentUserDepartmentId()
+    SecurityService --> Controller: 17. Role, DepartmentId
+    
+    Controller -> Service: 18. delete(taskId, userRole, userDepartmentId)
+    
+    Service -> TaskRepo: 19. findById(taskId)
+    TaskRepo -> DB: 20. SELECT * FROM task WHERE id = ?
+    DB --> TaskRepo: 21. Task data
+    TaskRepo --> Service: 22. Task entity
+    
+    alt Task not found
+        Service --> Controller: 23. Throw TaskNotFoundException
+        Controller --> Gateway: 24. HTTP 404 Not Found
+        Gateway --> Frontend: 25. Error response
+        Frontend --> User: 26. Show error: "Task not found"
+    else Task found
+        Service -> ProjRepo: 27. findById(task.projectId)
+        ProjRepo -> DB: 28. SELECT * FROM project WHERE id = ?
+        DB --> ProjRepo: 29. Project data
+        ProjRepo --> Service: 30. Project entity
+        
+        alt Department Manager
+            Service -> Service: 31. Check if project.departmentId == userDepartmentId
+            
+            alt Project not in user's department
+                Service --> Controller: 32. Throw AccessDeniedException
+                Controller --> Gateway: 33. HTTP 403 Forbidden
+                Gateway --> Frontend: 34. Error response
+                Frontend --> User: 35. Show error: "You can only delete tasks in your department's projects"
+            end
+        end
+        
+        Service -> TaskRepo: 36. delete(taskId)
+        TaskRepo -> DB: 37. DELETE FROM task WHERE id = ?
+        DB --> TaskRepo: 38. Deleted task
+        TaskRepo --> Service: 39. Success
+        
+        Service --> Controller: 40. Success response
+        Controller --> Gateway: 41. HTTP 200 OK or HTTP 204 No Content
+        Gateway --> Frontend: 42. Success response
+        Frontend -> User: 43. Display success: "Task deleted successfully"
+        Frontend -> Frontend: 44. Redirect to project details or task list
+    end
+end
+
+note right of JwtFilter
+  **RBAC:**
+  - Validates JWT token
+  - Extracts role and department
+  - Sets SecurityContext
+end note
+
+note right of Controller
+  **Authorization:**
+  @PreAuthorize checks role
+  Department Managers can only
+  delete tasks in their department's projects
+end note
+
+note right of Service
+  **Business Rules:**
+  - Department Manager constraint
+  - No cascade constraints
+  - Task deletion is straightforward
+    (no dependencies to check)
+end note
+
+@enduml
+

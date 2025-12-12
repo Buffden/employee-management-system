@@ -1,0 +1,126 @@
+@startuml Location Update - Sequence Diagram
+' Workflow test - updated
+skinparam linetype ortho
+skinparam sequenceArrowThickness 2
+skinparam roundcorner 20
+skinparam maxmessagesize 60
+
+title Location Update - Sequence Diagram
+
+actor "HR Manager" as User
+participant "Angular Frontend" as Frontend
+participant "Nginx Gateway" as Gateway
+participant "Location Controller" as Controller
+participant "Location Service" as Service
+participant "Location Mapper" as Mapper
+participant "Location Repository" as LocRepo
+database "PostgreSQL" as DB
+
+User -> Frontend: 1. Navigate to location details
+User -> Frontend: 2. Click "Edit" button
+Frontend -> Frontend: 3. Load location data and display edit form
+User -> Frontend: 4. Modify location information\n(name, address, city, state, country, postal code)
+User -> Frontend: 5. Click "Save Changes"
+
+Frontend -> Gateway: 6. PUT /api/locations/{id}\n(LocationRequestDTO)\nAuthorization: Bearer {token}
+
+Gateway -> Gateway: 7. Forward to Backend
+
+participant "JwtAuthenticationFilter" as JwtFilter
+participant "SecurityService" as SecurityService
+
+Gateway -> JwtFilter: 8. Intercept request
+JwtFilter -> JwtFilter: 9. Validate JWT token
+JwtFilter -> JwtFilter: 10. Extract role from token
+JwtFilter -> JwtFilter: 11. Set SecurityContext
+JwtFilter -> Controller: 12. Forward request
+
+Controller -> Controller: 13. Check @PreAuthorize\n(hasRole('SYSTEM_ADMIN') or hasRole('HR_MANAGER'))
+
+alt Insufficient permissions
+    Controller --> Gateway: 14. HTTP 403 Forbidden
+    Gateway --> Frontend: 15. Access denied
+    Frontend --> User: 16. Show error message
+else Authorized
+    Controller -> SecurityService: 17. getCurrentUserRole()
+    SecurityService --> Controller: 18. Role (e.g., 'HR_MANAGER')
+    
+    Controller -> Service: 19. update(locationId, LocationRequestDTO)
+    
+    Service -> LocRepo: 20. findById(locationId)
+    LocRepo -> DB: 21. SELECT * FROM location WHERE id = ?
+    DB --> LocRepo: 22. Location data
+    LocRepo --> Service: 23. Existing Location entity
+    
+    alt Location not found
+        Service --> Controller: 24. Throw LocationNotFoundException
+        Controller --> Gateway: 25. HTTP 404 Not Found
+        Gateway --> Frontend: 26. Error response
+        Frontend --> User: 27. Show error: "Location not found"
+    else Location found
+        alt Name changed
+            Service -> LocRepo: 28. existsByNameAndIdNot(name, locationId)
+            LocRepo -> DB: 29. SELECT COUNT(*) FROM location\nWHERE name = ? AND id != ?
+            DB --> LocRepo: 30. Count result
+            LocRepo --> Service: 31. Name exists? (boolean)
+            
+            alt Name already exists
+                Service --> Controller: 32. Throw DuplicateNameException
+                Controller --> Gateway: 33. HTTP 400 Bad Request
+                Gateway --> Frontend: 34. Error response
+                Frontend --> User: 35. Show error: "Location name already exists"
+            end
+        end
+        
+        Service -> Service: 36. Validate required fields\n(city, state, country)
+        
+        alt Validation fails
+            Service --> Controller: 37. Throw ValidationException
+            Controller --> Gateway: 38. HTTP 400 Bad Request
+            Gateway --> Frontend: 39. Error response
+            Frontend --> User: 40. Show validation errors
+        else Validation passes
+            Service -> Mapper: 41. updateEntity(existingLocation, DTO)
+            Mapper --> Service: 42. Updated Location entity
+            
+            Service -> LocRepo: 43. save(Location)
+            LocRepo -> DB: 44. UPDATE location SET ... WHERE id = ?
+            DB --> LocRepo: 45. Updated location
+            LocRepo --> Service: 46. Location entity
+            
+            Service -> Mapper: 47. toResponseDTO(Location)
+            Mapper --> Service: 48. LocationResponseDTO
+            
+            Service --> Controller: 49. LocationResponseDTO
+            Controller --> Gateway: 50. HTTP 200 OK
+            Gateway --> Frontend: 51. Response with updated location
+            Frontend -> User: 52. Display success: "Location updated successfully"
+            Frontend -> Frontend: 53. Refresh location details view
+        end
+    end
+end
+
+note right of JwtFilter
+  **RBAC:**
+  - Validates JWT token
+  - Extracts role (HR_MANAGER/SYSTEM_ADMIN)
+  - Sets SecurityContext
+end note
+
+note right of Controller
+  **Authorization:**
+  @PreAuthorize checks role
+  Only HR_MANAGER and
+  SYSTEM_ADMIN can update locations
+end note
+
+note right of Service
+  **Business Rules:**
+  - Name must remain unique (if changed)
+  - Required fields: name, city, state, country
+  - Changes affect all departments
+    and employees using this location
+end note
+
+@enduml
+

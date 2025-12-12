@@ -1,0 +1,106 @@
+@startuml Employee Profile View - Sequence Diagram
+' Workflow test - updated
+skinparam linetype ortho
+skinparam sequenceArrowThickness 2
+skinparam roundcorner 20
+skinparam maxmessagesize 60
+
+title View My Profile - Sequence Diagram
+
+actor "Employee" as User
+participant "Angular Frontend" as Frontend
+participant "Nginx Gateway" as Gateway
+participant "Employee Controller" as Controller
+participant "Employee Service" as Service
+participant "Employee Repository" as EmpRepo
+participant "EmployeeProject Repository" as EmpProjRepo
+participant "Task Repository" as TaskRepo
+database "PostgreSQL" as DB
+
+User -> Frontend: 1. Click "My Profile" in user dropdown
+Frontend -> Gateway: 2. GET /api/employees/me\nAuthorization: Bearer {token}
+
+Gateway -> Gateway: 3. Forward to Backend
+
+participant "JwtAuthenticationFilter" as JwtFilter
+participant "SecurityService" as SecurityService
+
+Gateway -> JwtFilter: 4. Intercept request
+JwtFilter -> JwtFilter: 5. Validate JWT token
+JwtFilter -> JwtFilter: 6. Extract claims (username, role, userId, employeeId)
+JwtFilter -> JwtFilter: 7. Set SecurityContext
+JwtFilter -> Controller: 8. Forward request
+
+Controller -> Controller: 9. Check authentication\n(User must be logged in)
+
+Controller -> SecurityService: 10. getCurrentUserId()\ngetCurrentEmployeeId()
+SecurityService --> Controller: 11. UserId, EmployeeId
+
+alt Employee ID not found
+    Controller --> Gateway: 12. HTTP 404 Not Found
+    Gateway --> Frontend: 13. Error response
+    Frontend --> User: 14. Show error: "Employee profile not found"
+else Employee ID found
+    Controller -> Service: 15. getMyProfile(employeeId)
+    
+    Service -> EmpRepo: 16. findById(employeeId)
+    EmpRepo -> DB: 17. SELECT * FROM employee WHERE id = ?
+    DB --> EmpRepo: 18. Employee data
+    EmpRepo --> Service: 19. Employee entity
+    
+    alt Employee not found
+        Service --> Controller: 20. Throw EmployeeNotFoundException
+        Controller --> Gateway: 21. HTTP 404 Not Found
+        Gateway --> Frontend: 22. Error response
+        Frontend --> User: 23. Show error: "Employee profile not found"
+    else Employee found
+        Service -> EmpRepo: 24. Load related entities\n(department, location, manager)
+        EmpRepo -> DB: 25. JOIN queries for related data
+        DB --> EmpRepo: 26. Related entities
+        EmpRepo --> Service: 27. Employee with relations
+        
+        Service -> EmpProjRepo: 28. findByEmployeeId(employeeId)
+        EmpProjRepo -> DB: 29. SELECT * FROM employee_project\nWHERE employee_id = ?
+        DB --> EmpProjRepo: 30. Project assignments
+        EmpProjRepo --> Service: 31. List<EmployeeProject>
+        
+        Service -> TaskRepo: 32. findByAssignedEmployeeId(employeeId)
+        TaskRepo -> DB: 33. SELECT * FROM task\nWHERE assigned_employee_id = ?
+        DB --> TaskRepo: 34. Assigned tasks
+        TaskRepo --> Service: 35. List<Task>
+        
+        Service -> Service: 36. Construct EmployeeResponseDTO\nwith all profile details
+        
+        Service --> Controller: 37. EmployeeResponseDTO
+        Controller --> Gateway: 38. HTTP 200 OK
+        Gateway --> Frontend: 39. Response with employee profile
+        Frontend -> Frontend: 40. Display profile page
+        Frontend -> User: 41. Show profile information:\n- Personal Information\n- Employment Information\n- Department & Location\n- Manager\n- Assigned Projects\n- Assigned Tasks
+    end
+end
+
+note right of JwtFilter
+  **RBAC:**
+  - Validates JWT token
+  - Extracts userId and employeeId
+  - Sets SecurityContext
+end note
+
+note right of Controller
+  **Authorization:**
+  User can only view
+  their own profile
+  (validated via employeeId from token)
+end note
+
+note right of Service
+  **Profile Data:**
+  - All profile fields visible
+  - Assigned projects list
+  - Assigned tasks list
+  - No role-based filtering
+    (own data only)
+end note
+
+@enduml
+

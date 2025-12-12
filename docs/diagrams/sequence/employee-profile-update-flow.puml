@@ -1,0 +1,123 @@
+@startuml Employee Profile Update - Sequence Diagram
+' Workflow test - updated
+skinparam linetype ortho
+skinparam sequenceArrowThickness 2
+skinparam roundcorner 20
+skinparam maxmessagesize 60
+
+title Update My Profile - Sequence Diagram
+
+actor "Employee" as User
+participant "Angular Frontend" as Frontend
+participant "Nginx Gateway" as Gateway
+participant "Employee Controller" as Controller
+participant "Employee Service" as Service
+participant "Employee Repository" as Repository
+database "PostgreSQL" as DB
+
+User -> Frontend: 1. Navigate to "My Profile"
+User -> Frontend: 2. Click "Edit" button
+Frontend -> Frontend: 3. Load profile data and display edit form\n(only editable fields shown)
+User -> Frontend: 4. Modify editable fields\n(phone, address - limited fields)
+User -> Frontend: 5. Click "Save Changes"
+
+Frontend -> Gateway: 6. PUT /api/employees/me\n(EmployeeRequestDTO with limited fields)\nAuthorization: Bearer {token}
+
+Gateway -> Gateway: 7. Forward to Backend
+
+participant "JwtAuthenticationFilter" as JwtFilter
+participant "SecurityService" as SecurityService
+
+Gateway -> JwtFilter: 8. Intercept request
+JwtFilter -> JwtFilter: 9. Validate JWT token
+JwtFilter -> JwtFilter: 10. Extract userId and employeeId from token
+JwtFilter -> JwtFilter: 11. Set SecurityContext
+JwtFilter -> Controller: 12. Forward request
+
+Controller -> Controller: 13. Check authentication\n(User must be logged in)
+
+Controller -> SecurityService: 14. getCurrentUserId()\ngetCurrentEmployeeId()
+SecurityService --> Controller: 15. UserId, EmployeeId
+
+Controller -> Service: 16. updateMyProfile(employeeId, EmployeeRequestDTO)
+    
+Service -> Repository: 17. findById(employeeId)
+Repository -> DB: 18. SELECT * FROM employee WHERE id = ?
+DB --> Repository: 19. Employee data
+Repository --> Service: 20. Existing Employee entity
+
+alt Employee not found
+    Service --> Controller: 21. Throw EmployeeNotFoundException
+    Controller --> Gateway: 22. HTTP 404 Not Found
+    Gateway --> Frontend: 23. Error response
+    Frontend --> User: 24. Show error: "Employee profile not found"
+else Employee found
+    Service -> Service: 25. Validate field permissions\n(only allow editing limited fields)
+    
+    alt Attempt to modify restricted field
+        Service -> Service: 26. Check if DTO contains restricted fields\n(name, email, designation, salary, department, location)
+        
+        alt Restricted fields detected
+            Service --> Controller: 27. Throw AccessDeniedException
+            Controller --> Gateway: 28. HTTP 403 Forbidden
+            Gateway --> Frontend: 29. Error response
+            Frontend --> User: 30. Show error: "You cannot modify this field.\nPlease contact HR."
+        end
+    end
+    
+    Service -> Service: 31. Validate editable fields\n(phone format, address length, etc.)
+    
+    alt Validation fails
+        Service --> Controller: 32. Throw ValidationException
+        Controller --> Gateway: 33. HTTP 400 Bad Request
+        Gateway --> Frontend: 34. Error response
+        Frontend --> User: 35. Show validation errors
+    else Validation passes
+        Service -> Service: 36. Update only editable fields\n(phone, address)
+        Service -> Service: 37. Preserve all other fields unchanged
+        Service -> Service: 38. Set updated timestamp
+        
+        Service -> Repository: 39. save(Employee)
+        Repository -> DB: 40. UPDATE employee SET phone = ?, address = ?, updated_at = ?\nWHERE id = ?
+        DB --> Repository: 41. Updated employee
+        Repository --> Service: 42. Employee entity
+        
+        Service -> Service: 43. Construct EmployeeResponseDTO
+        
+        Service --> Controller: 44. EmployeeResponseDTO
+        Controller --> Gateway: 45. HTTP 200 OK
+        Gateway --> Frontend: 46. Response with updated profile
+        Frontend -> User: 47. Display success: "Profile updated successfully"
+        Frontend -> Frontend: 48. Refresh profile view
+    end
+end
+
+note right of JwtFilter
+  **RBAC:**
+  - Validates JWT token
+  - Extracts userId and employeeId
+  - Sets SecurityContext
+end note
+
+note right of Controller
+  **Authorization:**
+  User can only update
+  their own profile
+  (validated via employeeId from token)
+end note
+
+note right of Service
+  **Field Restrictions:**
+  **Editable by Employee:**
+  - Phone
+  - Address
+  
+  **Restricted (HR Only):**
+  - Name, Email
+  - Designation, Salary
+  - Department, Location
+  - Manager
+end note
+
+@enduml
+

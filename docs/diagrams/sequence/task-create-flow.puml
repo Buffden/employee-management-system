@@ -1,0 +1,143 @@
+@startuml Task Create - Sequence Diagram
+' Workflow test - updated
+skinparam linetype ortho
+skinparam sequenceArrowThickness 2
+skinparam roundcorner 20
+skinparam maxmessagesize 60
+
+title Task Create - Sequence Diagram
+
+actor "Department Manager" as User
+participant "Angular Frontend" as Frontend
+participant "Nginx Gateway" as Gateway
+participant "Task Controller" as Controller
+participant "Task Service" as Service
+participant "Task Mapper" as Mapper
+participant "Task Repository" as TaskRepo
+participant "Project Repository" as ProjRepo
+participant "Employee Repository" as EmpRepo
+database "PostgreSQL" as DB
+
+User -> Frontend: 1. Navigate to project details
+User -> Frontend: 2. Click "Add Task" button
+Frontend -> Frontend: 3. Display task creation form
+User -> Frontend: 4. Fill task details\n(name, description, priority, due date)
+User -> Frontend: 5. Optionally select assigned employee
+User -> Frontend: 6. Click "Create Task"
+
+Frontend -> Gateway: 7. POST /api/projects/{projectId}/tasks\n(TaskRequestDTO)\nAuthorization: Bearer {token}
+
+Gateway -> Gateway: 8. Forward to Backend
+
+participant "JwtAuthenticationFilter" as JwtFilter
+participant "SecurityService" as SecurityService
+
+Gateway -> JwtFilter: 9. Intercept request
+JwtFilter -> JwtFilter: 10. Validate JWT token
+JwtFilter -> JwtFilter: 11. Extract role and department from token
+JwtFilter -> JwtFilter: 12. Set SecurityContext
+JwtFilter -> Controller: 13. Forward request
+
+Controller -> Controller: 14. Check @PreAuthorize\n(hasRole('SYSTEM_ADMIN') or hasRole('DEPARTMENT_MANAGER'))
+
+alt Insufficient permissions
+    Controller --> Gateway: 15. HTTP 403 Forbidden
+    Gateway --> Frontend: 16. Access denied
+    Frontend --> User: 17. Show error message
+else Authorized
+    Controller -> SecurityService: 18. getCurrentUserRole()\ngetCurrentUserDepartmentId()
+    SecurityService --> Controller: 19. Role, DepartmentId
+    
+    Controller -> Service: 20. create(projectId, TaskRequestDTO, userRole, userDepartmentId)
+    
+    Service -> ProjRepo: 21. findById(projectId)
+    ProjRepo -> DB: 22. SELECT * FROM project WHERE id = ?
+    DB --> ProjRepo: 23. Project data
+    ProjRepo --> Service: 24. Project entity
+    
+    alt Project not found
+        Service --> Controller: 25. Throw ProjectNotFoundException
+        Controller --> Gateway: 26. HTTP 404 Not Found
+        Gateway --> Frontend: 27. Error response
+        Frontend --> User: 28. Show error: "Project not found"
+    else Project found
+        alt Department Manager
+            Service -> Service: 29. Check if project.departmentId == userDepartmentId
+            
+            alt Project not in user's department
+                Service --> Controller: 30. Throw AccessDeniedException
+                Controller --> Gateway: 31. HTTP 403 Forbidden
+                Gateway --> Frontend: 32. Error response
+                Frontend --> User: 33. Show error: "You can only create tasks in your department's projects"
+            end
+        end
+        
+        Service -> Service: 34. Validate input\n(name, description, priority, due date)
+        
+        alt Validation fails
+            Service --> Controller: 35. Throw ValidationException
+            Controller --> Gateway: 36. HTTP 400 Bad Request
+            Gateway --> Frontend: 37. Error response
+            Frontend --> User: 38. Show validation errors
+        else Validation passes
+            alt Assigned Employee provided
+                Service -> EmpRepo: 39. findById(assignedEmployeeId)
+                EmpRepo -> DB: 40. SELECT * FROM employee WHERE id = ?
+                DB --> EmpRepo: 41. Employee data
+                EmpRepo --> Service: 42. Assigned Employee entity
+                
+                alt Employee not found
+                    Service --> Controller: 43. Throw EmployeeNotFoundException
+                    Controller --> Gateway: 44. HTTP 404 Not Found
+                    Gateway --> Frontend: 45. Error response
+                    Frontend --> User: 46. Show error: "Employee not found"
+                end
+            end
+            
+            Service -> Mapper: 47. toEntity(DTO, project, assignedEmployee)
+            Mapper --> Service: 48. Task entity
+            Service -> Service: 49. Set status = 'TODO' (default)
+            Service -> Service: 50. Set createdAt timestamp
+            
+            Service -> TaskRepo: 51. save(Task)
+            TaskRepo -> DB: 52. INSERT INTO task\n(name, description, priority, due_date, project_id, assigned_employee_id, status)
+            DB --> TaskRepo: 53. Saved task
+            TaskRepo --> Service: 54. Task entity
+            
+            Service -> Mapper: 55. toResponseDTO(Task)
+            Mapper --> Service: 56. TaskResponseDTO
+            
+            Service --> Controller: 57. TaskResponseDTO
+            Controller --> Gateway: 58. HTTP 201 Created
+            Gateway --> Frontend: 59. Response with task data
+            Frontend -> User: 60. Display success: "Task created successfully"
+            Frontend -> Frontend: 61. Refresh project details view
+        end
+    end
+end
+
+note right of JwtFilter
+  **RBAC:**
+  - Validates JWT token
+  - Extracts role and department
+  - Sets SecurityContext
+end note
+
+note right of Controller
+  **Authorization:**
+  @PreAuthorize checks role
+  Department Managers can only
+  create tasks in their department's projects
+end note
+
+note right of Service
+  **Business Rules:**
+  - Project must exist
+  - Priority: LOW, MEDIUM, HIGH, CRITICAL
+  - Due date validation
+  - Assigned employee is optional
+  - Default status: TODO
+end note
+
+@enduml
+
