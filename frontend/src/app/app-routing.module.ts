@@ -57,6 +57,14 @@ export const routes: Routes = [
     canActivate: [AuthGuard],
   },
   {
+    path: 'locations',
+    loadComponent: () =>
+      import(
+        './features/locations/components/location-list/location-list.component'
+      ).then((m) => m.LocationListComponent),
+    canActivate: [AuthGuard],
+  },
+  {
     path: 'profile',
     loadComponent: () =>
       import(

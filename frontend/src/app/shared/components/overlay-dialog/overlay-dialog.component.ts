@@ -5,6 +5,7 @@ import { TableCellData } from '../table/table.component';
 import { SharedModule } from '../../shared.module';
 import { DepartmentFormComponent } from '../../../features/departments/components/department-form/department-form.component';
 import { EmployeeFormComponent } from '../../../features/employees/components/employee-form/employee-form.component';
+import { LocationFormComponent } from '../../../features/locations/components/location-form/location-form.component';
 import { defaultTableConfig } from '../table/table.config';
 import { SampleDisplayData } from '../../consts/employee.consts';
 import { FormMode } from '../../models/table';
@@ -12,7 +13,7 @@ import { Employee } from '../../models/employee.model';
 
 @Component({
   selector: 'app-overlay-dialog',
-  imports: [SharedModule, DepartmentFormComponent, EmployeeFormComponent],
+  imports: [SharedModule, DepartmentFormComponent, EmployeeFormComponent, LocationFormComponent],
   templateUrl: './overlay-dialog.component.html',
   styleUrl: './overlay-dialog.component.css'
 })
@@ -75,6 +76,10 @@ export class OverlayDialogComponent {
   }
 
   departmentFormResponse(response: DialogData): void {
+    this.dialogClose(response);
+  }
+
+  locationFormResponse(response: DialogData): void {
     this.dialogClose(response);
   }
 
