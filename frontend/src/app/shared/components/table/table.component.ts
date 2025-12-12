@@ -1,8 +1,8 @@
-import { Component, Input, OnChanges, SimpleChanges, ViewChild } from '@angular/core';
+import { Component, Input, OnChanges, SimpleChanges, ViewChild, Output, EventEmitter, AfterViewInit } from '@angular/core';
 import { MatTableDataSource, MatTableModule } from '@angular/material/table';
 import { CommonModule } from '@angular/common';
-import { MatPaginator } from '@angular/material/paginator';
-import { MatSort } from '@angular/material/sort';
+import { MatPaginator, PageEvent } from '@angular/material/paginator';
+import { MatSort, Sort } from '@angular/material/sort';
 import { DepartmentID, Employee, EmployeeRequest, ManagerID } from '../../models/employee.model';
 import { Department } from '../../models/department.model';
 import { ActionButtonObject, Column, FormMode, TableConfig, TableData } from '../../models/table';
@@ -16,8 +16,10 @@ import { filter } from 'rxjs';
 import { EmployeeService } from '../../../features/employees/services/employee.service';
 import { DialogData } from '../../models/dialog';
 import { DepartmentService } from '../../../features/departments/services/department.service';
+import { LocationService } from '../../../features/locations/services/location.service';
+import { Location } from '../../models/location.model';
 
-export type TableCellData = Employee | Department | TableData;
+export type TableCellData = Employee | Department | Location | TableData;
 
 @Component({
   selector: 'app-table',
@@ -25,16 +27,23 @@ export type TableCellData = Employee | Department | TableData;
   templateUrl: './table.component.html',
   styleUrl: './table.component.css'
 })
-export class TableComponent implements OnChanges {
+export class TableComponent implements OnChanges, AfterViewInit {
   @Input() inputData: TableCellData[] = [];
   @Input() tableConfig: TableConfig = defaultTableConfig;
   @Input() linkClickHandler?: (row: TableCellData, colKey: string) => void;
+  @Input() totalElements = 0; // Total number of elements from backend
+  @Input() useBackendPagination = false; // Whether to use backend pagination
+  @Input() currentPageIndex = 0; // Current page index from parent
+  
+  @Output() sortChange = new EventEmitter<{ active: string; direction: string }>();
+  @Output() pageChange = new EventEmitter<PageEvent>();
 
   displayedColumns: string[] = [];
   dataSource!: MatTableDataSource<TableCellData>;
   pageSize = 10;
   pageSizeOptions: number[] = [5, 10, 25, 50];
   dialogRef: MatDialogRef<OverlayDialogComponent> | undefined;
+  useFrontendSorting = false; // Whether to use frontend sorting
 
   @ViewChild(MatPaginator) paginator!: MatPaginator;
   @ViewChild(MatSort) sort!: MatSort;
@@ -43,7 +52,8 @@ export class TableComponent implements OnChanges {
     public matDialog: MatDialog,
     private router: Router,
     private departmentService: DepartmentService,
-    private employeeService: EmployeeService) { }
+    private employeeService: EmployeeService,
+    private locationService: LocationService) { }
 
   ngOnChanges(changes: SimpleChanges): void {
     if (changes['tableConfig']) {
@@ -52,6 +62,62 @@ export class TableComponent implements OnChanges {
 
     if (changes['inputData']) {
       this.handleTableDataChange(changes['inputData'].currentValue);
+    }
+
+    if (changes['totalElements'] || changes['pageSize']) {
+      this.updateSortingMode();
+    }
+
+    // currentPageIndex is handled via @Input binding
+  }
+
+  ngAfterViewInit(): void {
+    this.setupSortAndPagination();
+  }
+
+  updateSortingMode(): void {
+    // Use frontend sorting if totalElements <= pageSize (all data fits in one page)
+    // Otherwise use backend sorting
+    this.useFrontendSorting = this.totalElements <= this.pageSize;
+    
+    if (this.dataSource && this.sort) {
+      if (this.useFrontendSorting) {
+        // Enable frontend sorting
+        this.dataSource.sort = this.sort;
+      } else {
+        // Disable frontend sorting - backend will handle it
+        this.dataSource.sort = null;
+        // Clear any active sort state
+        if (this.sort.active) {
+          this.sort.sort({ id: '', start: 'asc', disableClear: false });
+        }
+      }
+    }
+  }
+
+  setupSortAndPagination(): void {
+    if (this.dataSource && this.paginator) {
+      this.dataSource.paginator = this.paginator;
+    }
+
+    if (this.sort) {
+      // Subscribe to sort changes for backend sorting
+      this.sort.sortChange.subscribe((sort: Sort) => {
+        if (!this.useFrontendSorting) {
+          // Emit sort event to parent for backend sorting
+          this.sortChange.emit({
+            active: sort.active,
+            direction: sort.direction.toUpperCase()
+          });
+        }
+      });
+    }
+
+    if (this.paginator && this.useBackendPagination) {
+      // Subscribe to pagination changes for backend pagination
+      this.paginator.page.subscribe((pageEvent: PageEvent) => {
+        this.pageChange.emit(pageEvent);
+      });
     }
   }
 
@@ -91,8 +157,8 @@ export class TableComponent implements OnChanges {
       }
     });
     this.dataSource = new MatTableDataSource<TableCellData>(genTableData);
-    this.dataSource.paginator = this.paginator;
-    this.dataSource.sort = this.sort;
+    this.updateSortingMode();
+    this.setupSortAndPagination();
   }
 
   isColSticky(column: Column): boolean {
@@ -139,13 +205,18 @@ export class TableComponent implements OnChanges {
   onAddClick(): void {
     this.dialogClose();
     this.tableConfig.mode = FormMode.ADD;
+    // Determine current page from router
+    const currentUrl = this.router.url;
+    const returnToPage = currentUrl.includes('/locations') ? 'locations' : undefined;
+    
     this.dialogRef = this.matDialog.open(OverlayDialogComponent, {
       width: '850px',
       data: {
         title: this.tableConfig.additionCardTitle,
         content: {},
         viewController: this.tableConfig.additionController,
-        config: this.tableConfig
+        config: this.tableConfig,
+        returnToPage: returnToPage
       }
     });
     this.dialogRef.afterClosed().pipe(filter(result => !!result)).subscribe((isClosedWithData: DialogData) => {
@@ -155,6 +226,19 @@ export class TableComponent implements OnChanges {
         this.departmentService.addDepartment(isClosedWithData.content as Department).subscribe((response: Department) => {
           console.log('Department added:', response);
         });
+      }
+      else if (this.tableConfig.additionCardTitle === 'Add Location') {
+        // Location form component already handles the POST call
+        // Just check if it was successful and refresh if needed
+        if (isClosedWithData.content && 'id' in isClosedWithData.content) {
+          console.log('Location added:', isClosedWithData.content);
+          // If opened from locations page, trigger a custom event to refresh the table
+          // If opened from dashboard, stay on dashboard (handled by dashboard component)
+          if (isClosedWithData.returnToPage !== 'dashboard') {
+            // Dispatch a custom event to refresh the location list
+            window.dispatchEvent(new CustomEvent('locationAdded'));
+          }
+        }
       }
       else {
         const employeeReq = this.prepareEmployeeRequestData(isClosedWithData);

@@ -195,6 +195,13 @@ export class AuthService {
   }
 
   /**
+   * Check if current user is HR_MANAGER
+   */
+  isHRManager(): boolean {
+    return this.hasRole(UserRole.HR_MANAGER);
+  }
+
+  /**
    * Check if user has a specific role
    */
   hasRole(role: string): boolean {

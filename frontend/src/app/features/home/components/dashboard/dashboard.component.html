@@ -37,6 +37,28 @@
           </mat-card>
         </div>
 
+        <!-- Location Management Section (Admin & HR Manager) -->
+        <div class="admin-section" *ngIf="canManageLocations">
+          <mat-card class="admin-card">
+            <mat-card-header>
+              <mat-card-title>
+                <mat-icon>location_on</mat-icon>
+                Location Management
+              </mat-card-title>
+            </mat-card-header>
+            <mat-card-content>
+              <p class="section-description">Add new office locations and addresses</p>
+              <button 
+                mat-raised-button 
+                class="action-button"
+                (click)="openAddLocationDialog()">
+                <mat-icon>add_location</mat-icon>
+                Add Location
+              </button>
+            </mat-card-content>
+          </mat-card>
+        </div>
+
         <!-- Quick Stats Section -->
         <div class="stats-section">
           <mat-card class="stats-card">

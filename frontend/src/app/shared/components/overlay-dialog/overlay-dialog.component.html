@@ -163,6 +163,29 @@
             <app-department-form [department]="dialogData"></app-department-form>
         </div>
         <div class="td-content"
+             *ngSwitchCase="overlayType.DISPLAYLOCATION">
+            <div class="overlay-content">
+                <div class="text-details">
+                    <ng-container *ngFor="let field of textFields">
+                        <p class="text-placeholder">
+                            <span class="text-placeholder-key">{{ field.label }}:</span>
+                            &nbsp;{{ field.value }}
+                        </p>
+                    </ng-container>
+                </div>
+            </div>
+        </div>
+        <div class="td-content"
+             *ngSwitchCase="overlayType.ADDLOCATION">
+            <app-location-form [location]="dialogData"
+                              (locationResponse)="locationFormResponse($event)"></app-location-form>
+        </div>
+        <div class="td-content"
+             *ngSwitchCase="overlayType.EDITLOCATION">
+            <app-location-form [location]="dialogData"
+                              (locationResponse)="locationFormResponse($event)"></app-location-form>
+        </div>
+        <div class="td-content"
              *ngSwitchCase="overlayType.NODATA">NO-DATA-AVAILABLE-PLACEHOLDER</div>
 
     </div>

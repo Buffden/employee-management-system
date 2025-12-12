@@ -6,8 +6,11 @@ export enum overlayType {
     EDITEMPLOYEE = 'editEmployee',
     ADDDEPARTMENT = 'addDepartment',
     EDITDEPARTMENT = 'editDepartment',
+    ADDLOCATION = 'addLocation',
+    EDITLOCATION = 'editLocation',
     DISPLAYEMPLOYEE = 'displayEmployee',
     DISPLAYDEPARTMENT = 'displayDepartment',
+    DISPLAYLOCATION = 'displayLocation',
     NODATA = 'noData'
 }
 
@@ -17,6 +20,7 @@ export interface DialogData {
     content: TableCellData;
     viewController: overlayType;
     config: TableConfig;
+    returnToPage?: string; // Track where dialog was opened from (e.g., 'dashboard', 'locations')
 }
 
 export interface EmployeeDisplayData {
