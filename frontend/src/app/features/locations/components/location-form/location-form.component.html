@@ -1,0 +1,48 @@
+<div class="form-container">
+    <form [formGroup]="locationForm"
+          (ngSubmit)="onSubmit()">
+        <ng-container *ngFor="let field of FormFields;">
+            <mat-form-field appearance="outline">
+                <mat-label>{{ field.label }}</mat-label>
+                <input matInput
+                       [formControlName]="field.formControlName"
+                       [placeholder]="field.placeholder"
+                       [required]="field.required ?? false" />
+                <mat-error *ngIf="isFieldInvalid(field)">
+                    {{ field.errorMessage }}
+                </mat-error>
+            </mat-form-field>
+        </ng-container>
+
+        <div *ngIf="errorMessage" class="error-message">
+            <mat-error>{{ errorMessage }}</mat-error>
+        </div>
+
+        <div class="form-actions">
+            <div class="form-actions-left" *ngIf="canDeleteLocation()">
+                <button mat-raised-button
+                        color="warn"
+                        type="button"
+                        (click)="onDeleteClick()"
+                        [disabled]="isSubmitting">
+                    Delete Location
+                </button>
+            </div>
+            <div class="form-actions-right">
+                <button mat-raised-button
+                        color="primary"
+                        type="submit"
+                        (click)="onSubmit()"
+                        [disabled]="isSubmitDisabled()">
+                    <span *ngIf="!isSubmitting">{{ submitButtonText() }}</span>
+                    <span *ngIf="isSubmitting">Submitting...</span>
+                </button>
+                <button mat-raised-button
+                        color="warn"
+                        type="button"
+                        (click)="dialogClose()">Cancel</button>
+            </div>
+        </div>
+    </form>
+</div>
+
