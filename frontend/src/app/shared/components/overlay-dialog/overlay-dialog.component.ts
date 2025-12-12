@@ -10,6 +10,7 @@ import { defaultTableConfig } from '../table/table.config';
 import { SampleDisplayData } from '../../consts/employee.consts';
 import { FormMode } from '../../models/table';
 import { Employee } from '../../models/employee.model';
+import { Department } from '../../models/department.model';
 
 @Component({
   selector: 'app-overlay-dialog',
@@ -76,6 +77,13 @@ export class OverlayDialogComponent {
   }
 
   departmentFormResponse(response: DialogData): void {
+    // Check if department was deleted
+    const dept = response.content as Department & { deleted?: boolean };
+    if (dept && dept.deleted) {
+      console.log('Department deleted:', dept.id);
+    } else {
+      console.log('Department form response:', response);
+    }
     this.dialogClose(response);
   }
 
