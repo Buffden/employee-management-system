@@ -159,7 +159,10 @@ jobs:
               png_output_dir="$output_base"
             fi
             
-            # Capture both stdout and stderr for error details (remove -quiet to see errors)
+            # Capture both stdout and stderr for error details
+            echo "Output directory: $png_output_dir"
+            echo "Expected PNG file: $png_output_dir/$filename.png"
+            
             error_output=$(java -jar ~/plantuml/plantuml.jar \
               -tpng \
               -o "$png_output_dir" \
@@ -168,17 +171,45 @@ jobs:
               "$puml_file" 2>&1)
             exit_code=$?
             
+            echo "PlantUML exit code: $exit_code"
+            if [ -n "$error_output" ]; then
+              echo "PlantUML output:"
+              echo "$error_output"
+            fi
+            
+            # Check for PNG file in expected location
             png_file="$png_output_dir/$filename.png"
-            if [ -f "$png_file" ] && [ $exit_code -eq 0 ]; then
+            
+            # Also check if file was created in the same directory as source (PlantUML default behavior)
+            source_dir=$(dirname "$puml_file")
+            alt_png_file="$source_dir/$filename.png"
+            
+            # Check both locations
+            if [ -f "$png_file" ]; then
               file_size=$(du -h "$png_file" | cut -f1)
               echo "✓ SUCCESS: Generated $png_file (Size: $file_size)"
+              ((success_count++))
+            elif [ -f "$alt_png_file" ]; then
+              # File was created in source directory, move it to expected location
+              echo "⚠ PNG found in source directory, moving to expected location"
+              mkdir -p "$png_output_dir"
+              mv "$alt_png_file" "$png_file"
+              file_size=$(du -h "$png_file" | cut -f1)
+              echo "✓ SUCCESS: Moved and generated $png_file (Size: $file_size)"
               ((success_count++))
             else
               echo "✗ FAILED: Could not generate PNG for: $puml_file"
               echo "Exit code: $exit_code"
+              echo "Checked locations:"
+              echo "  - $png_file"
+              echo "  - $alt_png_file"
+              echo "Directory contents of $png_output_dir:"
+              ls -la "$png_output_dir" 2>/dev/null || echo "  Directory does not exist"
+              echo "Directory contents of $source_dir:"
+              ls -la "$source_dir" 2>/dev/null || echo "  Directory does not exist"
               if [ -n "$error_output" ]; then
                 echo "Error details:"
-                echo "$error_output" | head -30
+                echo "$error_output" | head -50
               fi
               failed_files+=("$puml_file")
               ((fail_count++))
@@ -333,7 +364,10 @@ jobs:
               png_output_dir="$output_base"
             fi
             
-            # Capture both stdout and stderr for error details (remove -quiet to see errors)
+            # Capture both stdout and stderr for error details
+            echo "Output directory: $png_output_dir"
+            echo "Expected PNG file: $png_output_dir/$filename.png"
+            
             error_output=$(java -jar ~/plantuml/plantuml.jar \
               -tpng \
               -o "$png_output_dir" \
@@ -342,17 +376,45 @@ jobs:
               "$puml_file" 2>&1)
             exit_code=$?
             
+            echo "PlantUML exit code: $exit_code"
+            if [ -n "$error_output" ]; then
+              echo "PlantUML output:"
+              echo "$error_output"
+            fi
+            
+            # Check for PNG file in expected location
             png_file="$png_output_dir/$filename.png"
-            if [ -f "$png_file" ] && [ $exit_code -eq 0 ]; then
+            
+            # Also check if file was created in the same directory as source (PlantUML default behavior)
+            source_dir=$(dirname "$puml_file")
+            alt_png_file="$source_dir/$filename.png"
+            
+            # Check both locations
+            if [ -f "$png_file" ]; then
               file_size=$(du -h "$png_file" | cut -f1)
               echo "✓ SUCCESS: Generated $png_file (Size: $file_size)"
+              ((success_count++))
+            elif [ -f "$alt_png_file" ]; then
+              # File was created in source directory, move it to expected location
+              echo "⚠ PNG found in source directory, moving to expected location"
+              mkdir -p "$png_output_dir"
+              mv "$alt_png_file" "$png_file"
+              file_size=$(du -h "$png_file" | cut -f1)
+              echo "✓ SUCCESS: Moved and generated $png_file (Size: $file_size)"
               ((success_count++))
             else
               echo "✗ FAILED: Could not generate PNG for: $puml_file"
               echo "Exit code: $exit_code"
+              echo "Checked locations:"
+              echo "  - $png_file"
+              echo "  - $alt_png_file"
+              echo "Directory contents of $png_output_dir:"
+              ls -la "$png_output_dir" 2>/dev/null || echo "  Directory does not exist"
+              echo "Directory contents of $source_dir:"
+              ls -la "$source_dir" 2>/dev/null || echo "  Directory does not exist"
               if [ -n "$error_output" ]; then
                 echo "Error details:"
-                echo "$error_output" | head -30
+                echo "$error_output" | head -50
               fi
               failed_files+=("$puml_file")
               ((fail_count++))
