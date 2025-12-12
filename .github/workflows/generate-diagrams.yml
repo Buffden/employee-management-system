@@ -162,16 +162,29 @@ jobs:
             # Use proven pattern from battle-arena repository
             # Key: Use $(pwd) directly in the -o flag for reliable path resolution
             echo "Processing: $puml_file -> $png_output_dir"
+            echo "Current directory: $(pwd)"
+            echo "Full output path: $(pwd)/$png_output_dir"
             
-            if java -jar ~/plantuml/plantuml.jar \
+            # Capture PlantUML output for debugging
+            plantuml_output=$(java -jar ~/plantuml/plantuml.jar \
               -tpng \
               -SDPI=300 \
               -charset UTF-8 \
               "$puml_file" \
-              -o "$(pwd)/$png_output_dir" 2>&1; then
-              
+              -o "$(pwd)/$png_output_dir" 2>&1)
+            plantuml_exit=$?
+            
+            echo "PlantUML exit code: $plantuml_exit"
+            if [ -n "$plantuml_output" ]; then
+              echo "PlantUML output:"
+              echo "$plantuml_output"
+            fi
+            
+            if [ $plantuml_exit -eq 0 ]; then
               # Check if PNG was generated in expected location
               png_file="$png_output_dir/$filename.png"
+              echo "Checking for PNG at: $png_file"
+              
               if [ -f "$png_file" ]; then
                 file_size=$(du -h "$png_file" | cut -f1)
                 echo "✅ Generated: $png_file (Size: $file_size)"
@@ -180,6 +193,8 @@ jobs:
                 # Check if generated in source directory (fallback)
                 source_dir=$(dirname "$puml_file")
                 alt_png_file="$source_dir/$filename.png"
+                echo "Checking fallback location: $alt_png_file"
+                
                 if [ -f "$alt_png_file" ]; then
                   echo "⚠ PNG found in source directory, moving to expected location"
                   mv "$alt_png_file" "$png_file"
@@ -190,12 +205,23 @@ jobs:
                   echo "❌ Failed: PNG not found after generation"
                   echo "Expected: $png_file"
                   echo "Also checked: $alt_png_file"
+                  echo "Listing output directory contents:"
+                  ls -la "$png_output_dir" 2>/dev/null || echo "  Output directory does not exist"
+                  echo "Listing source directory contents:"
+                  ls -la "$source_dir" 2>/dev/null || echo "  Source directory does not exist"
+                  echo "Searching for any PNG files with this name:"
+                  find . -name "$filename.png" -type f 2>/dev/null | head -10 || echo "  No matching PNG files found"
                   failed_files+=("$puml_file")
                   ((fail_count++))
                 fi
               fi
             else
               echo "❌ Failed: PlantUML generation failed for $puml_file"
+              echo "Exit code: $plantuml_exit"
+              if [ -n "$plantuml_output" ]; then
+                echo "Error output:"
+                echo "$plantuml_output"
+              fi
               failed_files+=("$puml_file")
               ((fail_count++))
             fi
@@ -352,16 +378,29 @@ jobs:
             # Use proven pattern from battle-arena repository
             # Key: Use $(pwd) directly in the -o flag for reliable path resolution
             echo "Processing: $puml_file -> $png_output_dir"
+            echo "Current directory: $(pwd)"
+            echo "Full output path: $(pwd)/$png_output_dir"
             
-            if java -jar ~/plantuml/plantuml.jar \
+            # Capture PlantUML output for debugging
+            plantuml_output=$(java -jar ~/plantuml/plantuml.jar \
               -tpng \
               -SDPI=300 \
               -charset UTF-8 \
               "$puml_file" \
-              -o "$(pwd)/$png_output_dir" 2>&1; then
-              
+              -o "$(pwd)/$png_output_dir" 2>&1)
+            plantuml_exit=$?
+            
+            echo "PlantUML exit code: $plantuml_exit"
+            if [ -n "$plantuml_output" ]; then
+              echo "PlantUML output:"
+              echo "$plantuml_output"
+            fi
+            
+            if [ $plantuml_exit -eq 0 ]; then
               # Check if PNG was generated in expected location
               png_file="$png_output_dir/$filename.png"
+              echo "Checking for PNG at: $png_file"
+              
               if [ -f "$png_file" ]; then
                 file_size=$(du -h "$png_file" | cut -f1)
                 echo "✅ Generated: $png_file (Size: $file_size)"
@@ -370,6 +409,8 @@ jobs:
                 # Check if generated in source directory (fallback)
                 source_dir=$(dirname "$puml_file")
                 alt_png_file="$source_dir/$filename.png"
+                echo "Checking fallback location: $alt_png_file"
+                
                 if [ -f "$alt_png_file" ]; then
                   echo "⚠ PNG found in source directory, moving to expected location"
                   mv "$alt_png_file" "$png_file"
@@ -380,12 +421,23 @@ jobs:
                   echo "❌ Failed: PNG not found after generation"
                   echo "Expected: $png_file"
                   echo "Also checked: $alt_png_file"
+                  echo "Listing output directory contents:"
+                  ls -la "$png_output_dir" 2>/dev/null || echo "  Output directory does not exist"
+                  echo "Listing source directory contents:"
+                  ls -la "$source_dir" 2>/dev/null || echo "  Source directory does not exist"
+                  echo "Searching for any PNG files with this name:"
+                  find . -name "$filename.png" -type f 2>/dev/null | head -10 || echo "  No matching PNG files found"
                   failed_files+=("$puml_file")
                   ((fail_count++))
                 fi
               fi
             else
               echo "❌ Failed: PlantUML generation failed for $puml_file"
+              echo "Exit code: $plantuml_exit"
+              if [ -n "$plantuml_output" ]; then
+                echo "Error output:"
+                echo "$plantuml_output"
+              fi
               failed_files+=("$puml_file")
               ((fail_count++))
             fi
