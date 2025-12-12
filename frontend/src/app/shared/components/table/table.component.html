@@ -31,7 +31,8 @@
                         <th mat-header-cell
                             *matHeaderCellDef
                             [ngClass]="getColClass(col, i)"
-                            [mat-sort-header]="useFrontendSorting ? col.key : ''">{{ col.header }}</th>
+                            [mat-sort-header]="col.sortable !== false ? col.key : ''"
+                            [disableClear]="col.sortable !== false">{{ col.header }}</th>
                         <td mat-cell
                             *matCellDef="let row"
                             [ngClass]="getColClass(col, i)">

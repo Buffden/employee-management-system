@@ -1,11 +1,11 @@
-import { Component, Input, OnChanges, SimpleChanges, ViewChild, Output, EventEmitter, AfterViewInit } from '@angular/core';
+import { Component, Input, OnChanges, SimpleChanges, ViewChild, Output, EventEmitter, AfterViewInit, ChangeDetectorRef } from '@angular/core';
 import { MatTableDataSource, MatTableModule } from '@angular/material/table';
 import { CommonModule } from '@angular/common';
 import { MatPaginator, PageEvent } from '@angular/material/paginator';
-import { MatSort, Sort } from '@angular/material/sort';
+import { MatSort, Sort, MatSortModule } from '@angular/material/sort';
 import { DepartmentID, Employee, EmployeeRequest, ManagerID } from '../../models/employee.model';
 import { Department } from '../../models/department.model';
-import { ActionButtonObject, Column, FormMode, TableConfig, TableData } from '../../models/table';
+import { ActionButtonObject, Column, FormMode, SortDirection, TableConfig, TableData } from '../../models/table';
 import { defaultTableConfig } from './table.config';
 import { MatDialog, MatDialogRef } from '@angular/material/dialog';
 import { OverlayDialogComponent } from '../overlay-dialog/overlay-dialog.component';
@@ -18,12 +18,13 @@ import { DialogData } from '../../models/dialog';
 import { DepartmentService } from '../../../features/departments/services/department.service';
 import { LocationService } from '../../../features/locations/services/location.service';
 import { Location } from '../../models/location.model';
+import { FilterOption } from '../../models/paginated-response.model';
 
 export type TableCellData = Employee | Department | Location | TableData;
 
 @Component({
   selector: 'app-table',
-  imports: [MatTableModule, CommonModule, SharedModule, NoDataComponent],
+  imports: [MatTableModule, MatSortModule, CommonModule, SharedModule, NoDataComponent],
   templateUrl: './table.component.html',
   styleUrl: './table.component.css'
 })
@@ -34,6 +35,7 @@ export class TableComponent implements OnChanges, AfterViewInit {
   @Input() totalElements = 0; // Total number of elements from backend
   @Input() useBackendPagination = false; // Whether to use backend pagination
   @Input() currentPageIndex = 0; // Current page index from parent
+  @Input() filters?: Record<string, FilterOption[]>; // Optional: generic filters from paginated response (e.g., locations, departments, etc.)
   
   @Output() sortChange = new EventEmitter<{ active: string; direction: string }>();
   @Output() pageChange = new EventEmitter<PageEvent>();
@@ -46,14 +48,15 @@ export class TableComponent implements OnChanges, AfterViewInit {
   useFrontendSorting = false; // Whether to use frontend sorting
 
   @ViewChild(MatPaginator) paginator!: MatPaginator;
-  @ViewChild(MatSort) sort!: MatSort;
+  @ViewChild(MatSort, { static: false }) sort!: MatSort;
 
   constructor(
     public matDialog: MatDialog,
     private router: Router,
     private departmentService: DepartmentService,
     private employeeService: EmployeeService,
-    private locationService: LocationService) { }
+    private locationService: LocationService,
+    private cdr: ChangeDetectorRef) { }
 
   ngOnChanges(changes: SimpleChanges): void {
     if (changes['tableConfig']) {
@@ -72,26 +75,41 @@ export class TableComponent implements OnChanges, AfterViewInit {
   }
 
   ngAfterViewInit(): void {
-    this.setupSortAndPagination();
+    // Trigger change detection to ensure ViewChild is initialized
+    this.cdr.detectChanges();
+    
+    // Use setTimeout to ensure ViewChild is fully initialized after change detection
+    setTimeout(() => {
+      this.setupSortAndPagination();
+      // Update sorting mode after view init to ensure paginator is available
+      this.updateSortingMode();
+      
+      // Initialize default sorting from config if available
+      if (this.tableConfig.defaultSortColumn && this.sort) {
+        const sortDirection = this.tableConfig.defaultSortDirection === SortDirection.DESC ? 'desc' : 'asc';
+        this.sort.sort({ id: this.tableConfig.defaultSortColumn, start: sortDirection, disableClear: true });
+      }
+      
+      // Disable clear state for all sort headers (only allow asc/desc toggle)
+      if (this.sort) {
+        this.sort.disableClear = true;
+      }
+    }, 0);
   }
 
   updateSortingMode(): void {
     // Use frontend sorting if totalElements <= pageSize (all data fits in one page)
     // Otherwise use backend sorting
-    this.useFrontendSorting = this.totalElements <= this.pageSize;
+    // Use paginator's pageSize if available, otherwise fall back to config pageSize
+    const currentPageSize = this.paginator?.pageSize || this.pageSize;
+    this.useFrontendSorting = this.totalElements <= currentPageSize;
     
     if (this.dataSource && this.sort) {
-      if (this.useFrontendSorting) {
-        // Enable frontend sorting
-        this.dataSource.sort = this.sort;
-      } else {
-        // Disable frontend sorting - backend will handle it
-        this.dataSource.sort = null;
-        // Clear any active sort state
-        if (this.sort.active) {
-          this.sort.sort({ id: '', start: 'asc', disableClear: false });
-        }
-      }
+      // Always set sort for UI indicators (sort arrows, etc.)
+      // The actual sorting logic is handled differently for frontend vs backend
+      this.dataSource.sort = this.sort;
+    } else if (!this.dataSource || !this.sort) {
+      console.warn('[TableComponent] Cannot set sort - dataSource or sort not available');
     }
   }
 
@@ -100,10 +118,19 @@ export class TableComponent implements OnChanges, AfterViewInit {
       this.dataSource.paginator = this.paginator;
     }
 
+    // Only setup sort if it's available - if not, it will be set up when data arrives
     if (this.sort) {
       // Subscribe to sort changes for backend sorting
       this.sort.sortChange.subscribe((sort: Sort) => {
-        if (!this.useFrontendSorting) {
+        // Ignore empty string or null sort.active (non-sortable columns)
+        if (!sort.active || sort.active.trim() === '') {
+          return;
+        }
+        
+        // Only emit if column is sortable and we're using backend sorting
+        const column = this.tableConfig.columns?.find(col => col.key === sort.active);
+        
+        if (column && column.sortable !== false && !this.useFrontendSorting) {
           // Emit sort event to parent for backend sorting
           this.sortChange.emit({
             active: sort.active,
@@ -116,6 +143,8 @@ export class TableComponent implements OnChanges, AfterViewInit {
     if (this.paginator && this.useBackendPagination) {
       // Subscribe to pagination changes for backend pagination
       this.paginator.page.subscribe((pageEvent: PageEvent) => {
+        // Update sorting mode when page size changes (user might change page size)
+        this.updateSortingMode();
         this.pageChange.emit(pageEvent);
       });
     }
@@ -126,7 +155,6 @@ export class TableComponent implements OnChanges, AfterViewInit {
     this.displayedColumns = config.columns?.map((column: Column) => column.key) || [];
     this.pageSize = config.pageSize || 10;
     this.pageSizeOptions = config.pageSizeOptions ?? defaultTableConfig.pageSizeOptions ?? [];
-    console.log('page size', this.pageSize, this.pageSizeOptions);
   }
 
   addActionColumn() {
@@ -157,8 +185,13 @@ export class TableComponent implements OnChanges, AfterViewInit {
       }
     });
     this.dataSource = new MatTableDataSource<TableCellData>(genTableData);
-    this.updateSortingMode();
-    this.setupSortAndPagination();
+    
+    // Trigger change detection and use setTimeout to ensure ViewChild is available after data change
+    this.cdr.detectChanges();
+    setTimeout(() => {
+      this.updateSortingMode();
+      this.setupSortAndPagination();
+    }, 0);
   }
 
   isColSticky(column: Column): boolean {
@@ -207,7 +240,12 @@ export class TableComponent implements OnChanges, AfterViewInit {
     this.tableConfig.mode = FormMode.ADD;
     // Determine current page from router
     const currentUrl = this.router.url;
-    const returnToPage = currentUrl.includes('/locations') ? 'locations' : undefined;
+    let returnToPage: string | undefined;
+    if (currentUrl.includes('/locations')) {
+      returnToPage = 'locations';
+    } else if (currentUrl.includes('/departments')) {
+      returnToPage = 'departments';
+    }
     
     this.dialogRef = this.matDialog.open(OverlayDialogComponent, {
       width: '850px',
@@ -216,16 +254,25 @@ export class TableComponent implements OnChanges, AfterViewInit {
         content: {},
         viewController: this.tableConfig.additionController,
         config: this.tableConfig,
-        returnToPage: returnToPage
+        returnToPage: returnToPage,
+        filters: this.filters // Pass generic filters to form component (e.g., locations for department form)
       }
     });
     this.dialogRef.afterClosed().pipe(filter(result => !!result)).subscribe((isClosedWithData: DialogData) => {
       console.log('isClosedWithData', isClosedWithData);
 
       if (this.tableConfig.additionCardTitle === 'Add Department') {
-        this.departmentService.addDepartment(isClosedWithData.content as Department).subscribe((response: Department) => {
-          console.log('Department added:', response);
-        });
+        // Department form component already handles the POST call
+        // Just check if it was successful and refresh if needed
+        if (isClosedWithData.content && 'id' in isClosedWithData.content) {
+          console.log('Department added:', isClosedWithData.content);
+          // If opened from departments page, trigger a custom event to refresh the table
+          // If opened from dashboard, stay on dashboard (handled by dashboard component)
+          if (isClosedWithData.returnToPage !== 'dashboard') {
+            // Dispatch a custom event to refresh the department list
+            globalThis.window.dispatchEvent(new CustomEvent('departmentAdded'));
+          }
+        }
       }
       else if (this.tableConfig.additionCardTitle === 'Add Location') {
         // Location form component already handles the POST call

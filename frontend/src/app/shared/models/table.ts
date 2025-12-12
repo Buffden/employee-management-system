@@ -40,6 +40,9 @@ export interface TableConfig {
     allowExport?: boolean;
     allowAddButton?: boolean;
     allowCustomize?: boolean;
+    allowFiltering?: boolean; // Whether to allow filtering on the table
+    defaultSortColumn?: string; // Default column to sort by
+    defaultSortDirection?: SortDirection; // Default sort direction (ASC or DESC)
     noDataInfo: NoDataInfo;
     mode: FormMode;
 };
