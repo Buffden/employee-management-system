@@ -1,4 +1,5 @@
 @startuml Component Diagram
+' Workflow test - updated
 skinparam componentStyle rectangle
 skinparam linetype ortho
 skinparam backgroundColor #FFFFFF

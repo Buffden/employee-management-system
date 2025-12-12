@@ -1,4 +1,5 @@
-@startuml Table Pagination Flow
+@startuml
+' Workflow test - updated Table Pagination Flow
 skinparam linetype ortho
 skinparam sequenceArrowThickness 2
 skinparam roundcorner 20
