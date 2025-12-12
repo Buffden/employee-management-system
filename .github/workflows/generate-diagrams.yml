@@ -190,29 +190,52 @@ jobs:
                 echo "✅ Generated: $png_file (Size: $file_size)"
                 ((success_count++))
               else
-                # Check if generated in source directory (fallback)
-                source_dir=$(dirname "$puml_file")
-                alt_png_file="$source_dir/$filename.png"
-                echo "Checking fallback location: $alt_png_file"
+                # PlantUML may generate PNG with a different name (based on @startuml title)
+                # Check for any PNG files in the output directory
+                found_png=$(find "$png_output_dir" -maxdepth 1 -name "*.png" -type f 2>/dev/null | head -1)
                 
-                if [ -f "$alt_png_file" ]; then
-                  echo "⚠ PNG found in source directory, moving to expected location"
-                  mv "$alt_png_file" "$png_file"
+                if [ -n "$found_png" ] && [ -f "$found_png" ]; then
+                  echo "⚠ PNG found with different name: $(basename "$found_png")"
+                  echo "Renaming to expected filename: $filename.png"
+                  mv "$found_png" "$png_file"
                   file_size=$(du -h "$png_file" | cut -f1)
-                  echo "✅ Moved and generated: $png_file (Size: $file_size)"
+                  echo "✅ Renamed and generated: $png_file (Size: $file_size)"
                   ((success_count++))
                 else
-                  echo "❌ Failed: PNG not found after generation"
-                  echo "Expected: $png_file"
-                  echo "Also checked: $alt_png_file"
-                  echo "Listing output directory contents:"
-                  ls -la "$png_output_dir" 2>/dev/null || echo "  Output directory does not exist"
-                  echo "Listing source directory contents:"
-                  ls -la "$source_dir" 2>/dev/null || echo "  Source directory does not exist"
-                  echo "Searching for any PNG files with this name:"
-                  find . -name "$filename.png" -type f 2>/dev/null | head -10 || echo "  No matching PNG files found"
-                  failed_files+=("$puml_file")
-                  ((fail_count++))
+                  # Check if generated in source directory (fallback)
+                  source_dir=$(dirname "$puml_file")
+                  alt_png_file="$source_dir/$filename.png"
+                  echo "Checking fallback location: $alt_png_file"
+                  
+                  if [ -f "$alt_png_file" ]; then
+                    echo "⚠ PNG found in source directory, moving to expected location"
+                    mv "$alt_png_file" "$png_file"
+                    file_size=$(du -h "$png_file" | cut -f1)
+                    echo "✅ Moved and generated: $png_file (Size: $file_size)"
+                    ((success_count++))
+                  else
+                    # Check for any PNG in source directory (might have different name)
+                    found_source_png=$(find "$source_dir" -maxdepth 1 -name "*.png" -type f 2>/dev/null | head -1)
+                    if [ -n "$found_source_png" ] && [ -f "$found_source_png" ]; then
+                      echo "⚠ PNG found in source directory with different name: $(basename "$found_source_png")"
+                      mv "$found_source_png" "$png_file"
+                      file_size=$(du -h "$png_file" | cut -f1)
+                      echo "✅ Moved and renamed: $png_file (Size: $file_size)"
+                      ((success_count++))
+                    else
+                      echo "❌ Failed: PNG not found after generation"
+                      echo "Expected: $png_file"
+                      echo "Also checked: $alt_png_file"
+                      echo "Listing output directory contents:"
+                      ls -la "$png_output_dir" 2>/dev/null || echo "  Output directory does not exist"
+                      echo "Listing source directory contents:"
+                      ls -la "$source_dir" 2>/dev/null || echo "  Source directory does not exist"
+                      echo "Searching for any PNG files with this name:"
+                      find . -name "$filename.png" -type f 2>/dev/null | head -10 || echo "  No matching PNG files found"
+                      failed_files+=("$puml_file")
+                      ((fail_count++))
+                    fi
+                  fi
                 fi
               fi
             else
@@ -406,29 +429,52 @@ jobs:
                 echo "✅ Generated: $png_file (Size: $file_size)"
                 ((success_count++))
               else
-                # Check if generated in source directory (fallback)
-                source_dir=$(dirname "$puml_file")
-                alt_png_file="$source_dir/$filename.png"
-                echo "Checking fallback location: $alt_png_file"
+                # PlantUML may generate PNG with a different name (based on @startuml title)
+                # Check for any PNG files in the output directory
+                found_png=$(find "$png_output_dir" -maxdepth 1 -name "*.png" -type f 2>/dev/null | head -1)
                 
-                if [ -f "$alt_png_file" ]; then
-                  echo "⚠ PNG found in source directory, moving to expected location"
-                  mv "$alt_png_file" "$png_file"
+                if [ -n "$found_png" ] && [ -f "$found_png" ]; then
+                  echo "⚠ PNG found with different name: $(basename "$found_png")"
+                  echo "Renaming to expected filename: $filename.png"
+                  mv "$found_png" "$png_file"
                   file_size=$(du -h "$png_file" | cut -f1)
-                  echo "✅ Moved and generated: $png_file (Size: $file_size)"
+                  echo "✅ Renamed and generated: $png_file (Size: $file_size)"
                   ((success_count++))
                 else
-                  echo "❌ Failed: PNG not found after generation"
-                  echo "Expected: $png_file"
-                  echo "Also checked: $alt_png_file"
-                  echo "Listing output directory contents:"
-                  ls -la "$png_output_dir" 2>/dev/null || echo "  Output directory does not exist"
-                  echo "Listing source directory contents:"
-                  ls -la "$source_dir" 2>/dev/null || echo "  Source directory does not exist"
-                  echo "Searching for any PNG files with this name:"
-                  find . -name "$filename.png" -type f 2>/dev/null | head -10 || echo "  No matching PNG files found"
-                  failed_files+=("$puml_file")
-                  ((fail_count++))
+                  # Check if generated in source directory (fallback)
+                  source_dir=$(dirname "$puml_file")
+                  alt_png_file="$source_dir/$filename.png"
+                  echo "Checking fallback location: $alt_png_file"
+                  
+                  if [ -f "$alt_png_file" ]; then
+                    echo "⚠ PNG found in source directory, moving to expected location"
+                    mv "$alt_png_file" "$png_file"
+                    file_size=$(du -h "$png_file" | cut -f1)
+                    echo "✅ Moved and generated: $png_file (Size: $file_size)"
+                    ((success_count++))
+                  else
+                    # Check for any PNG in source directory (might have different name)
+                    found_source_png=$(find "$source_dir" -maxdepth 1 -name "*.png" -type f 2>/dev/null | head -1)
+                    if [ -n "$found_source_png" ] && [ -f "$found_source_png" ]; then
+                      echo "⚠ PNG found in source directory with different name: $(basename "$found_source_png")"
+                      mv "$found_source_png" "$png_file"
+                      file_size=$(du -h "$png_file" | cut -f1)
+                      echo "✅ Moved and renamed: $png_file (Size: $file_size)"
+                      ((success_count++))
+                    else
+                      echo "❌ Failed: PNG not found after generation"
+                      echo "Expected: $png_file"
+                      echo "Also checked: $alt_png_file"
+                      echo "Listing output directory contents:"
+                      ls -la "$png_output_dir" 2>/dev/null || echo "  Output directory does not exist"
+                      echo "Listing source directory contents:"
+                      ls -la "$source_dir" 2>/dev/null || echo "  Source directory does not exist"
+                      echo "Searching for any PNG files with this name:"
+                      find . -name "$filename.png" -type f 2>/dev/null | head -10 || echo "  No matching PNG files found"
+                      failed_files+=("$puml_file")
+                      ((fail_count++))
+                    fi
+                  fi
                 fi
               fi
             else
