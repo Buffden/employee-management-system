@@ -1,4 +1,6 @@
 import { TableCellData, TableConfig } from "./table";
+import { FilterOption } from "./paginated-response.model";
+
 export type DisplayData = EmployeeDisplayData | DepartmentDisplayData;
 
 export enum overlayType {
@@ -21,6 +23,7 @@ export interface DialogData {
     viewController: overlayType;
     config: TableConfig;
     returnToPage?: string; // Track where dialog was opened from (e.g., 'dashboard', 'locations')
+    filters?: Record<string, FilterOption[]>; // Optional: generic filters from paginated response (e.g., locations for department form dropdown)
 }
 
 export interface EmployeeDisplayData {

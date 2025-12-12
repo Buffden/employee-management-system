@@ -1,5 +1,5 @@
 import { overlayType } from "../../../../shared/models/dialog";
-import { ColumnType, FormMode, TableConfig } from "../../../../shared/models/table";
+import { ColumnType, FormMode, SortDirection, TableConfig } from "../../../../shared/models/table";
 
 export const locationListConfig: TableConfig = {
     detailsCardTitle: 'Location Details',
@@ -24,6 +24,9 @@ export const locationListConfig: TableConfig = {
     allowAddButton: true,
     allowCustomize: true,
     allowExport: true,
+    allowFiltering: true, // Allow filtering on location table
+    defaultSortColumn: 'name', // Default sort by location name
+    defaultSortDirection: SortDirection.ASC, // Default sort direction
     noDataInfo: {
         title: 'No Location Data Found',
         description: 'No data available for the selected criteria',
