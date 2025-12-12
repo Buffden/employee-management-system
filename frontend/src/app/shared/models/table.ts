@@ -1,8 +1,9 @@
 import { Department } from "./department.model";
 import { overlayType } from "./dialog";
 import { Employee, EmployeeFormField } from "./employee.model";
+import { Location } from "./location.model";
 
-export type TableCellData = Employee | Department | TableData;
+export type TableCellData = Employee | Department | Location | TableData;
 
 export enum FormMode {
     ADD = 'add',
