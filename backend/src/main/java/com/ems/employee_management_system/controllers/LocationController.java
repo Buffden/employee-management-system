@@ -19,6 +19,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.ems.employee_management_system.dtos.LocationRequestDTO;
 import com.ems.employee_management_system.dtos.LocationResponseDTO;
+import com.ems.employee_management_system.dtos.LocationQueryRequestDTO;
 import com.ems.employee_management_system.dtos.PaginatedResponseDTO;
 import com.ems.employee_management_system.mappers.LocationMapper;
 import com.ems.employee_management_system.models.Location;
@@ -68,6 +69,22 @@ public class LocationController {
     }
 
     @PostMapping
+    @PreAuthorize("hasAnyRole('" + RoleConstants.SYSTEM_ADMIN + "', '" + RoleConstants.HR_MANAGER + "', '" + RoleConstants.DEPARTMENT_MANAGER + "')")
+    public ResponseEntity<PaginatedResponseDTO<LocationResponseDTO>> query(@RequestBody LocationQueryRequestDTO queryRequest) {
+        logger.debug("Querying locations with pagination: page={}, size={}, sortBy={}, sortDir={}", 
+                queryRequest.getPage(), queryRequest.getSize(), queryRequest.getSortBy(), queryRequest.getSortDir());
+        
+        Pageable pageable = PaginationUtils.createPageable(
+                queryRequest.getPage(), 
+                queryRequest.getSize(), 
+                queryRequest.getSortBy(), 
+                queryRequest.getSortDir());
+        Page<Location> locationPage = locationService.getAll(pageable);
+        
+        return ResponseEntity.ok(PaginationUtils.toPaginatedResponse(locationPage, LocationMapper::toResponseDTO));
+    }
+
+    @PostMapping("/create")
     @PreAuthorize("hasAnyRole('" + RoleConstants.SYSTEM_ADMIN + "', '" + RoleConstants.HR_MANAGER + "')")
     public ResponseEntity<LocationResponseDTO> create(@Valid @RequestBody LocationRequestDTO requestDTO) {
         logger.info("Creating new location: {}", requestDTO.getName());
@@ -94,7 +111,7 @@ public class LocationController {
     }
 
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasRole('" + RoleConstants.SYSTEM_ADMIN + "')")
+    @PreAuthorize("hasAnyRole('" + RoleConstants.SYSTEM_ADMIN + "', '" + RoleConstants.HR_MANAGER + "')")
     public ResponseEntity<Void> delete(@PathVariable UUID id) {
         logger.info("Deleting location with id: {}", id);
         Location location = locationService.getById(id);
