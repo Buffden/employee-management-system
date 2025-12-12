@@ -139,8 +139,15 @@ jobs:
       - name: Generate PNG diagrams
         run: |
           output_base="docs/diagrams/generated"
+          failed_files=()
+          success_count=0
+          fail_count=0
+          
           while IFS= read -r puml_file; do
+            echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
             echo "Processing: $puml_file"
+            echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+            
             rel_path=$(echo "$puml_file" | sed 's|^docs/diagrams/||' | sed 's|\.puml$||')
             filename=$(basename "$puml_file" .puml)
             subdir=$(dirname "$rel_path")
@@ -152,23 +159,49 @@ jobs:
               png_output_dir="$output_base"
             fi
             
-            java -jar ~/plantuml/plantuml.jar \
+            # Capture both stdout and stderr for error details (remove -quiet to see errors)
+            error_output=$(java -jar ~/plantuml/plantuml.jar \
               -tpng \
               -o "$png_output_dir" \
               -SDPI=300 \
               -charset UTF-8 \
-              -quiet \
-              "$puml_file"
+              "$puml_file" 2>&1)
+            exit_code=$?
             
             png_file="$png_output_dir/$filename.png"
-            if [ -f "$png_file" ]; then
+            if [ -f "$png_file" ] && [ $exit_code -eq 0 ]; then
               file_size=$(du -h "$png_file" | cut -f1)
-              echo "✓ Generated: $png_file (Size: $file_size)"
+              echo "✓ SUCCESS: Generated $png_file (Size: $file_size)"
+              ((success_count++))
             else
-              echo "✗ Failed to generate PNG for: $puml_file"
-              exit 1
+              echo "✗ FAILED: Could not generate PNG for: $puml_file"
+              echo "Exit code: $exit_code"
+              if [ -n "$error_output" ]; then
+                echo "Error details:"
+                echo "$error_output" | head -30
+              fi
+              failed_files+=("$puml_file")
+              ((fail_count++))
             fi
+            echo ""
           done < puml_files.txt
+          
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo "Generation Summary:"
+          echo "  ✓ Successful: $success_count"
+          echo "  ✗ Failed: $fail_count"
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          
+          if [ $fail_count -gt 0 ]; then
+            echo ""
+            echo "::error::Failed to generate PNGs for $fail_count file(s):"
+            for failed_file in "${failed_files[@]}"; do
+              echo "::error::  - $failed_file"
+            done
+            echo ""
+            echo "Please check the PlantUML syntax for the failed files above."
+            exit 1
+          fi
 
       - name: Create artifacts summary
         run: |
@@ -280,8 +313,15 @@ jobs:
       - name: Generate PNG diagrams
         run: |
           output_base="docs/diagrams/generated"
+          failed_files=()
+          success_count=0
+          fail_count=0
+          
           while IFS= read -r puml_file; do
+            echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
             echo "Processing: $puml_file"
+            echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+            
             rel_path=$(echo "$puml_file" | sed 's|^docs/diagrams/||' | sed 's|\.puml$||')
             filename=$(basename "$puml_file" .puml)
             subdir=$(dirname "$rel_path")
@@ -293,23 +333,49 @@ jobs:
               png_output_dir="$output_base"
             fi
             
-            java -jar ~/plantuml/plantuml.jar \
+            # Capture both stdout and stderr for error details (remove -quiet to see errors)
+            error_output=$(java -jar ~/plantuml/plantuml.jar \
               -tpng \
               -o "$png_output_dir" \
               -SDPI=300 \
               -charset UTF-8 \
-              -quiet \
-              "$puml_file"
+              "$puml_file" 2>&1)
+            exit_code=$?
             
             png_file="$png_output_dir/$filename.png"
-            if [ -f "$png_file" ]; then
+            if [ -f "$png_file" ] && [ $exit_code -eq 0 ]; then
               file_size=$(du -h "$png_file" | cut -f1)
-              echo "✓ Generated: $png_file (Size: $file_size)"
+              echo "✓ SUCCESS: Generated $png_file (Size: $file_size)"
+              ((success_count++))
             else
-              echo "✗ Failed to generate PNG for: $puml_file"
-              exit 1
+              echo "✗ FAILED: Could not generate PNG for: $puml_file"
+              echo "Exit code: $exit_code"
+              if [ -n "$error_output" ]; then
+                echo "Error details:"
+                echo "$error_output" | head -30
+              fi
+              failed_files+=("$puml_file")
+              ((fail_count++))
             fi
+            echo ""
           done < puml_files.txt
+          
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo "Generation Summary:"
+          echo "  ✓ Successful: $success_count"
+          echo "  ✗ Failed: $fail_count"
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          
+          if [ $fail_count -gt 0 ]; then
+            echo ""
+            echo "::error::Failed to generate PNGs for $fail_count file(s):"
+            for failed_file in "${failed_files[@]}"; do
+              echo "::error::  - $failed_file"
+            done
+            echo ""
+            echo "Please check the PlantUML syntax for the failed files above."
+            exit 1
+          fi
 
       - name: Commit to destination branch
         id: commit-dest
