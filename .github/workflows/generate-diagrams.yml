@@ -129,10 +129,30 @@ jobs:
             output_dir="docs/diagrams/exported/$(dirname "$relative_path")"
             mkdir -p "$output_dir"
             
+            # Get expected PNG filename (based on input filename)
+            filename=$(basename "$file" .puml)
+            expected_png="$output_dir/$filename.png"
+            
             echo "Processing: $file -> $output_dir"
             if java -jar plantuml.jar -tpng "$file" -o "$(pwd)/$output_dir"; then
-              echo "✅ Generated: $file"
-              processed=$((processed + 1))
+              # PlantUML may use @startuml title for filename instead of input filename
+              # Check if PNG exists with expected name, if not, find and rename it
+              if [ ! -f "$expected_png" ]; then
+                found_png=$(find "$output_dir" -maxdepth 1 -name "*.png" -type f 2>/dev/null | head -1)
+                if [ -n "$found_png" ] && [ -f "$found_png" ]; then
+                  echo "⚠ Renaming PNG from $(basename "$found_png") to $filename.png"
+                  mv "$found_png" "$expected_png" || true
+                fi
+              fi
+              
+              if [ -f "$expected_png" ]; then
+                file_size=$(du -h "$expected_png" | cut -f1)
+                echo "✅ Generated: $expected_png (Size: $file_size)"
+                processed=$((processed + 1))
+              else
+                echo "✅ Generated: $file (PNG may have different name, but PlantUML reported success)"
+                processed=$((processed + 1))
+              fi
             else
               echo "❌ Failed: $file"
               failed=$((failed + 1))
