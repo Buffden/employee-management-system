@@ -1,5 +1,52 @@
-<mat-card style="margin: 30px;">
-    <div style="padding: 30px;">
-        Dashboard Work in Progress!!
-    </div>
-</mat-card>
+<div class="dashboard-container">
+  <mat-card class="dashboard-card">
+    <mat-card-header>
+      <mat-card-title>
+        <mat-icon>dashboard</mat-icon>
+        Dashboard
+      </mat-card-title>
+    </mat-card-header>
+    <mat-card-content>
+      <div class="dashboard-content">
+        <!-- Admin Section (System Admin Only) -->
+        <div class="admin-section" *ngIf="isSystemAdmin">
+          <mat-card class="admin-card">
+            <mat-card-header>
+              <mat-card-title>
+                <mat-icon>admin_panel_settings</mat-icon>
+                Admin Actions
+              </mat-card-title>
+            </mat-card-header>
+            <mat-card-content>
+              <p class="section-description">Manage system administrators and user accounts</p>
+              <button 
+                mat-raised-button 
+                class="action-button"
+                (click)="navigateToAddUser(userRole.SYSTEM_ADMIN)">
+                <mat-icon>person_add</mat-icon>
+                Add New Admin 
+              </button>
+              <button 
+                mat-raised-button 
+                class="action-button"
+                (click)="navigateToAddUser(userRole.HR_MANAGER)">
+                <mat-icon>person_add</mat-icon>
+                Add New HR Manager
+              </button>
+            </mat-card-content>
+          </mat-card>
+        </div>
+
+        <!-- Quick Stats Section -->
+        <div class="stats-section">
+          <mat-card class="stats-card">
+            <mat-card-content>
+              <h3>Quick Access</h3>
+              <p>Dashboard features coming soon...</p>
+            </mat-card-content>
+          </mat-card>
+        </div>
+      </div>
+    </mat-card-content>
+  </mat-card>
+</div>

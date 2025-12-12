@@ -7,6 +7,7 @@ import { Router } from '@angular/router';
 import { environment } from '../../../environments/environment';
 import { LoginRequest, RegisterRequest, AuthResponse, RefreshTokenRequest, User } from '../../shared/models/auth.model';
 import { hashPassword } from '../utils/hash.util';
+import { UserRole } from '../../shared/models/user-role.enum';
 
 @Injectable({
   providedIn: 'root'
@@ -56,12 +57,14 @@ export class AuthService {
         
         return this.http.post<AuthResponse>(`${this.API_URL}/register`, hashedData).pipe(
           tap(response => {
-            this.setAuthData(response);
-            this.currentUserSubject.next(response.user);
-            this.isAuthenticatedSubject.next(true);
+            // Don't auto-login after creating a user - keep current admin session
+            console.log('User created successfully:', response.user.username);
           }),
           catchError(error => {
             console.error('Registration error:', error);
+            if (error.status === 401) {
+              console.error('401 Unauthorized - Token may be missing or invalid');
+            }
             return throwError(() => error);
           })
         );
@@ -175,6 +178,20 @@ export class AuthService {
    */
   isAuthenticated(): boolean {
     return this.isAuthenticatedSubject.value;
+  }
+
+  /**
+   * Check if current user has admin role (SYSTEM_ADMIN or HR_MANAGER)
+   */
+  isAdmin(): boolean {
+    return this.hasAnyRole([UserRole.SYSTEM_ADMIN, UserRole.HR_MANAGER]);
+  }
+
+  /**
+   * Check if current user is SYSTEM_ADMIN (can create other admins)
+   */
+  isSystemAdmin(): boolean {
+    return this.hasRole(UserRole.SYSTEM_ADMIN);
   }
 
   /**

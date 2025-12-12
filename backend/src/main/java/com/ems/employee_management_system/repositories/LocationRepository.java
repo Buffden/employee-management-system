@@ -10,6 +10,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import com.ems.employee_management_system.models.Location;
+import com.ems.employee_management_system.enums.UserRole;
 
 public interface LocationRepository extends JpaRepository<Location, UUID> {
     Optional<Location> findByName(String name);
@@ -22,9 +23,9 @@ public interface LocationRepository extends JpaRepository<Location, UUID> {
 
     @Query("""
         SELECT l FROM Location l
-        WHERE (:role = 'SYSTEM_ADMIN' OR :role = 'HR_MANAGER')
-           OR (:role = 'DEPARTMENT_MANAGER')
-           OR (:role = 'EMPLOYEE')
+        WHERE (:role = '" + UserRole.SYSTEM_ADMIN.getValue() + "' OR :role = '" + UserRole.HR_MANAGER.getValue() + "')
+           OR (:role = '" + UserRole.DEPARTMENT_MANAGER.getValue() + "')
+           OR (:role = '" + UserRole.EMPLOYEE.getValue() + "')
         """)
     Page<Location> findAllFilteredByRole(@Param("role") String role,
                                          Pageable pageable);

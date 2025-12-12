@@ -28,12 +28,13 @@ import com.ems.employee_management_system.services.DepartmentService;
 import com.ems.employee_management_system.services.EmployeeService;
 import com.ems.employee_management_system.services.LocationService;
 import com.ems.employee_management_system.utils.PaginationUtils;
+import com.ems.employee_management_system.constants.RoleConstants;
 
 import jakarta.validation.Valid;
 
 @RestController
 @RequestMapping("/api/departments")
-@PreAuthorize("hasAnyRole('SYSTEM_ADMIN', 'HR_MANAGER', 'DEPARTMENT_MANAGER', 'EMPLOYEE')")
+@PreAuthorize("hasAnyRole('" + RoleConstants.SYSTEM_ADMIN + "', '" + RoleConstants.HR_MANAGER + "', '" + RoleConstants.DEPARTMENT_MANAGER + "', '" + RoleConstants.EMPLOYEE + "')")
 public class DepartmentController {
     private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(DepartmentController.class);
     
@@ -51,7 +52,7 @@ public class DepartmentController {
     }
 
     @GetMapping
-    @PreAuthorize("hasAnyRole('SYSTEM_ADMIN', 'HR_MANAGER', 'DEPARTMENT_MANAGER', 'EMPLOYEE')")
+    @PreAuthorize("hasAnyRole('" + RoleConstants.SYSTEM_ADMIN + "', '" + RoleConstants.HR_MANAGER + "', '" + RoleConstants.DEPARTMENT_MANAGER + "', '" + RoleConstants.EMPLOYEE + "')")
     public ResponseEntity<com.ems.employee_management_system.dtos.PaginatedResponseDTO<DepartmentResponseDTO>> getAll(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size,
@@ -66,9 +67,9 @@ public class DepartmentController {
     }
 
     @GetMapping("/{id}")
-    @PreAuthorize("hasAnyRole('SYSTEM_ADMIN', 'HR_MANAGER', 'DEPARTMENT_MANAGER', 'EMPLOYEE') and " +
-                  "(@securityService.hasRole('SYSTEM_ADMIN') or @securityService.hasRole('HR_MANAGER') or " +
-                  "@securityService.hasRole('DEPARTMENT_MANAGER') or @securityService.isOwnDepartment(#id) or " +
+    @PreAuthorize("hasAnyRole('" + RoleConstants.SYSTEM_ADMIN + "', '" + RoleConstants.HR_MANAGER + "', '" + RoleConstants.DEPARTMENT_MANAGER + "', '" + RoleConstants.EMPLOYEE + "') and " +
+                  "(@securityService.hasRole('" + RoleConstants.SYSTEM_ADMIN + "') or @securityService.hasRole('" + RoleConstants.HR_MANAGER + "') or " +
+                  "@securityService.hasRole('" + RoleConstants.DEPARTMENT_MANAGER + "') or @securityService.isOwnDepartment(#id) or " +
                   "@securityService.getCurrentUserEmployeeId() != null)")
     public ResponseEntity<DepartmentResponseDTO> getById(@PathVariable UUID id) {
         logger.debug("Fetching department with id: {}", id);
@@ -81,7 +82,7 @@ public class DepartmentController {
     }
 
     @PostMapping
-    @PreAuthorize("hasRole('SYSTEM_ADMIN')")
+    @PreAuthorize("hasRole('" + RoleConstants.SYSTEM_ADMIN + "')")
     public ResponseEntity<DepartmentResponseDTO> create(@Valid @RequestBody DepartmentRequestDTO requestDTO) {
         logger.info("Creating new department: {}", requestDTO.getName());
         // Validate related entities exist
@@ -105,8 +106,8 @@ public class DepartmentController {
     }
 
     @PutMapping("/{id}")
-    @PreAuthorize("hasAnyRole('SYSTEM_ADMIN', 'HR_MANAGER') or " +
-                  "(hasRole('DEPARTMENT_MANAGER') and @securityService.isOwnDepartment(#id))")
+    @PreAuthorize("hasAnyRole('" + RoleConstants.SYSTEM_ADMIN + "', '" + RoleConstants.HR_MANAGER + "') or " +
+                  "(hasRole('" + RoleConstants.DEPARTMENT_MANAGER + "') and @securityService.isOwnDepartment(#id))")
     public ResponseEntity<DepartmentResponseDTO> update(@PathVariable UUID id, @Valid @RequestBody DepartmentRequestDTO requestDTO) {
         logger.info("Updating department with id: {}", id);
         Department existingDepartment = departmentService.getById(id);
@@ -137,7 +138,7 @@ public class DepartmentController {
     }
 
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasRole('SYSTEM_ADMIN')")
+    @PreAuthorize("hasRole('" + RoleConstants.SYSTEM_ADMIN + "')")
     public ResponseEntity<Void> delete(@PathVariable UUID id) {
         logger.info("Deleting department with id: {}", id);
         Department department = departmentService.getById(id);

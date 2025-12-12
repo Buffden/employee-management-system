@@ -18,6 +18,7 @@ import com.ems.employee_management_system.mappers.UserMapper;
 import com.ems.employee_management_system.models.User;
 import com.ems.employee_management_system.repositories.UserRepository;
 import com.ems.employee_management_system.utils.HashUtil;
+import com.ems.employee_management_system.enums.UserRole;
 
 @Service
 public class AuthService {
@@ -61,15 +62,22 @@ public class AuthService {
             throw new RuntimeException("Email already exists");
         }
         
-        // Validate role (default to EMPLOYEE if not provided or invalid)
-        String role = request.getRole();
-        if (role == null || role.isEmpty()) {
-            role = "EMPLOYEE";
+        // Validate role - only SYSTEM_ADMIN or HR_MANAGER can be created by System Admin
+        // Role is mandatory (validated by @NotBlank in DTO)
+        String roleString = request.getRole();
+        if (roleString == null || roleString.isEmpty()) {
+            throw new RuntimeException("Role is required and cannot be empty");
         }
         
-        // Validate role is one of the allowed values
-        if (!isValidRole(role)) {
-            role = "EMPLOYEE"; // Default to EMPLOYEE if invalid
+        // Convert to enum and validate
+        UserRole role = UserRole.fromString(roleString);
+        if (role == null) {
+            throw new RuntimeException("Invalid role: " + roleString);
+        }
+        
+        // Only allow SYSTEM_ADMIN or HR_MANAGER roles to be created
+        if (role != UserRole.SYSTEM_ADMIN && role != UserRole.HR_MANAGER) {
+            throw new RuntimeException("Only SYSTEM_ADMIN or HR_MANAGER roles can be created");
         }
         
         // Create new user with plain username
@@ -78,7 +86,7 @@ public class AuthService {
         user.setUsername(plainUsername); // Store plain username for user-friendliness
         user.setEmail(request.getEmail());
         user.setPassword(passwordEncoder.encode(hashedPassword)); // Double hash: frontend hash + BCrypt
-        user.setRole(role);
+        user.setRole(role.getValue());
         user.setCreatedAt(LocalDateTime.now());
         
         // Save user
@@ -104,12 +112,7 @@ public class AuthService {
      * Validate if role is one of the allowed values
      */
     private boolean isValidRole(String role) {
-        return role != null && (
-            role.equals("SYSTEM_ADMIN") ||
-            role.equals("HR_MANAGER") ||
-            role.equals("DEPARTMENT_MANAGER") ||
-            role.equals("EMPLOYEE")
-        );
+        return UserRole.isValid(role);
     }
     
     /**

@@ -8,7 +8,9 @@ import { MatInputModule } from '@angular/material/input';
 import { MatButtonModule } from '@angular/material/button';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatIconModule } from '@angular/material/icon';
+import { MatSelectModule } from '@angular/material/select';
 import { AuthService } from '../../../../core/services/auth.service';
+import { UserRole } from '../../../../shared/models/user-role.enum';
 
 @Component({
   selector: 'app-register',
@@ -22,7 +24,8 @@ import { AuthService } from '../../../../core/services/auth.service';
     MatInputModule,
     MatButtonModule,
     MatProgressSpinnerModule,
-    MatIconModule
+    MatIconModule,
+    MatSelectModule
   ],
   templateUrl: './register.component.html',
   styleUrls: ['./register.component.css']
@@ -33,6 +36,7 @@ export class RegisterComponent implements OnInit {
   errorMessage: string | null = null;
   hidePassword = true;
   hideConfirmPassword = true;
+  userRole = UserRole; // Expose enum to template
 
   constructor(
     private readonly formBuilder: FormBuilder,
@@ -43,17 +47,32 @@ export class RegisterComponent implements OnInit {
       username: ['', [Validators.required, Validators.minLength(3), Validators.maxLength(50)]],
       email: ['', [Validators.required, Validators.email]],
       password: ['', [Validators.required, Validators.minLength(8)]],
-      confirmPassword: ['', [Validators.required]]
+      confirmPassword: ['', [Validators.required]],
+      role: [UserRole.SYSTEM_ADMIN, [Validators.required]] // Required field - defaults to SYSTEM_ADMIN, admin can select HR_MANAGER
     }, {
       validators: this.passwordMatchValidator
     });
   }
 
   ngOnInit(): void {
-    // If already logged in, redirect to home
-    if (this.authService.isAuthenticated()) {
-      this.router.navigate(['/dashboard']);
+    // Check if user is authenticated and is System Admin
+    // Note: RoleGuard handles this, but we keep this as a safety check
+    if (!this.authService.isAuthenticated()) {
+      console.warn('User not authenticated, redirecting to login');
+      this.router.navigate(['/login'], { queryParams: { returnUrl: '/register' } });
+      return;
     }
+    
+    if (!this.authService.isSystemAdmin()) {
+      console.warn('User is not System Admin, redirecting to dashboard');
+      this.router.navigate(['/dashboard']);
+      return;
+    }
+    
+    // Verify token exists
+    const token = this.authService.getToken();
+    const user = this.authService.getCurrentUser();
+    console.log('Register page - User:', user?.username, 'Role:', user?.role, 'Token exists:', !!token);
   }
 
   /**
@@ -82,17 +101,22 @@ export class RegisterComponent implements OnInit {
     const registrationData = {
       username: this.registerForm.get('username')?.value,
       email: this.registerForm.get('email')?.value,
-      password: this.registerForm.get('password')?.value
+      password: this.registerForm.get('password')?.value,
+      role: this.registerForm.get('role')?.value // Required field - form validation ensures this is always present
     };
 
     this.authService.register(registrationData).subscribe({
       next: () => {
         this.loading = false;
+        // Show success message and navigate back to dashboard
+        alert('Admin user created successfully!');
         this.router.navigate(['/dashboard']);
       },
       error: (error) => {
         this.loading = false;
-        if (error.status === 409) {
+        if (error.status === 403) {
+          this.errorMessage = 'Access denied. Only administrators can register new users.';
+        } else if (error.status === 409) {
           this.errorMessage = 'Username or email already exists. Please use different credentials.';
         } else if (error.status === 0) {
           this.errorMessage = 'Unable to connect to server. Please check your connection.';
@@ -150,7 +174,8 @@ export class RegisterComponent implements OnInit {
       username: 'Username',
       email: 'Email',
       password: 'Password',
-      confirmPassword: 'Confirm Password'
+      confirmPassword: 'Confirm Password',
+      role: 'Role'
     };
     return labels[fieldName] || fieldName;
   }

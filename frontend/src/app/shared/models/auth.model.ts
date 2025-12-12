@@ -3,11 +3,13 @@ export interface LoginRequest {
   password: string;
 }
 
+import { UserRole } from './user-role.enum';
+
 export interface RegisterRequest {
   username: string;
   email: string;
   password: string;
-  role?: string;
+  role?: UserRole;
 }
 
 export interface User {

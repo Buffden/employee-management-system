@@ -28,7 +28,7 @@ public class User {
     private String email;
 
     @Column(nullable = false)
-    private String role; // SYSTEM_ADMIN, HR_MANAGER, DEPARTMENT_MANAGER, EMPLOYEE
+    private String role; // Values defined in UserRole enum: SYSTEM_ADMIN, HR_MANAGER, DEPARTMENT_MANAGER, EMPLOYEE
 
     @ManyToOne
     @JoinColumn(name = "employee_id")
