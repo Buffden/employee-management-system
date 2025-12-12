@@ -1,0 +1,115 @@
+@startuml Location Create - Sequence Diagram
+' Workflow test - updated
+skinparam linetype ortho
+skinparam sequenceArrowThickness 2
+skinparam roundcorner 20
+skinparam maxmessagesize 60
+
+title Location Create - Sequence Diagram
+
+actor "HR Manager" as User
+participant "Angular Frontend" as Frontend
+participant "Nginx Gateway" as Gateway
+participant "Location Controller" as Controller
+participant "Location Service" as Service
+participant "Location Mapper" as Mapper
+participant "Location Repository" as LocRepo
+database "PostgreSQL" as DB
+
+User -> Frontend: 1. Navigate to Location Management page
+User -> Frontend: 2. Click "Add Location" button
+Frontend -> Frontend: 3. Display location creation form
+User -> Frontend: 4. Fill location details\n(name, address, city, state, country, postal code)
+User -> Frontend: 5. Click "Create Location"
+
+Frontend -> Gateway: 6. POST /api/locations\n(LocationRequestDTO)\nAuthorization: Bearer {token}
+
+Gateway -> Gateway: 7. Forward to Backend
+
+participant "JwtAuthenticationFilter" as JwtFilter
+participant "SecurityService" as SecurityService
+
+Gateway -> JwtFilter: 8. Intercept request
+JwtFilter -> JwtFilter: 9. Validate JWT token
+JwtFilter -> JwtFilter: 10. Extract role from token
+JwtFilter -> JwtFilter: 11. Set SecurityContext
+JwtFilter -> Controller: 12. Forward request
+
+Controller -> Controller: 13. Check @PreAuthorize\n(hasRole('SYSTEM_ADMIN') or hasRole('HR_MANAGER'))
+
+alt Insufficient permissions
+    Controller --> Gateway: 14. HTTP 403 Forbidden
+    Gateway --> Frontend: 15. Access denied
+    Frontend --> User: 16. Show error message
+else Authorized
+    Controller -> SecurityService: 17. getCurrentUserRole()
+    SecurityService --> Controller: 18. Role (e.g., 'HR_MANAGER')
+    
+    Controller -> Service: 19. create(LocationRequestDTO)
+    
+    Service -> Service: 20. Validate input\n(name, city, state, country required)
+    
+    alt Validation fails
+        Service --> Controller: 21. Throw ValidationException
+        Controller --> Gateway: 22. HTTP 400 Bad Request
+        Gateway --> Frontend: 23. Error response
+        Frontend --> User: 24. Show validation errors
+    else Validation passes
+        Service -> LocRepo: 25. existsByName(name)
+        LocRepo -> DB: 26. SELECT COUNT(*) FROM location WHERE name = ?
+        DB --> LocRepo: 27. Count result
+        LocRepo --> Service: 28. Name exists? (boolean)
+        
+        alt Location name already exists
+            Service --> Controller: 29. Throw DuplicateNameException
+            Controller --> Gateway: 30. HTTP 400 Bad Request
+            Gateway --> Frontend: 31. Error response
+            Frontend --> User: 32. Show error: "Location name already exists"
+        else Name available
+            Service -> Mapper: 33. toEntity(DTO)
+            Mapper --> Service: 34. Location entity
+            Service -> Service: 35. Set default country = 'USA' (if not provided)
+            Service -> Service: 36. Set createdAt timestamp
+            
+            Service -> LocRepo: 37. save(Location)
+            LocRepo -> DB: 38. INSERT INTO location\n(name, address, city, state, country, postal_code)
+            DB --> LocRepo: 39. Saved location
+            LocRepo --> Service: 40. Location entity
+            
+            Service -> Mapper: 41. toResponseDTO(Location)
+            Mapper --> Service: 42. LocationResponseDTO
+            
+            Service --> Controller: 43. LocationResponseDTO
+            Controller --> Gateway: 44. HTTP 201 Created
+            Gateway --> Frontend: 45. Response with location data
+            Frontend -> User: 46. Display success: "Location created successfully"
+            Frontend -> Frontend: 47. Redirect to location list or location details
+        end
+    end
+end
+
+note right of JwtFilter
+  **RBAC:**
+  - Validates JWT token
+  - Extracts role (HR_MANAGER/SYSTEM_ADMIN)
+  - Sets SecurityContext
+end note
+
+note right of Controller
+  **Authorization:**
+  @PreAuthorize checks role
+  Only HR_MANAGER and
+  SYSTEM_ADMIN can create locations
+end note
+
+note right of Service
+  **Business Rules:**
+  - Location name must be unique
+  - Required fields: name, city, state, country
+  - Default country: 'USA'
+  - Location can be used by departments
+    and employees
+end note
+
+@enduml
+

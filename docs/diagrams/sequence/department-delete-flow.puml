@@ -1,0 +1,110 @@
+@startuml Department Delete - Sequence Diagram
+' Workflow test - updated
+skinparam linetype ortho
+skinparam sequenceArrowThickness 2
+skinparam roundcorner 20
+skinparam maxmessagesize 60
+
+title Department Delete - Sequence Diagram
+
+actor "System Admin" as User
+participant "Angular Frontend" as Frontend
+participant "Nginx Gateway" as Gateway
+participant "Department Controller" as Controller
+participant "Department Service" as Service
+participant "Department Repository" as DeptRepo
+participant "Employee Repository" as EmpRepo
+database "PostgreSQL" as DB
+
+User -> Frontend: 1. Navigate to department details
+User -> Frontend: 2. Click "Delete" button
+Frontend -> User: 3. Show confirmation dialog
+
+User -> Frontend: 4. Confirm deletion
+Frontend -> Gateway: 5. DELETE /api/departments/{id}\nAuthorization: Bearer {token}
+
+Gateway -> Gateway: 6. Forward to Backend
+
+participant "JwtAuthenticationFilter" as JwtFilter
+participant "SecurityService" as SecurityService
+
+Gateway -> JwtFilter: 7. Intercept request
+JwtFilter -> JwtFilter: 8. Validate JWT token
+JwtFilter -> JwtFilter: 9. Extract role from token
+JwtFilter -> JwtFilter: 10. Set SecurityContext
+JwtFilter -> Controller: 11. Forward request
+
+Controller -> Controller: 12. Check @PreAuthorize\n(hasRole('SYSTEM_ADMIN'))
+
+alt Insufficient permissions
+    Controller --> Gateway: 13. HTTP 403 Forbidden
+    Gateway --> Frontend: 14. Access denied
+    Frontend --> User: 15. Show error: "Only System Administrators can delete departments"
+else Authorized
+    Controller -> SecurityService: 16. getCurrentUserRole()
+    SecurityService --> Controller: 17. Role: 'SYSTEM_ADMIN'
+    
+    Controller -> Service: 18. delete(departmentId)
+    
+    Service -> DeptRepo: 19. findById(departmentId)
+    DeptRepo -> DB: 20. SELECT * FROM department WHERE id = ?
+    DB --> DeptRepo: 21. Department data
+    DeptRepo --> Service: 22. Department entity
+    
+    alt Department not found
+        Service --> Controller: 23. Throw DepartmentNotFoundException
+        Controller --> Gateway: 24. HTTP 404 Not Found
+        Gateway --> Frontend: 25. Error response
+        Frontend --> User: 26. Show error: "Department not found"
+    else Department found
+        Service -> EmpRepo: 27. countByDepartmentId(departmentId)
+        EmpRepo -> DB: 28. SELECT COUNT(*) FROM employee\nWHERE department_id = ?
+        DB --> EmpRepo: 29. Employee count
+        EmpRepo --> Service: 30. Count (integer)
+        
+        alt Department has employees
+            Service --> Controller: 31. Throw BusinessException\n"Cannot delete department with employees"
+            Controller --> Gateway: 32. HTTP 400 Bad Request
+            Gateway --> Frontend: 33. Error response
+            Frontend --> User: 34. Show error: "Cannot delete department.\nDepartment has {count} employee(s) assigned.\nPlease reassign or remove employees before deletion."
+            Frontend -> Frontend: 35. Display list of employees in department
+        else No employees
+            Service -> DeptRepo: 36. delete(departmentId)
+            DeptRepo -> DB: 37. DELETE FROM department WHERE id = ?
+            DB --> DeptRepo: 38. Deleted department
+            DeptRepo --> Service: 39. Success
+            
+            Service --> Controller: 40. Success response
+            Controller --> Gateway: 41. HTTP 200 OK or HTTP 204 No Content
+            Gateway --> Frontend: 42. Success response
+            Frontend -> User: 43. Display success: "Department deleted successfully"
+            Frontend -> Frontend: 44. Redirect to department list
+        end
+    end
+end
+
+note right of JwtFilter
+  **RBAC:**
+  - Validates JWT token
+  - Extracts role (must be SYSTEM_ADMIN)
+  - Sets SecurityContext
+end note
+
+note right of Controller
+  **Authorization:**
+  @PreAuthorize(hasRole('SYSTEM_ADMIN'))
+  Only System Administrators
+  can delete departments
+end note
+
+note right of Service
+  **Business Rules:**
+  - Department cannot be deleted
+    if it has employees assigned
+  - System Admin only operation
+  - No cascade deletion
+    (must reassign employees first)
+end note
+
+@enduml
+

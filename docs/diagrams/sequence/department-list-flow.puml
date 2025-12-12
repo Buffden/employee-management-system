@@ -1,0 +1,109 @@
+@startuml Department List - Sequence Diagram
+' Workflow test - updated
+skinparam linetype ortho
+skinparam sequenceArrowThickness 2
+skinparam roundcorner 20
+skinparam maxmessagesize 60
+
+title View Department List - Sequence Diagram
+
+actor "User" as User
+participant "Angular Frontend" as Frontend
+participant "Nginx Gateway" as Gateway
+participant "Department Controller" as Controller
+participant "Department Service" as Service
+participant "Department Repository" as DeptRepo
+participant "Employee Repository" as EmpRepo
+database "PostgreSQL" as DB
+
+User -> Frontend: 1. Navigate to Department List page
+Frontend -> Gateway: 2. GET /api/departments\nAuthorization: Bearer {token}
+
+Gateway -> Gateway: 3. Forward to Backend
+
+participant "JwtAuthenticationFilter" as JwtFilter
+participant "SecurityService" as SecurityService
+
+Gateway -> JwtFilter: 4. Intercept request
+JwtFilter -> JwtFilter: 5. Validate JWT token
+JwtFilter -> JwtFilter: 6. Extract claims (username, role, departmentId)
+JwtFilter -> JwtFilter: 7. Set SecurityContext
+JwtFilter -> Controller: 8. Forward request
+
+Controller -> Controller: 9. Check @PreAuthorize\n(hasAnyRole('SYSTEM_ADMIN', 'HR_MANAGER', 'DEPARTMENT_MANAGER'))
+
+alt Insufficient permissions
+    Controller --> Gateway: 10. HTTP 403 Forbidden
+    Gateway --> Frontend: 11. Access denied
+    Frontend --> User: 12. Show error message
+else Authorized
+    Controller -> SecurityService: 13. getCurrentUserRole()\ngetCurrentUserDepartmentId()
+    SecurityService --> Controller: 14. Role, DepartmentId
+    
+    Controller -> Service: 15. getAll(userRole, departmentId)
+    
+    alt Role is SYSTEM_ADMIN or HR_MANAGER
+        Service -> DeptRepo: 16. findAll()
+        DeptRepo -> DB: 17. SELECT * FROM department\nORDER BY name ASC
+        DB --> DeptRepo: 18. All departments
+        DeptRepo --> Service: 19. List<Department>
+        
+    else Role is DEPARTMENT_MANAGER
+        Service -> DeptRepo: 20. findById(departmentId)
+        DeptRepo -> DB: 21. SELECT * FROM department\nWHERE id = ?
+        DB --> DeptRepo: 22. User's department
+        DeptRepo --> Service: 23. Department (single item)
+        Service -> Service: 24. Convert to List<Department>
+    end
+    
+    Service -> Service: 25. Load related entities\n(location, department head)
+    Service -> DeptRepo: 26. Load relations for each department
+    DeptRepo -> DB: 27. JOIN queries for related data
+    DB --> DeptRepo: 28. Departments with relations
+    DeptRepo --> Service: 29. List<Department> with relations
+    
+    Service -> EmpRepo: 30. Count employees per department
+    EmpRepo -> DB: 31. SELECT department_id, COUNT(*) as count\nFROM employee\nGROUP BY department_id
+    DB --> EmpRepo: 32. Employee counts
+    EmpRepo --> Service: 33. Map<UUID, Integer> (departmentId -> count)
+    
+    Service -> Service: 34. Convert to DepartmentResponseDTO list\nwith employee counts
+    Service --> Controller: 35. List<DepartmentResponseDTO>
+    
+    alt No departments found
+        Controller --> Gateway: 36. HTTP 200 OK (empty list)
+        Gateway --> Frontend: 37. Empty list response
+        Frontend -> User: 38. Display "No departments found"
+    else Departments found
+        Controller --> Gateway: 39. HTTP 200 OK
+        Gateway --> Frontend: 40. Response with department list
+        Frontend -> Frontend: 41. Display department table
+        Frontend -> User: 42. Show departments with:\n- Name, Description\n- Location\n- Budget\n- Employee Count\n- Department Head
+    end
+end
+
+note right of JwtFilter
+  **RBAC:**
+  - Validates JWT token
+  - Extracts role and department
+  - Sets SecurityContext
+end note
+
+note right of Controller
+  **Authorization:**
+  @PreAuthorize checks role
+  Multiple roles allowed:
+  SYSTEM_ADMIN, HR_MANAGER,
+  DEPARTMENT_MANAGER
+end note
+
+note right of Service
+  **Role-Based Filtering:**
+  - SYSTEM_ADMIN/HR_MANAGER: All departments
+  - DEPARTMENT_MANAGER: Own department only
+  Employee counts calculated
+  for each department
+end note
+
+@enduml
+

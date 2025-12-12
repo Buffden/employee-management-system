@@ -1,0 +1,118 @@
+@startuml Location Delete - Sequence Diagram
+' Workflow test - updated
+skinparam linetype ortho
+skinparam sequenceArrowThickness 2
+skinparam roundcorner 20
+skinparam maxmessagesize 60
+
+title Location Delete - Sequence Diagram
+
+actor "System Admin" as User
+participant "Angular Frontend" as Frontend
+participant "Nginx Gateway" as Gateway
+participant "Location Controller" as Controller
+participant "Location Service" as Service
+participant "Location Repository" as LocRepo
+participant "Department Repository" as DeptRepo
+participant "Employee Repository" as EmpRepo
+database "PostgreSQL" as DB
+
+User -> Frontend: 1. Navigate to location details
+User -> Frontend: 2. Click "Delete" button
+Frontend -> User: 3. Show confirmation dialog
+
+User -> Frontend: 4. Confirm deletion
+Frontend -> Gateway: 5. DELETE /api/locations/{id}\nAuthorization: Bearer {token}
+
+Gateway -> Gateway: 6. Forward to Backend
+
+participant "JwtAuthenticationFilter" as JwtFilter
+participant "SecurityService" as SecurityService
+
+Gateway -> JwtFilter: 7. Intercept request
+JwtFilter -> JwtFilter: 8. Validate JWT token
+JwtFilter -> JwtFilter: 9. Extract role from token
+JwtFilter -> JwtFilter: 10. Set SecurityContext
+JwtFilter -> Controller: 11. Forward request
+
+Controller -> Controller: 12. Check @PreAuthorize\n(hasRole('SYSTEM_ADMIN'))
+
+alt Insufficient permissions
+    Controller --> Gateway: 13. HTTP 403 Forbidden
+    Gateway --> Frontend: 14. Access denied
+    Frontend --> User: 15. Show error: "Only System Administrators can delete locations"
+else Authorized
+    Controller -> SecurityService: 16. getCurrentUserRole()
+    SecurityService --> Controller: 17. Role: 'SYSTEM_ADMIN'
+    
+    Controller -> Service: 18. delete(locationId)
+    
+    Service -> LocRepo: 19. findById(locationId)
+    LocRepo -> DB: 20. SELECT * FROM location WHERE id = ?
+    DB --> LocRepo: 21. Location data
+    LocRepo --> Service: 22. Location entity
+    
+    alt Location not found
+        Service --> Controller: 23. Throw LocationNotFoundException
+        Controller --> Gateway: 24. HTTP 404 Not Found
+        Gateway --> Frontend: 25. Error response
+        Frontend --> User: 26. Show error: "Location not found"
+    else Location found
+        Service -> DeptRepo: 27. countByLocationId(locationId)
+        DeptRepo -> DB: 28. SELECT COUNT(*) FROM department\nWHERE location_id = ?
+        DB --> DeptRepo: 29. Department count
+        DeptRepo --> Service: 30. Department count (integer)
+        
+        Service -> EmpRepo: 31. countByLocationId(locationId)
+        EmpRepo -> DB: 32. SELECT COUNT(*) FROM employee\nWHERE location_id = ?
+        DB --> EmpRepo: 33. Employee count
+        EmpRepo --> Service: 34. Employee count (integer)
+        
+        alt Location is in use
+            Service --> Controller: 35. Throw BusinessException\n"Cannot delete location in use"
+            Controller --> Gateway: 36. HTTP 400 Bad Request
+            Gateway --> Frontend: 37. Error response
+            Frontend --> User: 38. Show error: "Cannot delete location.\nLocation is assigned to {deptCount} department(s)\nand/or {empCount} employee(s).\nPlease reassign or remove assignments before deletion."
+            Frontend -> Frontend: 39. Display list of departments and employees
+        else Location not in use
+            Service -> LocRepo: 40. delete(locationId)
+            LocRepo -> DB: 41. DELETE FROM location WHERE id = ?
+            DB --> LocRepo: 42. Deleted location
+            LocRepo --> Service: 43. Success
+            
+            Service --> Controller: 44. Success response
+            Controller --> Gateway: 45. HTTP 200 OK or HTTP 204 No Content
+            Gateway --> Frontend: 46. Success response
+            Frontend -> User: 47. Display success: "Location deleted successfully"
+            Frontend -> Frontend: 48. Redirect to location list
+        end
+    end
+end
+
+note right of JwtFilter
+  **RBAC:**
+  - Validates JWT token
+  - Extracts role (must be SYSTEM_ADMIN)
+  - Sets SecurityContext
+end note
+
+note right of Controller
+  **Authorization:**
+  @PreAuthorize(hasRole('SYSTEM_ADMIN'))
+  Only System Administrators
+  can delete locations
+end note
+
+note right of Service
+  **Business Rules:**
+  - Location cannot be deleted
+    if assigned to departments
+  - Location cannot be deleted
+    if assigned to employees
+  - System Admin only operation
+  - No cascade deletion
+    (must reassign first)
+end note
+
+@enduml
+

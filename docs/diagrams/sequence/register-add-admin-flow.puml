@@ -1,0 +1,131 @@
+@startuml Register Add Admin - Sequence Diagram
+' Workflow test - updated
+skinparam linetype ortho
+skinparam sequenceArrowThickness 2
+skinparam roundcorner 20
+skinparam maxmessagesize 60
+
+title Register/Add Admin - Sequence Diagram
+
+actor "System Admin" as User
+participant "Angular Frontend" as Frontend
+participant "Nginx Gateway" as Gateway
+participant "Auth Controller" as Controller
+participant "Auth Service" as AuthService
+participant "User Repository" as UserRepo
+database "PostgreSQL" as DB
+
+User -> Frontend: 1. Navigate to "Add New Admin" (Dashboard)
+User -> Frontend: 2. Fill registration form (username, email, password, role)
+User -> Frontend: 3. Select role (SYSTEM_ADMIN or HR_MANAGER)
+User -> Frontend: 4. Click "Create Admin"
+
+Frontend -> Frontend: 5. Validate form (client-side)
+Frontend -> Frontend: 6. Hash password (SHA-256)
+Frontend -> Gateway: 7. POST /api/auth/register\n(RegisterRequestDTO)\nAuthorization: Bearer {token}
+
+Gateway -> Gateway: 8. Forward to Backend
+
+participant "JwtAuthenticationFilter" as JwtFilter
+participant "SecurityService" as SecurityService
+
+Gateway -> JwtFilter: 9. Intercept request
+JwtFilter -> JwtFilter: 10. Validate JWT token
+JwtFilter -> JwtFilter: 11. Extract role from token
+JwtFilter -> JwtFilter: 12. Set SecurityContext
+JwtFilter -> Controller: 13. Forward request
+
+Controller -> Controller: 14. Check @PreAuthorize\n(hasRole('SYSTEM_ADMIN'))
+
+alt Insufficient permissions
+    Controller --> Gateway: 15. HTTP 403 Forbidden
+    Gateway --> Frontend: 16. Access denied
+    Frontend --> User: 17. Show error: "Only administrators can register new users"
+else Authorized
+    Controller -> SecurityService: 18. getCurrentUserRole()
+    SecurityService --> Controller: 19. Role: 'SYSTEM_ADMIN'
+    
+    Controller -> AuthService: 20. register(RegisterRequestDTO)
+    
+    AuthService -> UserRepo: 21. existsByUsername(username)
+    UserRepo -> DB: 22. SELECT COUNT(*) FROM users WHERE username = ?
+    DB --> UserRepo: 23. Count result
+    UserRepo --> AuthService: 24. Username exists? (boolean)
+    
+    alt Username already exists
+        AuthService --> Controller: 25. Throw RuntimeException\n"Username already exists"
+        Controller --> Gateway: 26. HTTP 409 Conflict
+        Gateway --> Frontend: 27. Error response
+        Frontend --> User: 28. Show error: "Username already exists"
+    else Username available
+        AuthService -> UserRepo: 29. existsByEmail(email)
+        UserRepo -> DB: 30. SELECT COUNT(*) FROM users WHERE email = ?
+        DB --> UserRepo: 31. Count result
+        UserRepo --> AuthService: 32. Email exists? (boolean)
+        
+        alt Email already exists
+            AuthService --> Controller: 33. Throw RuntimeException\n"Email already exists"
+            Controller --> Gateway: 34. HTTP 409 Conflict
+            Gateway --> Frontend: 35. Error response
+            Frontend --> User: 36. Show error: "Email already exists"
+        else Email available
+            AuthService -> AuthService: 37. Validate role\n(must be SYSTEM_ADMIN or HR_MANAGER)
+            
+            alt Invalid role
+                AuthService --> Controller: 38. Throw RuntimeException\n"Only SYSTEM_ADMIN or HR_MANAGER roles can be created"
+                Controller --> Gateway: 39. HTTP 400 Bad Request
+                Gateway --> Frontend: 40. Error response
+                Frontend --> User: 41. Show error: "Invalid role"
+            else Valid role
+                AuthService -> AuthService: 42. Create User entity
+                AuthService -> AuthService: 43. Set username (plain text)
+                AuthService -> AuthService: 44. Set email
+                AuthService -> AuthService: 45. Hash password (BCrypt)\nDouble-hash: SHA-256 + BCrypt
+                AuthService -> AuthService: 46. Set role (SYSTEM_ADMIN or HR_MANAGER)
+                AuthService -> AuthService: 47. Set createdAt timestamp
+                
+                AuthService -> UserRepo: 48. save(User)
+                UserRepo -> DB: 49. INSERT INTO users
+                DB --> UserRepo: 50. Saved user
+                UserRepo --> AuthService: 51. User entity
+                
+                AuthService -> AuthService: 52. Create AuthResponseDTO\n{token, user}
+                AuthService --> Controller: 53. AuthResponseDTO
+                
+                Controller --> Gateway: 54. HTTP 201 Created
+                Gateway --> Frontend: 55. Response with user data
+                Frontend -> User: 56. Display success: "Admin user created successfully!"
+                Frontend -> Frontend: 57. Redirect to dashboard
+            end
+        end
+    end
+end
+
+note right of JwtFilter
+  **RBAC:**
+  - Validates JWT token
+  - Extracts role (must be SYSTEM_ADMIN)
+  - Sets SecurityContext
+end note
+
+note right of Controller
+  **Authorization:**
+  @PreAuthorize(hasRole('SYSTEM_ADMIN'))
+  Only System Administrators
+  can create new users
+end note
+
+note right of AuthService
+  **Business Rules:**
+  - Username must be unique
+  - Email must be unique
+  - Only SYSTEM_ADMIN or HR_MANAGER
+    roles can be created
+  - Password: Double-hash
+    (SHA-256 + BCrypt)
+  - Username: Plain text
+    (for user-friendliness)
+end note
+
+@enduml
+

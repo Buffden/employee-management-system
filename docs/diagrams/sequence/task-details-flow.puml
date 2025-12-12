@@ -1,0 +1,132 @@
+@startuml Task Details - Sequence Diagram
+' Workflow test - updated
+skinparam linetype ortho
+skinparam sequenceArrowThickness 2
+skinparam roundcorner 20
+skinparam maxmessagesize 60
+
+title View Task Details - Sequence Diagram
+
+actor "User" as User
+participant "Angular Frontend" as Frontend
+participant "Nginx Gateway" as Gateway
+participant "Task Controller" as Controller
+participant "Task Service" as Service
+participant "Task Repository" as TaskRepo
+participant "Project Repository" as ProjRepo
+participant "Employee Repository" as EmpRepo
+database "PostgreSQL" as DB
+
+User -> Frontend: 1. Click on task in list\nor navigate to task details
+Frontend -> Gateway: 2. GET /api/tasks/{id}\nAuthorization: Bearer {token}
+
+Gateway -> Gateway: 3. Forward to Backend
+
+participant "JwtAuthenticationFilter" as JwtFilter
+participant "SecurityService" as SecurityService
+
+Gateway -> JwtFilter: 4. Intercept request
+JwtFilter -> JwtFilter: 5. Validate JWT token
+JwtFilter -> JwtFilter: 6. Extract claims (username, role, userId, departmentId)
+JwtFilter -> JwtFilter: 7. Set SecurityContext
+JwtFilter -> Controller: 8. Forward request
+
+Controller -> Controller: 9. Check @PreAuthorize\n(hasAnyRole('SYSTEM_ADMIN', 'DEPARTMENT_MANAGER', 'EMPLOYEE'))
+
+alt Insufficient permissions
+    Controller --> Gateway: 10. HTTP 403 Forbidden
+    Gateway --> Frontend: 11. Access denied
+    Frontend --> User: 12. Show error message
+else Authorized
+    Controller -> SecurityService: 13. getCurrentUserRole()\ngetCurrentUserId()\ngetCurrentUserDepartmentId()
+    SecurityService --> Controller: 14. Role, UserId, DepartmentId
+    
+    Controller -> Service: 15. getById(taskId, userRole, userId, departmentId)
+    
+    Service -> TaskRepo: 16. findById(taskId)
+    TaskRepo -> DB: 17. SELECT * FROM task WHERE id = ?
+    DB --> TaskRepo: 18. Task data
+    TaskRepo --> Service: 19. Task entity
+    
+    alt Task not found
+        Service --> Controller: 20. Throw TaskNotFoundException
+        Controller --> Gateway: 21. HTTP 404 Not Found
+        Gateway --> Frontend: 22. Error response
+        Frontend --> User: 23. Show error: "Task not found"
+    else Task found
+        Service -> ProjRepo: 24. findById(task.projectId)
+        ProjRepo -> DB: 25. SELECT * FROM project WHERE id = ?
+        DB --> ProjRepo: 26. Project data
+        ProjRepo --> Service: 27. Project entity
+        
+        Service -> Service: 28. Check access permission
+        
+        alt Role is SYSTEM_ADMIN
+            Service -> Service: 29. Access granted (can view any task)
+        else Role is DEPARTMENT_MANAGER
+            Service -> Service: 30. Check if project.departmentId == userDepartmentId
+            
+            alt Project not in user's department
+                Service --> Controller: 31. Throw AccessDeniedException
+                Controller --> Gateway: 32. HTTP 403 Forbidden
+                Gateway --> Frontend: 33. Error response
+                Frontend --> User: 34. Show error: "You can only view tasks in your department's projects"
+            else Project in user's department
+                Service -> Service: 35. Access granted
+            end
+        else Role is EMPLOYEE
+            Service -> TaskRepo: 36. Check if task.assignedEmployeeId == userId
+            TaskRepo -> DB: 37. SELECT assigned_employee_id FROM task WHERE id = ?
+            DB --> TaskRepo: 38. Assigned employee ID
+            TaskRepo --> Service: 39. Assigned employee ID
+            
+            alt Employee not assigned to task
+                Service --> Controller: 40. Throw AccessDeniedException
+                Controller --> Gateway: 41. HTTP 403 Forbidden
+                Gateway --> Frontend: 42. Error response
+                Frontend --> User: 43. Show error: "You can only view tasks you are assigned to"
+            else Employee assigned to task
+                Service -> Service: 44. Access granted
+            end
+        end
+        
+        Service -> TaskRepo: 45. Load related entities\n(project, assignedEmployee)
+        TaskRepo -> DB: 46. JOIN queries for related data
+        DB --> TaskRepo: 47. Related entities
+        TaskRepo --> Service: 48. Task with relations
+        
+        Service -> Service: 49. Construct TaskResponseDTO\nwith all details
+        
+        Service --> Controller: 50. TaskResponseDTO
+        Controller --> Gateway: 51. HTTP 200 OK
+        Gateway --> Frontend: 52. Response with task data
+        Frontend -> Frontend: 53. Display task details in modal/page
+        Frontend -> User: 54. Show task information:\n- Task details\n- Project\n- Assigned Employee\n- Status, Priority, Due Date
+    end
+end
+
+note right of JwtFilter
+  **RBAC:**
+  - Validates JWT token
+  - Extracts role, userId, departmentId
+  - Sets SecurityContext
+end note
+
+note right of Controller
+  **Authorization:**
+  @PreAuthorize checks role
+  Multiple roles allowed:
+  SYSTEM_ADMIN, DEPARTMENT_MANAGER,
+  EMPLOYEE
+end note
+
+note right of Service
+  **Role-Based Access:**
+  - SYSTEM_ADMIN: All tasks
+  - DEPARTMENT_MANAGER: Tasks in their
+    department's projects
+  - EMPLOYEE: Assigned tasks only
+end note
+
+@enduml
+

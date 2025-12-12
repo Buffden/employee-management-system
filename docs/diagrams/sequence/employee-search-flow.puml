@@ -1,0 +1,108 @@
+@startuml Employee Search - Sequence Diagram
+' Workflow test - updated
+skinparam linetype ortho
+skinparam sequenceArrowThickness 2
+skinparam roundcorner 20
+skinparam maxmessagesize 60
+
+title Search Employees - Sequence Diagram
+
+actor "HR Manager" as User
+participant "Angular Frontend" as Frontend
+participant "Nginx Gateway" as Gateway
+participant "Employee Controller" as Controller
+participant "Employee Service" as Service
+participant "Employee Repository" as EmpRepo
+database "PostgreSQL" as DB
+
+User -> Frontend: 1. Enter search query in search bar\n(name, email, or designation)
+User -> Frontend: 2. Click search button or press Enter
+Frontend -> Gateway: 3. GET /api/employees/search?q={query}\nAuthorization: Bearer {token}
+
+Gateway -> Gateway: 4. Forward to Backend
+
+participant "JwtAuthenticationFilter" as JwtFilter
+participant "SecurityService" as SecurityService
+
+Gateway -> JwtFilter: 5. Intercept request
+JwtFilter -> JwtFilter: 6. Validate JWT token
+JwtFilter -> JwtFilter: 7. Extract claims (username, role, departmentId)
+JwtFilter -> JwtFilter: 8. Set SecurityContext
+JwtFilter -> Controller: 9. Forward request
+
+Controller -> Controller: 10. Check @PreAuthorize\n(hasAnyRole('SYSTEM_ADMIN', 'HR_MANAGER', 'DEPARTMENT_MANAGER'))
+
+alt Insufficient permissions
+    Controller --> Gateway: 11. HTTP 403 Forbidden
+    Gateway --> Frontend: 12. Access denied
+    Frontend --> User: 13. Show error message
+else Authorized
+    Controller -> SecurityService: 14. getCurrentUserRole()\ngetCurrentUserDepartmentId()
+    SecurityService --> Controller: 15. Role, DepartmentId
+    
+    Controller -> Service: 16. searchEmployees(query, userRole, departmentId)
+    
+    alt Empty search query
+        Service -> Service: 17. Return empty list or all employees\n(based on role)
+    else Valid search query
+        alt Role is SYSTEM_ADMIN or HR_MANAGER
+            Service -> EmpRepo: 18. searchByNameOrEmailOrDesignation(query)
+            EmpRepo -> DB: 19. SELECT * FROM employee\nWHERE LOWER(first_name) LIKE LOWER(?)\n   OR LOWER(last_name) LIKE LOWER(?)\n   OR LOWER(email) LIKE LOWER(?)\n   OR LOWER(designation) LIKE LOWER(?)
+            DB --> EmpRepo: 20. Matching employees
+            EmpRepo --> Service: 21. List<Employee>
+            
+        else Role is DEPARTMENT_MANAGER
+            Service -> EmpRepo: 22. searchByNameOrEmailOrDesignationInDepartment(query, departmentId)
+            EmpRepo -> DB: 23. SELECT * FROM employee\nWHERE department_id = ?\n  AND (LOWER(first_name) LIKE LOWER(?)\n   OR LOWER(last_name) LIKE LOWER(?)\n   OR LOWER(email) LIKE LOWER(?)\n   OR LOWER(designation) LIKE LOWER(?))
+            DB --> EmpRepo: 24. Matching employees in department
+            EmpRepo --> Service: 25. List<Employee>
+        end
+        
+        Service -> Service: 26. Load related entities\n(department, location, manager)
+        Service -> EmpRepo: 27. Load relations for each employee
+        EmpRepo -> DB: 28. JOIN queries for related data
+        DB --> EmpRepo: 29. Employees with relations
+        EmpRepo --> Service: 30. List<Employee> with relations
+        
+        Service -> Service: 31. Convert to EmployeeResponseDTO list
+        Service --> Controller: 32. List<EmployeeResponseDTO>
+        
+        alt No results found
+            Controller --> Gateway: 33. HTTP 200 OK (empty list)
+            Gateway --> Frontend: 34. Empty list response
+            Frontend -> User: 35. Display "No employees found"
+        else Results found
+            Controller --> Gateway: 36. HTTP 200 OK
+            Gateway --> Frontend: 37. Response with search results
+            Frontend -> Frontend: 38. Display search results list
+            Frontend -> User: 39. Show matching employees:\n- Name, Email\n- Designation\n- Department
+        end
+    end
+end
+
+note right of JwtFilter
+  **RBAC:**
+  - Validates JWT token
+  - Extracts role and department
+  - Sets SecurityContext
+end note
+
+note right of Controller
+  **Authorization:**
+  @PreAuthorize checks role
+  Multiple roles allowed:
+  SYSTEM_ADMIN, HR_MANAGER,
+  DEPARTMENT_MANAGER
+end note
+
+note right of Service
+  **Search Logic:**
+  - Case-insensitive partial matching
+  - Searches: name, email, designation
+  - Role-based filtering:
+    - SYSTEM_ADMIN/HR_MANAGER: All employees
+    - DEPARTMENT_MANAGER: Own department only
+end note
+
+@enduml
+

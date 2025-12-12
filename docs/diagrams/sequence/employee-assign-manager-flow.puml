@@ -1,0 +1,141 @@
+@startuml Employee Assign Manager - Sequence Diagram
+' Workflow test - updated
+skinparam linetype ortho
+skinparam sequenceArrowThickness 2
+skinparam roundcorner 20
+skinparam maxmessagesize 60
+
+title Assign Manager to Employee - Sequence Diagram
+
+actor "HR Manager" as User
+participant "Angular Frontend" as Frontend
+participant "Nginx Gateway" as Gateway
+participant "Employee Controller" as Controller
+participant "Employee Service" as Service
+participant "Validation Service" as Validation
+participant "Employee Repository" as EmpRepo
+database "PostgreSQL" as DB
+
+User -> Frontend: 1. Navigate to employee edit page
+User -> Frontend: 2. Select manager from dropdown
+Frontend -> Frontend: 3. Filter managers by department\n(show only managers in same department)
+User -> Frontend: 4. Click "Save Changes"
+
+Frontend -> Gateway: 5. PUT /api/employees/{id}\n(EmployeeRequestDTO with managerId)\nAuthorization: Bearer {token}
+
+Gateway -> Gateway: 6. Forward to Backend
+
+participant "JwtAuthenticationFilter" as JwtFilter
+participant "SecurityService" as SecurityService
+
+Gateway -> JwtFilter: 7. Intercept request
+JwtFilter -> JwtFilter: 8. Validate JWT token
+JwtFilter -> JwtFilter: 9. Extract role from token
+JwtFilter -> JwtFilter: 10. Set SecurityContext
+JwtFilter -> Controller: 11. Forward request
+
+Controller -> Controller: 12. Check @PreAuthorize\n(hasRole('SYSTEM_ADMIN') or hasRole('HR_MANAGER'))
+
+alt Insufficient permissions
+    Controller --> Gateway: 13. HTTP 403 Forbidden
+    Gateway --> Frontend: 14. Access denied
+    Frontend --> User: 15. Show error message
+else Authorized
+    Controller -> SecurityService: 16. getCurrentUserRole()
+    SecurityService --> Controller: 17. Role (e.g., 'HR_MANAGER')
+    
+    Controller -> Service: 18. update(employeeId, EmployeeRequestDTO)
+    
+    Service -> EmpRepo: 19. findById(employeeId)
+    EmpRepo -> DB: 20. SELECT * FROM employee WHERE id = ?
+    DB --> EmpRepo: 21. Employee data
+    EmpRepo --> Service: 22. Employee entity
+    
+    alt Employee not found
+        Service --> Controller: 23. Throw EmployeeNotFoundException
+        Controller --> Gateway: 24. HTTP 404 Not Found
+        Gateway --> Frontend: 25. Error response
+        Frontend --> User: 26. Show error: "Employee not found"
+    else Employee found
+        alt Manager is provided
+            Service -> EmpRepo: 27. findById(managerId)
+            EmpRepo -> DB: 28. SELECT * FROM employee WHERE id = ?
+            DB --> EmpRepo: 29. Manager data
+            EmpRepo --> Service: 30. Manager entity
+            
+            alt Manager not found
+                Service --> Controller: 31. Throw EmployeeNotFoundException\n"Manager not found"
+                Controller --> Gateway: 32. HTTP 404 Not Found
+                Gateway --> Frontend: 33. Error response
+                Frontend --> User: 34. Show error: "Manager not found"
+            else Manager found
+                Service -> Validation: 35. validateManagerInDepartment(managerId, employee.departmentId)
+                
+                Validation -> EmpRepo: 36. getDepartmentId(managerId)
+                EmpRepo -> DB: 37. SELECT department_id FROM employee WHERE id = ?
+                DB --> EmpRepo: 38. Manager's department ID
+                EmpRepo --> Validation: 39. Manager department ID
+                
+                Validation -> Validation: 40. Compare departments\nmanager.departmentId == employee.departmentId
+                
+                alt Manager in different department
+                    Validation --> Service: 41. Validation failed
+                    Service --> Controller: 42. Throw ValidationException\n"Manager must be in same department"
+                    Controller --> Gateway: 43. HTTP 400 Bad Request
+                    Gateway --> Frontend: 44. Error response
+                    Frontend --> User: 45. Show error: "Manager must be in the same department as the employee"
+                else Manager in same department
+                    Validation --> Service: 46. Validation passed
+                    Service -> Service: 47. Update employee with manager
+                    Service -> Service: 48. Set manager_id = managerId
+                    
+                    Service -> EmpRepo: 49. save(Employee)
+                    EmpRepo -> DB: 50. UPDATE employee SET manager_id = ? WHERE id = ?
+                    DB --> EmpRepo: 51. Updated employee
+                    EmpRepo --> Service: 52. Employee entity
+                    
+                    Service -> Service: 53. Construct EmployeeResponseDTO
+                    Service --> Controller: 54. EmployeeResponseDTO
+                    Controller --> Gateway: 55. HTTP 200 OK
+                    Gateway --> Frontend: 56. Response with updated employee
+                    Frontend -> User: 57. Display success: "Manager assigned successfully"
+                end
+            end
+        else Manager not provided (removing manager)
+            Service -> Service: 58. Update employee (set manager_id = NULL)
+            Service -> EmpRepo: 59. save(Employee)
+            EmpRepo -> DB: 60. UPDATE employee SET manager_id = NULL WHERE id = ?
+            DB --> EmpRepo: 61. Updated employee
+            EmpRepo --> Service: 62. Employee entity
+            
+            Service --> Controller: 63. EmployeeResponseDTO
+            Controller --> Gateway: 64. HTTP 200 OK
+            Gateway --> Frontend: 65. Success response
+            Frontend -> User: 66. Display success: "Manager removed successfully"
+        end
+    end
+end
+
+note right of JwtFilter
+  **RBAC:**
+  - Validates JWT token
+  - Extracts role (HR_MANAGER/SYSTEM_ADMIN)
+  - Sets SecurityContext
+end note
+
+note right of Controller
+  **Authorization:**
+  @PreAuthorize checks role
+  Only HR_MANAGER and
+  SYSTEM_ADMIN can assign managers
+end note
+
+note right of Validation
+  **Business Rule:**
+  Manager must be in the
+  same department as the employee
+  Critical validation rule
+end note
+
+@enduml
+

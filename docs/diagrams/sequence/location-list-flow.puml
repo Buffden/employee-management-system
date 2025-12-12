@@ -1,0 +1,88 @@
+@startuml Location List - Sequence Diagram
+' Workflow test - updated
+skinparam linetype ortho
+skinparam sequenceArrowThickness 2
+skinparam roundcorner 20
+skinparam maxmessagesize 60
+
+title View Location List - Sequence Diagram
+
+actor "User" as User
+participant "Angular Frontend" as Frontend
+participant "Nginx Gateway" as Gateway
+participant "Location Controller" as Controller
+participant "Location Service" as Service
+participant "Location Repository" as LocRepo
+database "PostgreSQL" as DB
+
+User -> Frontend: 1. Navigate to Location List page
+Frontend -> Gateway: 2. GET /api/locations\nAuthorization: Bearer {token}
+
+Gateway -> Gateway: 3. Forward to Backend
+
+participant "JwtAuthenticationFilter" as JwtFilter
+participant "SecurityService" as SecurityService
+
+Gateway -> JwtFilter: 4. Intercept request
+JwtFilter -> JwtFilter: 5. Validate JWT token
+JwtFilter -> JwtFilter: 6. Extract role from token
+JwtFilter -> JwtFilter: 7. Set SecurityContext
+JwtFilter -> Controller: 8. Forward request
+
+Controller -> Controller: 9. Check @PreAuthorize\n(hasAnyRole('SYSTEM_ADMIN', 'HR_MANAGER', 'DEPARTMENT_MANAGER'))
+
+alt Insufficient permissions
+    Controller --> Gateway: 10. HTTP 403 Forbidden
+    Gateway --> Frontend: 11. Access denied
+    Frontend --> User: 12. Show error message
+else Authorized
+    Controller -> SecurityService: 13. getCurrentUserRole()
+    SecurityService --> Controller: 14. Role (e.g., 'HR_MANAGER')
+    
+    Controller -> Service: 15. getAll()
+    
+    Service -> LocRepo: 16. findAll()
+    LocRepo -> DB: 17. SELECT * FROM location\nORDER BY name ASC
+    DB --> LocRepo: 18. All locations
+    LocRepo --> Service: 19. List<Location>
+    
+    Service -> Service: 20. Convert to LocationResponseDTO list
+    Service --> Controller: 21. List<LocationResponseDTO>
+    
+    alt No locations found
+        Controller --> Gateway: 22. HTTP 200 OK (empty list)
+        Gateway --> Frontend: 23. Empty list response
+        Frontend -> User: 24. Display "No locations found"
+        Frontend -> User: 25. Suggest creating a location
+    else Locations found
+        Controller --> Gateway: 26. HTTP 200 OK
+        Gateway --> Frontend: 27. Response with location list
+        Frontend -> Frontend: 28. Display location table
+        Frontend -> User: 29. Show locations with:\n- Name\n- Address\n- City, State, Country\n- Postal Code
+    end
+end
+
+note right of JwtFilter
+  **RBAC:**
+  - Validates JWT token
+  - Extracts role
+  - Sets SecurityContext
+end note
+
+note right of Controller
+  **Authorization:**
+  @PreAuthorize checks role
+  Multiple roles allowed:
+  SYSTEM_ADMIN, HR_MANAGER,
+  DEPARTMENT_MANAGER
+end note
+
+note right of Service
+  **No Role-Based Filtering:**
+  All authorized users see
+  all locations (shared
+  across organization)
+end note
+
+@enduml
+

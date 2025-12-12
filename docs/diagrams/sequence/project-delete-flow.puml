@@ -1,0 +1,132 @@
+@startuml Project Delete - Sequence Diagram
+' Workflow test - updated
+skinparam linetype ortho
+skinparam sequenceArrowThickness 2
+skinparam roundcorner 20
+skinparam maxmessagesize 60
+
+title Project Delete - Sequence Diagram
+
+actor "Department Manager" as User
+participant "Angular Frontend" as Frontend
+participant "Nginx Gateway" as Gateway
+participant "Project Controller" as Controller
+participant "Project Service" as Service
+participant "Project Repository" as ProjRepo
+participant "Task Repository" as TaskRepo
+participant "EmployeeProject Repository" as EmpProjRepo
+database "PostgreSQL" as DB
+
+User -> Frontend: 1. Navigate to project details
+User -> Frontend: 2. Click "Delete" button
+Frontend -> User: 3. Show confirmation dialog
+
+User -> Frontend: 4. Confirm deletion
+Frontend -> Gateway: 5. DELETE /api/projects/{id}\nAuthorization: Bearer {token}
+
+Gateway -> Gateway: 6. Forward to Backend
+
+participant "JwtAuthenticationFilter" as JwtFilter
+participant "SecurityService" as SecurityService
+
+Gateway -> JwtFilter: 7. Intercept request
+JwtFilter -> JwtFilter: 8. Validate JWT token
+JwtFilter -> JwtFilter: 9. Extract role and department from token
+JwtFilter -> JwtFilter: 10. Set SecurityContext
+JwtFilter -> Controller: 11. Forward request
+
+Controller -> Controller: 12. Check @PreAuthorize\n(hasRole('SYSTEM_ADMIN') or hasRole('DEPARTMENT_MANAGER'))
+
+alt Insufficient permissions
+    Controller --> Gateway: 13. HTTP 403 Forbidden
+    Gateway --> Frontend: 14. Access denied
+    Frontend --> User: 15. Show error message
+else Authorized
+    Controller -> SecurityService: 16. getCurrentUserRole()\ngetCurrentUserDepartmentId()
+    SecurityService --> Controller: 17. Role, DepartmentId
+    
+    Controller -> Service: 18. delete(projectId, userRole, userDepartmentId)
+    
+    Service -> ProjRepo: 19. findById(projectId)
+    ProjRepo -> DB: 20. SELECT * FROM project WHERE id = ?
+    DB --> ProjRepo: 21. Project data
+    ProjRepo --> Service: 22. Project entity
+    
+    alt Project not found
+        Service --> Controller: 23. Throw ProjectNotFoundException
+        Controller --> Gateway: 24. HTTP 404 Not Found
+        Gateway --> Frontend: 25. Error response
+        Frontend --> User: 26. Show error: "Project not found"
+    else Project found
+        alt Department Manager
+            Service -> Service: 27. Check if project is in user's department
+            Service -> Service: 28. Compare project.departmentId with userDepartmentId
+            
+            alt Project not in user's department
+                Service --> Controller: 29. Throw AccessDeniedException
+                Controller --> Gateway: 30. HTTP 403 Forbidden
+                Gateway --> Frontend: 31. Error response
+                Frontend --> User: 32. Show error: "You can only delete projects in your department"
+            end
+        end
+        
+        Service -> TaskRepo: 33. findActiveTasksByProjectId(projectId)
+        TaskRepo -> DB: 34. SELECT * FROM task\nWHERE project_id = ?\nAND status IN ('TODO', 'IN_PROGRESS')
+        DB --> TaskRepo: 35. Active tasks
+        TaskRepo --> Service: 36. List<Task>
+        
+        alt Project has active tasks
+            Service --> Controller: 37. Throw BusinessException\n"Cannot delete project with active tasks"
+            Controller --> Gateway: 38. HTTP 400 Bad Request
+            Gateway --> Frontend: 39. Error response
+            Frontend --> User: 40. Show error: "Cannot delete project.\nProject has {count} active task(s).\nPlease complete or cancel all tasks before deletion."
+            Frontend -> Frontend: 41. Display list of active tasks
+        else No active tasks
+            Service -> TaskRepo: 42. deleteByProjectId(projectId)
+            TaskRepo -> DB: 43. DELETE FROM task WHERE project_id = ?
+            DB --> TaskRepo: 44. Deleted tasks
+            
+            Service -> EmpProjRepo: 45. deleteByProjectId(projectId)
+            EmpProjRepo -> DB: 46. DELETE FROM employee_project\nWHERE project_id = ?
+            DB --> EmpProjRepo: 47. Deleted assignments
+            
+            Service -> ProjRepo: 48. delete(projectId)
+            ProjRepo -> DB: 49. DELETE FROM project WHERE id = ?
+            DB --> ProjRepo: 50. Deleted project
+            ProjRepo --> Service: 51. Success
+            
+            Service --> Controller: 52. Success response
+            Controller --> Gateway: 53. HTTP 200 OK or HTTP 204 No Content
+            Gateway --> Frontend: 54. Success response
+            Frontend -> User: 55. Display success: "Project deleted successfully"
+            Frontend -> Frontend: 56. Redirect to project list
+        end
+    end
+end
+
+note right of JwtFilter
+  **RBAC:**
+  - Validates JWT token
+  - Extracts role and department
+  - Sets SecurityContext
+end note
+
+note right of Controller
+  **Authorization:**
+  @PreAuthorize checks role
+  Department Managers can only
+  delete projects in their department
+end note
+
+note right of Service
+  **Business Rules:**
+  - Project cannot be deleted
+    if it has active tasks
+  - Tasks are cascade deleted
+  - EmployeeProject assignments
+    are cascade deleted
+  - Department Manager constraint
+end note
+
+@enduml
+
