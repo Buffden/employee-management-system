@@ -201,10 +201,74 @@ jobs:
             echo "No changes to commit"
           fi
 
-      - name: Upload diagrams as artifact
+      - name: Create artifacts summary
+        run: |
+          echo "# Generated PlantUML Diagrams" >> artifacts_summary.md
+          echo "" >> artifacts_summary.md
+          echo "## Summary" >> artifacts_summary.md
+          echo "" >> artifacts_summary.md
+          echo "Generated on: $(date -u +"%Y-%m-%d %H:%M:%S UTC")" >> artifacts_summary.md
+          echo "Workflow Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" >> artifacts_summary.md
+          echo "" >> artifacts_summary.md
+          echo "## Generated PNG Files" >> artifacts_summary.md
+          echo "" >> artifacts_summary.md
+          find docs/diagrams/generated -name "*.png" -type f | sort | while read png_file; do
+            file_size=$(du -h "$png_file" | cut -f1)
+            rel_path=$(echo "$png_file" | sed 's|^docs/diagrams/generated/||')
+            echo "- \`$rel_path\` ($file_size)" >> artifacts_summary.md
+          done
+          echo "" >> artifacts_summary.md
+          echo "## Directory Structure" >> artifacts_summary.md
+          echo "\`\`\`" >> artifacts_summary.md
+          tree -L 3 docs/diagrams/generated || find docs/diagrams/generated -type d | sort | sed 's|[^/]*/| |g' >> artifacts_summary.md
+          echo "\`\`\`" >> artifacts_summary.md
+          cat artifacts_summary.md
+
+      - name: Upload PNG diagrams as artifact
         uses: actions/upload-artifact@v4
         with:
-          name: plantuml-diagrams
+          name: plantuml-diagrams-png
           path: docs/diagrams/generated/**/*.png
-          retention-days: 30
+          retention-days: 90
+          compression-level: 6
+
+      - name: Upload artifacts summary
+        uses: actions/upload-artifact@v4
+        with:
+          name: diagrams-summary
+          path: artifacts_summary.md
+          retention-days: 90
+
+      - name: Create downloadable ZIP archive
+        run: |
+          cd docs/diagrams/generated
+          zip -r ../../../plantuml-diagrams.zip . -q
+          cd ../../..
+          echo "Created plantuml-diagrams.zip ($(du -h plantuml-diagrams.zip | cut -f1))"
+
+      - name: Upload ZIP archive as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: plantuml-diagrams-zip
+          path: plantuml-diagrams.zip
+          retention-days: 90
+
+      - name: Workflow summary
+        if: success()
+        run: |
+          echo "## ✅ PlantUML Diagrams Generated Successfully" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 📊 Statistics" >> $GITHUB_STEP_SUMMARY
+          png_count=$(find docs/diagrams/generated -name "*.png" -type f | wc -l)
+          total_size=$(du -sh docs/diagrams/generated | cut -f1)
+          echo "- **Total PNG files**: $png_count" >> $GITHUB_STEP_SUMMARY
+          echo "- **Total size**: $total_size" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 📦 Artifacts Available" >> $GITHUB_STEP_SUMMARY
+          echo "- **PNG Diagrams**: Individual PNG files (300 DPI)" >> $GITHUB_STEP_SUMMARY
+          echo "- **ZIP Archive**: Complete download package" >> $GITHUB_STEP_SUMMARY
+          echo "- **Summary**: Generation report" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 📥 Download" >> $GITHUB_STEP_SUMMARY
+          echo "Check the 'Artifacts' section below to download the generated diagrams." >> $GITHUB_STEP_SUMMARY
 
