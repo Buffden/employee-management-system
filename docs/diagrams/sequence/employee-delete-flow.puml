@@ -95,8 +95,25 @@ else Authorized
             Service --> Controller: 52. Success response
             Controller --> Gateway: 53. HTTP 200 OK or HTTP 204 No Content
             Gateway --> Frontend: 54. Success response
-            Frontend -> User: 55. Display success: "Employee deleted successfully"
-            Frontend -> Frontend: 56. Redirect to employee list
+            
+            participant "Employee Form Component" as FormComp
+            participant "Employee List Component" as ListComp
+            
+            Frontend -> FormComp: 55. Emit employeeResponse (DialogData with deleted flag)
+            FormComp -> ListComp: 56. Close dialog with response
+            ListComp -> ListComp: 57. afterClosed() subscription triggers\n(with take(1) and isRefreshing guard)
+            ListComp -> Gateway: 58. POST /api/employees (query with pagination)
+            Gateway -> Controller: 59. Forward query request
+            Controller -> Service: 60. query(page, size, sortBy, sortDir)
+            Service -> EmpRepo: 61. findAllFilteredByRole(pageable, role, deptId)
+            EmpRepo -> DB: 62. SELECT * FROM employee\nWHERE ... ORDER BY ... LIMIT ... OFFSET ...
+            DB --> EmpRepo: 63. Paginated employees (without deleted one)
+            EmpRepo --> Service: 64. Page<Employee>
+            Service --> Controller: 65. PaginatedResponseDTO<Employee>
+            Controller --> Gateway: 66. HTTP 200 OK
+            Gateway --> ListComp: 67. Updated employee list
+            ListComp -> ListComp: 68. Update table data
+            ListComp -> User: 69. Display updated employee list\nwith deleted employee removed
         end
     end
 end

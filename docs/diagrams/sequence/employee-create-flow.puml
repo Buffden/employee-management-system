@@ -85,10 +85,31 @@ Repository --> Service: 31. Employee
 Service -> Mapper: 32. toResponseDTO(Employee)
 Mapper --> Service: 33. EmployeeResponseDTO
 
-Service --> Controller: 40. EmployeeResponseDTO
-Controller --> Gateway: 41. HTTP 201 Created
-Gateway --> Frontend: 42. Response with employee data
-Frontend -> User: 43. Display success message and employee details
+    Service --> Controller: 40. EmployeeResponseDTO
+    Controller --> Gateway: 41. HTTP 201 Created
+    Gateway --> Frontend: 42. Response with employee data
+    
+    participant "Employee Form Component" as FormComp
+    participant "Table Component" as TableComp
+    participant "Employee List Component" as ListComp
+    
+    Frontend -> FormComp: 43. Emit employeeResponse (DialogData)
+    FormComp -> TableComp: 44. Close dialog with response
+    TableComp -> TableComp: 45. afterClosed() subscription triggers
+    TableComp -> TableComp: 46. Dispatch 'employeeAdded' event
+    TableComp -> ListComp: 47. Event listener receives 'employeeAdded'
+    ListComp -> Gateway: 48. POST /api/employees (query with pagination)
+    Gateway -> Controller: 49. Forward query request
+    Controller -> Service: 50. query(page, size, sortBy, sortDir)
+    Service -> Repository: 51. findAllFilteredByRole(pageable, role, deptId)
+    Repository -> DB: 52. SELECT * FROM employee\nWHERE ... ORDER BY ... LIMIT ... OFFSET ...
+    DB --> Repository: 53. Paginated employees
+    Repository --> Service: 54. Page<Employee>
+    Service --> Controller: 55. PaginatedResponseDTO<Employee>
+    Controller --> Gateway: 56. HTTP 200 OK
+    Gateway --> ListComp: 57. Updated employee list
+    ListComp -> ListComp: 58. Update table data
+    ListComp -> User: 59. Display updated employee list\nwith new employee included
 
 note right of Validation
   Business Rule:
@@ -114,6 +135,23 @@ end note
 note right of Mapper
   Adapter Pattern:
   Converts DTO ↔ Entity
+end note
+
+note right of TableComp
+  **Refresh Pattern (Add Operations):**
+  - Table component opens add dialog
+  - Form emits response via @Output
+  - Table's afterClosed() dispatches event
+  - List component listens and refreshes
+  - Ensures single refresh call
+end note
+
+note right of ListComp
+  **List Refresh:**
+  - Single API call to query endpoint
+  - Maintains pagination, sorting, filters
+  - Updates table data automatically
+  - Role-based filtering applied
 end note
 
 @enduml

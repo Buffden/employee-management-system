@@ -133,8 +133,25 @@ else Authorized
             Service --> Controller: 71. EmployeeResponseDTO
             Controller --> Gateway: 72. HTTP 200 OK
             Gateway --> Frontend: 73. Response with updated employee
-            Frontend -> User: 74. Display success: "Employee updated successfully"
-            Frontend -> Frontend: 75. Refresh employee details view
+            
+            participant "Employee Form Component" as FormComp
+            participant "Employee List Component" as ListComp
+            
+            Frontend -> FormComp: 74. Emit employeeResponse (DialogData)
+            FormComp -> ListComp: 75. Close dialog with response
+            ListComp -> ListComp: 76. afterClosed() subscription triggers\n(with take(1) and isRefreshing guard)
+            ListComp -> Gateway: 77. POST /api/employees (query with pagination)
+            Gateway -> Controller: 78. Forward query request
+            Controller -> Service: 79. query(page, size, sortBy, sortDir)
+            Service -> Repository: 80. findAllFilteredByRole(pageable, role, deptId)
+            Repository -> DB: 81. SELECT * FROM employee\nWHERE ... ORDER BY ... LIMIT ... OFFSET ...
+            DB --> Repository: 82. Paginated employees
+            Repository --> Service: 83. Page<Employee>
+            Service --> Controller: 84. PaginatedResponseDTO<Employee>
+            Controller --> Gateway: 85. HTTP 200 OK
+            Gateway --> ListComp: 86. Updated employee list
+            ListComp -> ListComp: 87. Update table data
+            ListComp -> User: 88. Display updated employee list\nwith changes reflected
         end
     end
 end
