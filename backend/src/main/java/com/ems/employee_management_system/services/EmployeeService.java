@@ -88,6 +88,21 @@ public class EmployeeService {
     }
 
     /**
+     * Search employees for typeahead/autocomplete functionality
+     * Searches by name or email, optionally filtered by department
+     * Excludes a specific employee (e.g., current employee in edit mode)
+     */
+    public List<Employee> searchEmployees(String searchTerm, UUID departmentId, UUID excludeEmployeeId) {
+        logger.debug("Searching employees - term: {}, departmentId: {}, excludeId: {}", searchTerm, departmentId, excludeEmployeeId);
+        String trimmedTerm = (searchTerm != null) ? searchTerm.trim() : "";
+        return employeeRepository.searchEmployees(
+            trimmedTerm.isEmpty() ? null : trimmedTerm,
+            departmentId,
+            excludeEmployeeId
+        );
+    }
+
+    /**
      * Saves an employee with business logic validation
      * Validates email uniqueness and manager in same department
      */

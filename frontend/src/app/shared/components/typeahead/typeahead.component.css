@@ -1,0 +1,19 @@
+.typeahead-field {
+  width: 100%;
+}
+
+.typeahead-option {
+  display: flex;
+  flex-direction: column;
+  padding: 4px 0;
+}
+
+.clear-icon {
+  cursor: pointer;
+  color: rgba(0, 0, 0, 0.54);
+}
+
+.clear-icon:hover {
+  color: rgba(0, 0, 0, 0.87);
+}
+

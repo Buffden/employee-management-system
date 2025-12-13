@@ -1,0 +1,32 @@
+<mat-form-field appearance="outline" class="typeahead-field">
+  <mat-label>{{ label }}</mat-label>
+  <input
+    matInput
+    [formControl]="searchControl"
+    [matAutocomplete]="auto"
+    [placeholder]="placeholder"
+    [required]="required"
+    [disabled]="disabled"
+    (blur)="onInputBlur()"
+    autocomplete="off">
+  <mat-icon matSuffix *ngIf="isLoading">hourglass_empty</mat-icon>
+  <mat-icon matSuffix *ngIf="!isLoading && selectedItem" (click)="clearSelection()" class="clear-icon">close</mat-icon>
+  <mat-autocomplete
+    #auto="matAutocomplete"
+    [displayWith]="displayItemFn"
+    (optionSelected)="onItemSelected($event.option.value)">
+    <mat-option *ngIf="isLoading" disabled>
+      <span>Searching...</span>
+    </mat-option>
+    <mat-option *ngIf="!isLoading && filteredItems.length === 0 && isSearchValueValid()" disabled>
+      <span>{{ config.noResultsMessage || 'No results found' }}</span>
+    </mat-option>
+    <mat-option *ngFor="let item of filteredItems" [value]="item">
+      <div class="typeahead-option" [innerHTML]="getItemDisplay(item)"></div>
+    </mat-option>
+  </mat-autocomplete>
+  <mat-error *ngIf="searchControl.invalid && searchControl.touched">
+    {{ label }} is required
+  </mat-error>
+</mat-form-field>
+

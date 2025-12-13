@@ -43,4 +43,25 @@ public interface EmployeeRepository extends JpaRepository<Employee, UUID> {
      */
     @Query("SELECT COUNT(e) FROM Employee e WHERE e.manager.id = :managerId")
     Long countDirectReports(@Param("managerId") UUID managerId);
+
+    /**
+     * Search employees by name or email for typeahead/autocomplete
+     * Searches in firstName, lastName, and email fields
+     * Optionally filters by department if provided
+     * Limits results to 20 for performance
+     */
+    @Query("""
+        SELECT e FROM Employee e
+        WHERE (:searchTerm IS NULL OR :searchTerm = '' OR
+               LOWER(e.firstName) LIKE LOWER(CONCAT('%', :searchTerm, '%')) OR
+               LOWER(e.lastName) LIKE LOWER(CONCAT('%', :searchTerm, '%')) OR
+               LOWER(CONCAT(e.firstName, ' ', e.lastName)) LIKE LOWER(CONCAT('%', :searchTerm, '%')) OR
+               LOWER(e.email) LIKE LOWER(CONCAT('%', :searchTerm, '%')))
+        AND (:departmentId IS NULL OR e.department.id = :departmentId)
+        AND (:excludeEmployeeId IS NULL OR e.id != :excludeEmployeeId)
+        ORDER BY e.firstName ASC, e.lastName ASC
+        """)
+    List<Employee> searchEmployees(@Param("searchTerm") String searchTerm,
+                                    @Param("departmentId") UUID departmentId,
+                                    @Param("excludeEmployeeId") UUID excludeEmployeeId);
 }
