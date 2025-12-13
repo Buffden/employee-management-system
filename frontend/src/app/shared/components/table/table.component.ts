@@ -3,7 +3,7 @@ import { MatTableDataSource, MatTableModule } from '@angular/material/table';
 import { CommonModule } from '@angular/common';
 import { MatPaginator, PageEvent } from '@angular/material/paginator';
 import { MatSort, Sort, MatSortModule } from '@angular/material/sort';
-import { DepartmentID, Employee, EmployeeRequest, ManagerID } from '../../models/employee.model';
+import { Employee } from '../../models/employee.model';
 import { Department } from '../../models/department.model';
 import { ActionButtonObject, Column, FormMode, SortDirection, TableConfig, TableData } from '../../models/table';
 import { defaultTableConfig } from './table.config';
@@ -217,6 +217,7 @@ export class TableComponent implements OnChanges, AfterViewInit {
     this.dialogClose();
     this.dialogRef = this.matDialog.open(OverlayDialogComponent, {
       width: '850px',
+      maxHeight: '90vh',
       data: {
         title: this.tableConfig.detailsCardTitle,
         content: column,
@@ -249,6 +250,7 @@ export class TableComponent implements OnChanges, AfterViewInit {
     
     this.dialogRef = this.matDialog.open(OverlayDialogComponent, {
       width: '850px',
+      maxHeight: '90vh',
       data: {
         title: this.tableConfig.additionCardTitle,
         content: {},
@@ -287,11 +289,18 @@ export class TableComponent implements OnChanges, AfterViewInit {
           }
         }
       }
-      else {
-        const employeeReq = this.prepareEmployeeRequestData(isClosedWithData);
-        this.employeeService.addEmployee(employeeReq).subscribe((response: Employee) => {
-          console.log('Employee added:', response);
-        });
+      else if (this.tableConfig.additionCardTitle === 'Add Employee') {
+        // Employee form component already handles the POST call
+        // Just check if it was successful and refresh if needed
+        if (isClosedWithData.content && 'id' in isClosedWithData.content) {
+          console.log('Employee added:', isClosedWithData.content);
+          // If opened from employees page, trigger a custom event to refresh the table
+          // If opened from dashboard, stay on dashboard (handled by dashboard component)
+          if (isClosedWithData.returnToPage !== 'dashboard') {
+            // Dispatch a custom event to refresh the employee list
+            globalThis.window.dispatchEvent(new CustomEvent('employeeAdded'));
+          }
+        }
       }
 
     });
@@ -303,26 +312,6 @@ export class TableComponent implements OnChanges, AfterViewInit {
     }
   }
 
-  prepareEmployeeRequestData(isClosedWithData: DialogData): EmployeeRequest {
-    const reqData = { ...isClosedWithData.content };
-    // Type guard: only proceed if reqData has employee-specific fields
-    if ('phone' in reqData && 'firstName' in reqData && 'lastName' in reqData && 'departmentId' in reqData && 'managerId' in reqData) {
-      // Use type assertions to satisfy DepartmentID and ManagerID recursive types
-      const departmentID = { id: reqData.departmentId } as unknown as DepartmentID;
-      const managerID = reqData.managerId ? ({ id: reqData.managerId } as unknown as ManagerID) : null;
-      return {
-        name: reqData.firstName + ' ' + reqData.lastName,
-        address: reqData.address,
-        email: reqData.email,
-        designation: reqData.designation,
-        salary: reqData.salary,
-        department: departmentID,
-        manager: managerID,
-        phone: reqData.phone
-      };
-    }
-    throw new Error('Invalid employee data');
-  }
 
   noData(): boolean {
     return !this.dataSource?.data?.length;

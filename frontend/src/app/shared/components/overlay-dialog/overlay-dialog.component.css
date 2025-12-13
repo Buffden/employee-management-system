@@ -7,6 +7,9 @@
     box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
     padding: 16px;
     font-family: Arial, sans-serif;
+    max-height: calc(100vh - 120px);
+    overflow-y: auto;
+    overflow-x: hidden;
 }
 
 .overlay-main-title-header {
@@ -266,4 +269,12 @@
 
 .fire-btn:hover {
     background-color: #d32f2f;
+}
+
+/* Content wrapper for forms */
+.td-content {
+    width: 100%;
+    max-height: 100%;
+    overflow-y: auto;
+    overflow-x: hidden;
 }

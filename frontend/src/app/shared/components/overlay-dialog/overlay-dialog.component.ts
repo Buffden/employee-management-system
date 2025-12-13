@@ -37,6 +37,28 @@ export class OverlayDialogComponent {
   }
 
   getFilteredTextFields(): { label: string, value: string | number }[] {
+    // For employee display, extract actual employee data
+    if (this.dialogData.viewController === overlayType.DISPLAYEMPLOYEE) {
+      const employee = this.dialogData.content as Employee;
+      return [
+        { label: 'First Name', value: employee.firstName || 'N/A' },
+        { label: 'Last Name', value: employee.lastName || 'N/A' },
+        { label: 'Email', value: employee.email || 'N/A' },
+        { label: 'Phone', value: employee.phone || 'N/A' },
+        { label: 'Address', value: employee.address || 'N/A' },
+        { label: 'Designation', value: employee.designation || 'N/A' },
+        { label: 'Salary', value: employee.salary ? `$${employee.salary.toLocaleString()}` : 'N/A' },
+        { label: 'Joining Date', value: employee.joiningDate || 'N/A' },
+        { label: 'Department', value: employee.departmentName || 'N/A' },
+        { label: 'Location', value: employee.locationName || 'N/A' },
+        { label: 'Manager', value: employee.managerName || 'N/A' },
+        { label: 'Performance Rating', value: employee.performanceRating ? employee.performanceRating.toString() : 'N/A' },
+        { label: 'Work Location', value: employee.workLocation || 'N/A' },
+        { label: 'Experience (Years)', value: employee.experienceYears ? employee.experienceYears.toString() : 'N/A' },
+      ];
+    }
+    
+    // Fallback for other display types
     const sampleDisplayData: EmployeeDisplayData = SampleDisplayData;
     return Object.keys(sampleDisplayData).map((key: string) => {
       return { label: key.toUpperCase(), value: this.dialogData.content[key as keyof TableCellData] || 'NA' };
@@ -92,6 +114,22 @@ export class OverlayDialogComponent {
   }
 
   getDepartmentName(): string {
-    return (this.dialogData.content as Employee).departmentId || 'NA';
+    const employee = this.dialogData.content as Employee;
+    return employee.departmentName || employee.departmentId || 'N/A';
+  }
+
+  getManagerName(): string {
+    const employee = this.dialogData.content as Employee;
+    return employee.managerName || 'N/A';
+  }
+
+  getEmployeeName(): string {
+    const employee = this.dialogData.content as Employee;
+    return `${employee.firstName || ''} ${employee.lastName || ''}`.trim() || 'N/A';
+  }
+
+  getEmployeeDesignation(): string {
+    const employee = this.dialogData.content as Employee;
+    return employee.designation || 'N/A';
   }
 }

@@ -29,17 +29,20 @@
 
 
                         </div>
+                        <!-- Employee Name -->
+                        <div class="employee-name-section">
+                            <h3>{{getEmployeeName()}}</h3>
+                            <p class="employee-designation">{{getEmployeeDesignation()}}</p>
+                        </div>
                         <!-- Department and Manager Section -->
                         <div class="details-section">
                             <div class="detail-item">
                                 <div class="icon-placeholder department-icon"></div>
-                                <p class="detail-title">{{getDepartmentName()}}</p>
-                                <div class="stars-placeholder">⭐⭐⭐⭐⭐</div>
+                                <p class="detail-title">Department: {{getDepartmentName()}}</p>
                             </div>
                             <div class="detail-item">
                                 <div class="icon-placeholder manager-icon"></div>
-                                <p class="detail-title">Manager</p>
-                                <div class="stars-placeholder">⭐⭐⭐⭐⭐</div>
+                                <p class="detail-title">Manager: {{getManagerName()}}</p>
                             </div>
                         </div>
 
@@ -156,7 +159,8 @@
         </div>
         <div class="td-content"
              *ngSwitchCase="overlayType.EDITEMPLOYEE">
-            <app-employee-form [employee]="dialogData"></app-employee-form>
+            <app-employee-form [employee]="dialogData"
+                               (employeeResponse)="employeeFormResponse($event)"></app-employee-form>
         </div>
         <div class="td-content"
              *ngSwitchCase="overlayType.EDITDEPARTMENT">
