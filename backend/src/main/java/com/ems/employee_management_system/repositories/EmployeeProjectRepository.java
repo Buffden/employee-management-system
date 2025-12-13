@@ -24,4 +24,12 @@ public interface EmployeeProjectRepository extends JpaRepository<EmployeeProject
                                                 @Param("departmentId") UUID departmentId,
                                                 @Param("userId") UUID userId,
                                                 Pageable pageable);
+
+    /**
+     * Count active project assignments for an employee (for delete validation)
+     * Note: Currently, EmployeeProject doesn't have a status field, so we count all assignments
+     * Future enhancement: Add status field and filter by ACTIVE status
+     */
+    @Query("SELECT COUNT(ep) FROM EmployeeProject ep WHERE ep.employee.id = :employeeId")
+    Long countByEmployeeId(@Param("employeeId") UUID employeeId);
 }
