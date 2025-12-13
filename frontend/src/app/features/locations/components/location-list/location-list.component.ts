@@ -14,6 +14,7 @@ import { OverlayDialogComponent } from '../../../../shared/components/overlay-di
 import { DialogData, overlayType } from '../../../../shared/models/dialog';
 import { AuthService } from '../../../../core/services/auth.service';
 import { filter } from 'rxjs';
+import { take } from 'rxjs/operators';
 
 @Component({
   selector: 'app-location-list',
@@ -31,6 +32,7 @@ export class LocationListComponent implements OnInit {
   pageSize = 10;
   totalElements = 0;
   totalPages = 0;
+  private isRefreshing = false; // Guard to prevent duplicate refresh calls
 
   // Custom handler for location name click - opens edit dialog
   onLocationNameClick = (row: TableCellData, colKey: string) => {
@@ -71,18 +73,24 @@ export class LocationListComponent implements OnInit {
       } as DialogData
     });
 
-    dialogRef.afterClosed().pipe(filter(result => !!result)).subscribe((result: DialogData) => {
-      if (result?.content && 'id' in result.content) {
-        const location = result.content as Location & { deleted?: boolean };
-        // Check if location was deleted
-        if (location.deleted) {
-          console.log('Location deleted:', location.id);
-        } else {
-          console.log('Location updated:', result.content);
-        }
-        // Refresh the location list after update or delete
-        this.loadLocations(this.currentPage, this.pageSize);
+    // Use take(1) to ensure the subscription only fires once
+    dialogRef.afterClosed().pipe(
+      filter(result => !!result && result?.content && 'id' in result.content),
+      take(1)
+    ).subscribe(() => {
+      // Guard to prevent duplicate refresh calls
+      if (this.isRefreshing) {
+        return;
       }
+      this.isRefreshing = true;
+      
+      // Refresh the location list after update or delete
+      this.loadLocations(this.currentPage, this.pageSize);
+      
+      // Reset flag after a short delay to allow the refresh to complete
+      setTimeout(() => {
+        this.isRefreshing = false;
+      }, 500);
     });
   }
 
@@ -104,8 +112,8 @@ export class LocationListComponent implements OnInit {
     const defaultSortDir = this.tableConfig.defaultSortDirection === 'desc' ? 'DESC' : 'ASC';
     this.loadLocations(0, this.pageSize, defaultSortColumn, defaultSortDir);
     
-    // Listen for location added event to refresh the list
-    globalThis.addEventListener('locationAdded', () => {
+    // Listen only for add operations from table component (edit/delete handled by afterClosed())
+    globalThis.window.addEventListener('locationAdded', () => {
       this.loadLocations(this.currentPage, this.pageSize);
     });
   }
@@ -113,7 +121,6 @@ export class LocationListComponent implements OnInit {
   loadLocations(page = 0, size = 10, sortBy?: string, sortDir = 'ASC'): void {
     this.locationService.queryLocations(page, size, sortBy, sortDir).subscribe({
       next: (response: PaginatedResponse<Location>) => {
-        console.log('Location query response:', response);
         this.locations = response.content || [];
         this.currentPage = response.page || 0;
         this.pageSize = response.size || 10;
@@ -129,12 +136,9 @@ export class LocationListComponent implements OnInit {
           address: loc.address || '',
           postalCode: loc.postalCode || '',
         }));
-        
-        console.log('Loaded locations:', this.locations.length, 'Total:', this.totalElements);
       },
-      error: (error) => {
-        console.error('Error loading locations:', error);
-        console.error('Error details:', error.error);
+      error: () => {
+        // Error handled by global error handler or service
       }
     });
   }
