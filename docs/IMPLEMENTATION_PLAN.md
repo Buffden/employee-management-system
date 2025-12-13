@@ -225,6 +225,163 @@ Authentication → Location → Department → Employee → Project → Task
 
 ---
 
+### Implementation Details
+
+#### Step 1: Backend Foundation
+
+**1.1 DTOs and Models**
+- `EmployeeQueryRequestDTO` - Pagination, sorting, filtering parameters
+- `EmployeeRequestDTO` - Create/update with validation annotations
+- `EmployeeResponseDTO` - Response with denormalized department/location names
+- Update `FilterOptionDTO` usage for employee filters (departments, locations, designations)
+
+**1.2 Repository Layer**
+- `EmployeeRepository` with:
+  - `findAllFilteredByRole(role, departmentId, pageable)` - Role-based filtering
+  - `findByEmail(String email)` - Email uniqueness validation
+  - `findByDepartmentId(UUID departmentId)` - For manager dropdown filtering
+  - `countByDepartmentId(UUID departmentId)` - For delete validation
+  - `countDirectReports(UUID managerId)` - Check if employee has direct reports
+
+**1.3 Service Layer**
+- `EmployeeService` with:
+  - `getAll(Pageable)` - Paginated queries with role filtering
+  - `getById(UUID)` - Single employee retrieval
+  - `save(Employee)` - Create/update with business logic validation
+  - `delete(UUID)` - Delete with business rule checks (no active projects, no direct reports)
+  - `getAll()` - For dropdowns (all employees or filtered by department)
+  - `getEmployeesByDepartment(UUID departmentId)` - For manager dropdown
+
+**1.4 Controller Layer**
+- `EmployeeController` with:
+  - `POST /api/employees` - Query with pagination, sorting, filtering
+  - `POST /api/employees/create` - Create employee
+  - `GET /api/employees/{id}` - Get by ID (with role-based access)
+  - `PUT /api/employees/{id}` - Update employee
+  - `DELETE /api/employees/{id}` - Delete employee
+  - RBAC: `@PreAuthorize` annotations for each endpoint
+  - Include filters in paginated response (departments, locations, designations)
+
+**1.5 Mapper Layer**
+- `EmployeeMapper` with:
+  - `toResponseDTO(Employee)` - Include denormalized department/location names
+  - `toEntity(EmployeeRequestDTO, Department, Location, Employee manager)` - Relationship resolution
+
+#### Step 2: Additional Complexity (Beyond Location/Department)
+
+**2.1 Manager Assignment Validation**
+- Validate manager exists
+- Validate manager is in same department as employee
+- Handle self-referential relationship (employee → manager)
+- Prevent circular manager assignments
+
+**2.2 Email Uniqueness Validation**
+- Check email uniqueness on create
+- Check email uniqueness on update (excluding current employee)
+- Return clear error messages for duplicate emails
+
+**2.3 Delete Validation**
+- Check for active project assignments (prevent deletion if assigned)
+- Check for direct reports (prevent deletion if manager has direct reports)
+- Return clear error messages explaining why deletion is blocked
+
+**2.4 Role-Based Data Filtering**
+- `DEPARTMENT_MANAGER`: Only see employees in their department
+- `EMPLOYEE`: Only see themselves
+- `HR_MANAGER`/`SYSTEM_ADMIN`: See all employees
+- Implement in repository query methods
+
+#### Step 3: Frontend Implementation
+
+**3.1 Employee Service**
+- `queryEmployees(page, size, sortBy, sortDir, filters?)` - POST query with pagination
+- `addEmployee(employeeData)` - Create employee
+- `updateEmployee(id, employeeData)` - Update employee
+- `deleteEmployee(id)` - Delete employee
+- `getEmployeeById(id)` - Get single employee
+- `getEmployeesByDepartment(departmentId)` - For manager dropdown
+
+**3.2 Employee List Component**
+- Table with pagination, sorting, filtering
+- Edit/Delete actions (RBAC-based visibility)
+- Click on name to edit/view (based on permissions)
+- Filter by department, location, designation
+- Default sort by name (ascending)
+
+**3.3 Employee Form Component**
+- **Required Fields**: firstName, lastName, email, designation, salary, joiningDate
+- **Dropdowns**: 
+  - Department (from filters or API)
+  - Location (from filters or API)
+  - Manager (filtered by selected department, excludes self)
+- **Optional Fields**: phone, address, performanceRating, experienceYears
+- **Validation**: 
+  - Email format and uniqueness
+  - Salary > 0
+  - JoiningDate not in future
+  - Manager in same department
+- **Error Handling**: Display field-level validation errors
+
+**3.4 Employee Config**
+- Table columns configuration
+- Default sorting (e.g., by name, ascending)
+- Filter options (departments, locations, designations from API response)
+- RBAC-based action button visibility
+
+#### Step 4: Self-Service Features (UC-EM-007, UC-EM-008)
+
+**4.1 Profile View Component**
+- Read-only view of own profile
+- Accessible to all authenticated employees
+- Display: personal info, department, location, manager, projects (future)
+
+**4.2 Profile Update Component**
+- Limited fields (phone, address, etc.)
+- Cannot change: salary, designation, department, manager
+- RBAC: Only own profile
+- Validation: Same as employee form for editable fields
+
+---
+
+### Key Differences from Location/Department
+
+1. **More Relationships**
+   - Department (required) - ManyToOne
+   - Location (required) - ManyToOne
+   - Manager (optional, self-referential) - ManyToOne to Employee
+   - Projects (future, many-to-many)
+
+2. **More Validation**
+   - Email uniqueness (unique constraint)
+   - Manager in same department (business rule)
+   - Delete constraints (projects, direct reports)
+
+3. **Role-Based Data Filtering**
+   - Department managers see only their department
+   - Employees see only themselves
+   - More complex than Location/Department (which all roles can view)
+
+4. **Self-Service Features**
+   - Profile view/update
+   - Not present in Location/Department
+
+---
+
+### Suggested Commit Strategy
+
+1. Add employee query DTO and filter options
+2. Implement employee repository with role filtering
+3. Add employee service with validation logic
+4. Create employee CRUD endpoints
+5. Update employee DTOs with denormalized names
+6. Add employee list component
+7. Add employee form with manager dropdown
+8. Integrate employee form into overlay dialog
+9. Add profile view component
+10. Add profile update component
+
+---
+
 ## Phase 5: Business Logic - Project Management 📊
 
 **Priority**: MEDIUM - Depends on Employees and Departments
