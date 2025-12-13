@@ -6,7 +6,6 @@ import java.util.UUID;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
-import jakarta.validation.constraints.PastOrPresent;
 import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.PositiveOrZero;
 import jakarta.validation.constraints.Size;
@@ -37,7 +36,8 @@ public class EmployeeRequestDTO {
     @Positive(message = "Salary must be positive")
     private Double salary;
     
-    @PastOrPresent(message = "Joining date must be in the past or present")
+    // Allow future dates for employees joining later
+    // Removed @PastOrPresent to allow future joining dates
     private LocalDate joiningDate;
     
     @NotNull(message = "Location ID is required")
