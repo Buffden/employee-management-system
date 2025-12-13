@@ -160,7 +160,8 @@
         </div>
         <div class="td-content"
              *ngSwitchCase="overlayType.EDITDEPARTMENT">
-            <app-department-form [department]="dialogData"></app-department-form>
+            <app-department-form [department]="dialogData"
+                                (departmentResponse)="departmentFormResponse($event)"></app-department-form>
         </div>
         <div class="td-content"
              *ngSwitchCase="overlayType.DISPLAYLOCATION">

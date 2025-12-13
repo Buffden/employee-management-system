@@ -99,7 +99,10 @@ export class LocationListComponent implements OnInit {
   }
 
   ngOnInit(): void {
-    this.loadLocations();
+    // Load with default sort from config
+    const defaultSortColumn = this.tableConfig.defaultSortColumn;
+    const defaultSortDir = this.tableConfig.defaultSortDirection === 'desc' ? 'DESC' : 'ASC';
+    this.loadLocations(0, this.pageSize, defaultSortColumn, defaultSortDir);
     
     // Listen for location added event to refresh the list
     globalThis.addEventListener('locationAdded', () => {

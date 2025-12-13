@@ -1,6 +1,13 @@
 <div class="container">
   <app-table 
     [inputData]="tableData" 
-    [tableConfig]="tableConfig">
+    [tableConfig]="tableConfig"
+    [totalElements]="totalElements"
+    [useBackendPagination]="true"
+    [currentPageIndex]="currentPage"
+    [linkClickHandler]="onDepartmentNameClick"
+    [filters]="filters"
+    (sortChange)="onSortChange($event)"
+    (pageChange)="onPageChange($event)">
   </app-table>
 </div>

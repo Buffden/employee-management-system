@@ -40,10 +40,21 @@ public class GlobalExceptionHandler {
                         error.getDefaultMessage()))
                 .collect(Collectors.toList());
         
+        // Build a more descriptive error message from field errors
+        String detailedMessage = fieldErrors.stream()
+                .map(fe -> {
+                    String fieldName = fe.getField();
+                    // Capitalize first letter and add spaces before capital letters
+                    fieldName = fieldName.substring(0, 1).toUpperCase() + 
+                               fieldName.substring(1).replaceAll("([A-Z])", " $1").toLowerCase();
+                    return fieldName + ": " + fe.getMessage();
+                })
+                .collect(Collectors.joining("; "));
+        
         ErrorResponseDTO errorResponse = new ErrorResponseDTO(
                 HttpStatus.BAD_REQUEST.value(),
                 "Validation Failed",
-                "Request validation failed",
+                detailedMessage.isEmpty() ? "Request validation failed. Please check all required fields." : detailedMessage,
                 request.getDescription(false).replace("uri=", ""));
         errorResponse.setFieldErrors(fieldErrors);
         

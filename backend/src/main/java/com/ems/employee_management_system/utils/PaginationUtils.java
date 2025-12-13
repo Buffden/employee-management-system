@@ -1,6 +1,7 @@
 package com.ems.employee_management_system.utils;
 
 import java.util.List;
+import java.util.Map;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -10,6 +11,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 
 import com.ems.employee_management_system.constants.Constants;
+import com.ems.employee_management_system.dtos.FilterOptionDTO;
 import com.ems.employee_management_system.dtos.PaginatedResponseDTO;
 
 /**
@@ -71,6 +73,39 @@ public class PaginationUtils {
                 page.isLast(),
                 page.hasNext(),
                 page.hasPrevious()
+        );
+    }
+
+    /**
+     * Converts a Spring Data Page to PaginatedResponseDTO with filters
+     * 
+     * IMPORTANT: Filters should ALWAYS contain ALL possible values, independent of pagination.
+     * Filters represent complete filter options available for the table, not filtered by current page.
+     * Filters only narrow down when other filters are applied (future filtering implementation).
+     * 
+     * @param page Spring Data Page object
+     * @param mapper Function to map entity to DTO
+     * @param filters Map of filter name to list of filter options (should contain ALL values, not paginated)
+     * @param <T> Entity type
+     * @param <R> DTO type
+     * @return PaginatedResponseDTO with filters
+     */
+    public static <T, R> PaginatedResponseDTO<R> toPaginatedResponse(Page<T> page, Function<T, R> mapper, Map<String, List<FilterOptionDTO>> filters) {
+        List<R> content = page.getContent().stream()
+                .map(mapper)
+                .collect(Collectors.toList());
+        
+        return new PaginatedResponseDTO<>(
+                content,
+                page.getNumber(),
+                page.getSize(),
+                page.getTotalElements(),
+                page.getTotalPages(),
+                page.isFirst(),
+                page.isLast(),
+                page.hasNext(),
+                page.hasPrevious(),
+                filters
         );
     }
 }

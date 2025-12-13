@@ -4,28 +4,55 @@
         <ng-container *ngFor="let field of FormFields;">
             <mat-form-field appearance="outline">
                 <mat-label>{{ field.label }}</mat-label>
-                <input matInput
+                <!-- Select dropdown for location -->
+                <mat-select *ngIf="field.type === 'select' && field.formControlName === 'locationId'"
+                           [formControlName]="field.formControlName"
+                           [required]="field.required ?? false">
+                    <mat-option value="">-- Select Location --</mat-option>
+                    <mat-option *ngFor="let location of locations" [value]="location.id">
+                        {{ location.name }} ({{ location.city }}, {{ location.state }})
+                    </mat-option>
+                </mat-select>
+                <!-- Regular input for other fields -->
+                <input *ngIf="field.type !== 'select'"
+                       matInput
                        [formControlName]="field.formControlName"
                        [placeholder]="field.placeholder"
-                       required />
+                       [type]="field.type || 'text'"
+                       [required]="field.required ?? false" />
                 <mat-error *ngIf="isFieldInvalid(field)">
                     {{ field.errorMessage }}
                 </mat-error>
             </mat-form-field>
         </ng-container>
 
+        <div *ngIf="errorMessage" class="error-message">
+            <mat-error>{{ errorMessage }}</mat-error>
+        </div>
+
         <div class="form-actions">
-            <button mat-raised-button
-                    color="primary"
-                    type="submit"
-                    (click)="onSubmit()"
-                    [disabled]="isSubmitDisabled()">
-                {{ submitButtonText() }}
-            </button>
-            <button mat-raised-button
-                    color="warn"
-                    type="button"
-                    (click)="dialogClose()">Cancel</button>
+            <div class="left-actions">
+                <button mat-raised-button
+                        color="warn"
+                        type="button"
+                        *ngIf="canDeleteDepartment()"
+                        (click)="onDeleteClick()"
+                        [disabled]="isSubmitting">Delete Department</button>
+            </div>
+            <div class="right-actions">
+                <button mat-raised-button
+                        color="primary"
+                        type="submit"
+                        (click)="onSubmit()"
+                        [disabled]="isSubmitDisabled()">
+                    <span *ngIf="!isSubmitting">{{ submitButtonText() }}</span>
+                    <span *ngIf="isSubmitting">Submitting...</span>
+                </button>
+                <button mat-raised-button
+                        color="basic"
+                        type="button"
+                        (click)="dialogClose()">Cancel</button>
+            </div>
         </div>
     </form>
 </div>

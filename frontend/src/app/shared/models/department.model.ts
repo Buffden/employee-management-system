@@ -18,4 +18,5 @@ export interface DepartmentFormField {
     errorMessage: string;
     type?: string;
     options?: string[];
+    required?: boolean;
 }

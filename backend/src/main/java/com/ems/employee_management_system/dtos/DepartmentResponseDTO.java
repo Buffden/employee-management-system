@@ -7,6 +7,7 @@ public class DepartmentResponseDTO {
     private UUID id;
     private String name;
     private String description;
+    private UUID locationId; // Location ID for frontend
     private String locationName; // Denormalized
     private LocalDate createdAt;
     private Double budget;
@@ -45,6 +46,14 @@ public class DepartmentResponseDTO {
 
     public void setLocationName(String locationName) {
         this.locationName = locationName;
+    }
+
+    public UUID getLocationId() {
+        return locationId;
+    }
+
+    public void setLocationId(UUID locationId) {
+        this.locationId = locationId;
     }
 
     public LocalDate getCreatedAt() {

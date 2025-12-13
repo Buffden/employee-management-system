@@ -1,5 +1,5 @@
 import { overlayType } from "../../../../shared/models/dialog";
-import { ColumnType, FormMode, TableConfig } from "../../../../shared/models/table";
+import { ColumnType, FormMode, SortDirection, TableConfig } from "../../../../shared/models/table";
 
 export const departmentListConfig: TableConfig = {
     detailsCardTitle: 'Departments Details',
@@ -27,6 +27,9 @@ export const departmentListConfig: TableConfig = {
     allowAddButton: true,
     allowCustomize: true,
     allowExport: true,
+    allowFiltering: true, // Allow filtering on department table
+    defaultSortColumn: 'name', // Default sort by department name
+    defaultSortDirection: SortDirection.ASC, // Default sort direction
     noDataInfo: {
         title: 'No Department Data Found',
         description: 'No data available for the selected criteria',

@@ -5,14 +5,15 @@ import { Department } from "../../../shared/models/department.model";
 import { PaginatedResponse } from "../../../shared/models/paginated-response.model";
 import { Injectable } from "@angular/core";
 import { environment } from "../../../../environments/environment";
+import { DepartmentQueryRequest } from "../../../shared/models/department-query-request.model";
 
 @Injectable({
     providedIn: 'root',
 })
 export class DepartmentService {
-    private apiUrl = `${environment.apibaseurl}/departments`;
+    private readonly apiUrl = `${environment.apibaseurl}/departments`;
 
-    constructor(private http: HttpClient) { }
+    constructor(private readonly http: HttpClient) { }
 
     // Generic error handler for HTTP requests
     private handleError(error: HttpErrorResponse): void {
@@ -20,13 +21,35 @@ export class DepartmentService {
         // Optionally, handle the error with a user-friendly message
     }
 
-    // GET all departments
+    // POST query departments with pagination
+    queryDepartments(page = 0, size = 20, sortBy?: string, sortDir = 'ASC'): Observable<PaginatedResponse<Department>> {
+        // Build query request - only include sortBy if it has a value
+        const queryRequest: Record<string, string | number> = {
+            page: page,
+            size: size,
+            sortDir: sortDir || 'ASC'
+        };
+
+        // Only include sortBy if it's provided and not empty
+        if (sortBy && sortBy.trim().length > 0) {
+            queryRequest['sortBy'] = sortBy.trim();
+        }
+
+        return this.http.post<PaginatedResponse<Department>>(this.apiUrl, queryRequest).pipe(
+            catchError((error) => {
+                this.handleError(error);
+                throw error;
+            })
+        );
+    }
+
+    // GET all departments (deprecated - use queryDepartments instead)
     getDepartments(): Observable<Department[]> {
-        return this.http.get<PaginatedResponse<Department>>(this.apiUrl).pipe(
+        return this.queryDepartments(0, 1000).pipe(
             map((response: PaginatedResponse<Department>) => response.content || []),
             catchError((error) => {
                 this.handleError(error);
-                throw error; // Re-throw error to be handled by the caller
+                throw error;
             })
         );
     }
@@ -42,8 +65,8 @@ export class DepartmentService {
     }
 
     // POST (add) a new department
-    addDepartment(department: Department): Observable<Department> {
-        return this.http.post<Department>(this.apiUrl, department).pipe(
+    addDepartment(department: Partial<Department>): Observable<Department> {
+        return this.http.post<Department>(`${this.apiUrl}/create`, department).pipe(
             catchError((error) => {
                 this.handleError(error);
                 throw error;
@@ -51,10 +74,10 @@ export class DepartmentService {
         );
     }
 
-    // PUT (update) an department
-    updateDepartment(department: Department): Observable<Department> {
+    // PUT (update) a department
+    updateDepartment(id: string, department: Partial<Department>): Observable<Department> {
         return this.http.put<Department>(
-            `${this.apiUrl}/${department.id}`,
+            `${this.apiUrl}/${id}`,
             department
         ).pipe(
             catchError((error) => {
@@ -64,9 +87,9 @@ export class DepartmentService {
         );
     }
 
-    // DELETE an department by ID
-    deleteDepartment(id: number): Observable<Department> {
-        return this.http.delete<Department>(`${this.apiUrl}/${id}`).pipe(
+    // DELETE a department by ID
+    deleteDepartment(id: string): Observable<void> {
+        return this.http.delete<void>(`${this.apiUrl}/${id}`).pipe(
             catchError((error) => {
                 this.handleError(error);
                 throw error;
