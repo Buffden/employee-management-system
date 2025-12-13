@@ -132,9 +132,15 @@ public class DepartmentController {
             throw new IllegalArgumentException("Location not found with id: " + requestDTO.getLocationId());
         }
         
-        // Department head is optional - skip validation for now since employees aren't implemented yet
-        // Will be validated in Phase 3 when employee management is implemented
+        // Department head is optional - fetch if provided
         Employee head = null;
+        if (requestDTO.getDepartmentHeadId() != null) {
+            head = employeeService.getById(requestDTO.getDepartmentHeadId());
+            if (head == null) {
+                logger.warn("Department head employee not found with id: {}", requestDTO.getDepartmentHeadId());
+                throw new IllegalArgumentException("Employee not found with id: " + requestDTO.getDepartmentHeadId());
+            }
+        }
         
         Department department = DepartmentMapper.toEntity(requestDTO, location, head);
         Department savedDepartment = departmentService.save(department);
@@ -158,9 +164,15 @@ public class DepartmentController {
             throw new IllegalArgumentException("Location not found with id: " + requestDTO.getLocationId());
         }
         
-        // Department head is optional - skip validation for now since employees aren't implemented yet
-        // Will be validated in Phase 3 when employee management is implemented
+        // Department head is optional - fetch if provided
         Employee head = null;
+        if (requestDTO.getDepartmentHeadId() != null) {
+            head = employeeService.getById(requestDTO.getDepartmentHeadId());
+            if (head == null) {
+                logger.warn("Department head employee not found with id: {}", requestDTO.getDepartmentHeadId());
+                throw new IllegalArgumentException("Employee not found with id: " + requestDTO.getDepartmentHeadId());
+            }
+        }
         
         Department updatedDepartment = DepartmentMapper.toEntity(requestDTO, location, head);
         updatedDepartment.setId(id); // Ensure ID is preserved for update

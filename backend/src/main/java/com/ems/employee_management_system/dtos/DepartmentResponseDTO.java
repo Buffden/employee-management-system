@@ -13,6 +13,7 @@ public class DepartmentResponseDTO {
     private Double budget;
     private Double budgetUtilization;
     private Double performanceMetric;
+    private UUID departmentHeadId; // Department head employee ID
     private String departmentHeadName; // Denormalized (firstName + lastName)
 
     // Getters and setters
@@ -86,6 +87,14 @@ public class DepartmentResponseDTO {
 
     public void setPerformanceMetric(Double performanceMetric) {
         this.performanceMetric = performanceMetric;
+    }
+
+    public UUID getDepartmentHeadId() {
+        return departmentHeadId;
+    }
+
+    public void setDepartmentHeadId(UUID departmentHeadId) {
+        this.departmentHeadId = departmentHeadId;
     }
 
     public String getDepartmentHeadName() {

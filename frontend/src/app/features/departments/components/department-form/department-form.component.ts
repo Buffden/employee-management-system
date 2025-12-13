@@ -14,11 +14,14 @@ import { defaultTableConfig } from '../../../../shared/components/table/table.co
 import { Location } from '../../../../shared/models/location.model';
 import { FilterOption } from '../../../../shared/models/paginated-response.model';
 import { finalize } from 'rxjs/operators';
+import { TypeaheadComponent, TypeaheadConfig } from '../../../../shared/components/typeahead/typeahead.component';
+import { EmployeeService } from '../../../employees/services/employee.service';
+import { Employee } from '../../../../shared/models/employee.model';
 
 @Component({
   selector: 'app-department-form',
   standalone: true,
-  imports: [CommonModule, SharedModule],
+  imports: [CommonModule, SharedModule, TypeaheadComponent],
   templateUrl: './department-form.component.html',
   styleUrls: ['./department-form.component.css']
 })
@@ -33,6 +36,10 @@ export class DepartmentFormComponent implements OnInit {
   errorMessage: string | null = null;
   locations: Location[] = [];
   loadingLocations = false;
+  
+  // Typeahead configuration for department head selection
+  departmentHeadTypeaheadConfig!: TypeaheadConfig<Employee>;
+  
   departmentForm = new FormGroup({
     name: new FormControl(''),
     description: new FormControl(''),
@@ -47,12 +54,14 @@ export class DepartmentFormComponent implements OnInit {
     private readonly fb: FormBuilder,
     private readonly departmentService: DepartmentService,
     private readonly locationService: LocationService,
+    private readonly employeeService: EmployeeService,
     private readonly matDialog: MatDialog,
     private readonly authService: AuthService
   ) { }
 
   ngOnInit() {
     this.initForm();
+    this.initDepartmentHeadTypeaheadConfig();
     // Use locations from filters (passed via DialogData) instead of making redundant API call
     if (this.department?.filters && this.department.filters['locations'] && this.department.filters['locations'].length > 0) {
       const locationFilters = this.department.filters['locations'];
@@ -194,6 +203,9 @@ export class DepartmentFormComponent implements OnInit {
     const departmentHeadId = formValue['departmentHeadId'];
     if (departmentHeadId && typeof departmentHeadId === 'string' && departmentHeadId.trim() !== '' && departmentHeadId !== 'null') {
       departmentData['departmentHeadId'] = departmentHeadId.trim();
+    } else {
+      // Explicitly set to null if empty/cleared to allow backend to clear the department head
+      departmentData['departmentHeadId'] = null;
     }
 
     this.departmentService.addDepartment(departmentData).pipe(
@@ -323,6 +335,9 @@ export class DepartmentFormComponent implements OnInit {
     const departmentHeadId = formValue['departmentHeadId'];
     if (departmentHeadId && typeof departmentHeadId === 'string' && departmentHeadId.trim() !== '' && departmentHeadId !== 'null') {
       departmentData['departmentHeadId'] = departmentHeadId.trim();
+    } else {
+      // Explicitly set to null if empty/cleared to allow backend to clear the department head
+      departmentData['departmentHeadId'] = null;
     }
 
     this.departmentService.updateDepartment(departmentId, departmentData).pipe(
@@ -464,6 +479,39 @@ export class DepartmentFormComponent implements OnInit {
     } as DialogData);
   }
 
+  initDepartmentHeadTypeaheadConfig(): void {
+    this.departmentHeadTypeaheadConfig = {
+      searchFn: (searchTerm: string) => {
+        return this.employeeService.searchEmployees(searchTerm);
+      },
+      getByIdFn: (id: string) => this.employeeService.getEmployeeById(id),
+      displayFn: (employee: Employee | null) => {
+        if (!employee) return '';
+        const firstName = employee.firstName || '';
+        const lastName = employee.lastName || '';
+        const email = employee.email || '';
+        return `${firstName} ${lastName} (${email})`.trim();
+      },
+      getIdFn: (employee: Employee) => employee.id,
+      itemTemplate: (employee: Employee) => {
+        return `
+          <div style="display: flex; flex-direction: column; padding: 4px 0;">
+            <div style="font-weight: 500; font-size: 14px; color: rgba(0, 0, 0, 0.87);">
+              ${employee.firstName} ${employee.lastName}
+            </div>
+            <div style="display: flex; gap: 12px; font-size: 12px; color: rgba(0, 0, 0, 0.54); margin-top: 2px;">
+              <span style="flex: 1;">${employee.email}</span>
+              ${employee.designation ? `<span style="font-style: italic;">${employee.designation}</span>` : ''}
+            </div>
+          </div>
+        `;
+      },
+      minSearchLength: 2,
+      debounceTime: 300,
+      noResultsMessage: 'No employees found'
+    };
+  }
+
   createFormFields(): DepartmentFormField[] {
     return [
       {
@@ -510,10 +558,11 @@ export class DepartmentFormComponent implements OnInit {
         type: 'number'
       },
       {
-        label: 'Department Head ID',
+        label: 'Department Head',
         formControlName: 'departmentHeadId',
-        placeholder: 'Enter department head ID (optional)',
-        errorMessage: 'Department head ID must be a valid UUID',
+        placeholder: 'Search for department head (optional)',
+        errorMessage: 'Please select a valid employee',
+        type: 'typeahead',
       },
     ];
   }
