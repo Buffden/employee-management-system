@@ -41,6 +41,7 @@
 2. **Initiate Creation**: Actor clicks "Add Employee" button
    - System displays employee creation form
    - Form includes fields: firstName, lastName, email, phone, address, designation, salary, joiningDate, department, location, manager (optional)
+   - Manager field uses typeahead component for employee search (filtered by department)
 
 3. **Fill Employee Details**: Actor fills in employee information
    - **Required Fields**:
@@ -64,10 +65,17 @@
    - System validates location exists
    - System displays location details (city, state, country)
 
-6. **Assign Manager (Optional)**: Actor optionally selects a manager
+6. **Assign Manager (Optional)**: Actor optionally selects a manager using typeahead component
+   - Actor must first select a department (typeahead is disabled until department is selected)
+   - Actor types employee name or email in typeahead field (minimum 2 characters)
+   - System searches employees matching the search term via `/api/employees/search`
+   - System filters results to show only employees in the selected department
+   - System displays matching employees in dropdown with name, email, and designation
+   - Actor selects a manager from the suggestions
+   - System stores the selected manager ID
    - If manager is selected:
      - System validates manager exists
-     - System validates manager is in the same department as the employee
+     - System validates manager is in the same department as the employee (enforced by typeahead filtering)
      - If validation fails, proceed to Alternative Flow 5a
 
 7. **Submit Form**: Actor clicks "Create Employee" button
@@ -256,7 +264,7 @@
 - **Role-Based Filtering**: Not applicable (creation operation)
 
 ### Components Involved
-- **Frontend**: EmployeeFormComponent, EmployeeService
+- **Frontend**: EmployeeFormComponent, EmployeeService, TypeaheadComponent
 - **Backend**: EmployeeController, EmployeeService, EmployeeRepository, EmployeeMapper
 - **Validation**: ValidationService, @Valid annotations
 - **Database**: Employee entity, Department entity, Location entity
@@ -271,4 +279,13 @@
 
 **Last Updated**: 2024-12-12  
 **Status**: Active
+
+### UI Components
+- **Typeahead Component**: Reusable autocomplete component for manager selection
+  - Filters managers by selected department automatically
+  - Provides real-time search as user types (minimum 2 characters)
+  - Displays employee suggestions with name, email, and designation
+  - Disabled until department is selected
+  - Validates selection before form submission
+  - Handles loading states and error messages
 

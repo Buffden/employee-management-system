@@ -44,6 +44,8 @@
    - System displays employee edit form
    - Form is pre-populated with current employee data
    - Form includes all editable fields
+   - If employee has a manager assigned, system loads manager data and pre-populates typeahead
+   - Manager field uses typeahead component for employee search (filtered by department)
 
 3. **Modify Employee Information**: Actor modifies employee information
    - Actor can modify:
@@ -51,7 +53,11 @@
      - Employment information (designation, salary, performanceRating, experienceYears)
      - Department (select from dropdown)
      - Location (select from dropdown)
-     - Manager (select from dropdown or remove)
+     - Manager (using typeahead component)
+       - Actor can search for new manager by typing name/email
+       - System filters results by current department
+       - Actor can clear selection to remove manager
+       - System validates selected manager exists and is in same department before submission
    - Actor cannot modify:
      - Email (unique identifier)
      - Employee ID
@@ -266,7 +272,7 @@
 - **Role-Based Filtering**: Not applicable (update operation)
 
 ### Components Involved
-- **Frontend**: EmployeeEditComponent, EmployeeService
+- **Frontend**: EmployeeFormComponent, EmployeeService, TypeaheadComponent
 - **Backend**: EmployeeController, EmployeeService, EmployeeRepository, EmployeeMapper
 - **Validation**: ValidationService, @Valid annotations
 
@@ -280,4 +286,16 @@
 
 **Last Updated**: 2024-12-12  
 **Status**: Active
+
+### UI Components
+- **Typeahead Component**: Reusable autocomplete component for manager selection
+  - Pre-loads current manager employee if assigned
+  - Filters managers by selected department automatically
+  - Provides real-time search as user types (minimum 2 characters)
+  - Displays employee suggestions with name, email, and designation
+  - Excludes current employee from search results in edit mode
+  - Allows clearing selection to remove manager
+  - Disabled until department is selected
+  - Validates selection before form submission
+  - Handles loading states and error messages
 

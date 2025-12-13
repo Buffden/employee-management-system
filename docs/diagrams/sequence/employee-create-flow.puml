@@ -20,8 +20,22 @@ participant "Location Repository" as LocRepo
 database "PostgreSQL" as DB
 
 User -> Frontend: 1. Fill employee form (name, email, salary, etc.)
-User -> Frontend: 2. Select department & location
-User -> Frontend: 3. Optionally select manager
+User -> Frontend: 2. Select department & location from dropdowns
+User -> Frontend: 3. Optionally search and select manager\nusing typeahead component
+Frontend -> Frontend: 3a. Typeahead: User types employee name/email\n(minimum 2 characters, filtered by department)
+Frontend -> Gateway: 3b. GET /api/employees/search?q={searchTerm}&departmentId={deptId}
+Gateway -> Controller: 3c. Forward search request
+Controller -> Service: 3d. searchEmployees(searchTerm, departmentId)
+Service -> Repository: 3e. Search employees by name/email\nfiltered by department
+Repository -> DB: 3f. SELECT * FROM employee WHERE...\nAND department_id = ?
+DB --> Repository: 3g. Matching employees in department
+Repository --> Service: 3h. List<Employee>
+Service --> Controller: 3i. EmployeeResponseDTO[]
+Controller --> Gateway: 3j. HTTP 200 OK
+Gateway --> Frontend: 3k. Employee list for typeahead\n(filtered by department)
+Frontend -> Frontend: 3l. Display employee suggestions\n(name, email, designation)
+User -> Frontend: 3m. Select manager from typeahead
+Frontend -> Frontend: 3n. Store selected manager ID
 User -> Frontend: 4. Click "Create Employee"
 
 Frontend -> Gateway: 5. POST /api/employees (EmployeeRequestDTO)\nAuthorization: Bearer {token}
@@ -49,72 +63,93 @@ else Authorized
     Controller -> Service: 18. create(EmployeeRequestDTO)
 
 alt Manager is provided
-    Service -> Validation: 8. validateManagerInDepartment(managerId, departmentId)
-    Validation -> DeptRepo: 9. Check manager's department
-    DeptRepo -> DB: 10. Query employee department
-    DB --> DeptRepo: 11. Department data
-    DeptRepo --> Validation: 12. Department info
-    Validation --> Service: 13. Validation result
+    Service -> Repository: 19. getById(managerId)
+    Repository -> DB: 20. SELECT * FROM employee WHERE id = ?
+    DB --> Repository: 21. Manager entity
+    Repository --> Service: 22. Manager
+    
+    Service -> Validation: 23. validateManagerInDepartment(managerId, departmentId)
+    Validation -> Validation: 24. Check manager.departmentId == departmentId
+    
+    alt Manager in different department
+        Validation --> Service: 25. Validation failed
+        Service --> Controller: 26. Throw ValidationException\n"Manager must be in same department"
+        Controller --> Gateway: 27. HTTP 400 Bad Request
+        Gateway --> Frontend: 28. Error response
+        Frontend --> User: 29. Display error: "Manager must be in the same department"
+    else Manager in same department
+        Validation --> Service: 30. Validation passed
+    end
+else No manager
+    Service -> Service: 31. Set manager = null
 end
 
-Service -> DeptRepo: 14. getById(departmentId)
-DeptRepo -> DB: 15. SELECT department
-DB --> DeptRepo: 16. Department entity
-DeptRepo --> Service: 17. Department
+Service -> DeptRepo: 32. getById(departmentId)
+DeptRepo -> DB: 33. SELECT department
+DB --> DeptRepo: 34. Department entity
+DeptRepo --> Service: 35. Department
 
-Service -> LocRepo: 18. getById(locationId)
-LocRepo -> DB: 19. SELECT location
-DB --> LocRepo: 20. Location entity
-LocRepo --> Service: 21. Location
+Service -> LocRepo: 36. getById(locationId)
+LocRepo -> DB: 37. SELECT location
+DB --> LocRepo: 38. Location entity
+LocRepo --> Service: 39. Location
 
-alt Manager provided
-    Service -> Repository: 22. getById(managerId)
-    Repository -> DB: 23. SELECT employee
-    DB --> Repository: 24. Manager entity
-    Repository --> Service: 25. Manager
-end
+Service -> Mapper: 40. toEntity(DTO, dept, loc, mgr)
+Mapper --> Service: 41. Employee entity
 
-Service -> Mapper: 26. toEntity(DTO, dept, loc, mgr)
-Mapper --> Service: 27. Employee entity
+Service -> Repository: 42. save(Employee)
+Repository -> DB: 43. INSERT employee\n(including manager_id if provided)
+DB --> Repository: 44. Saved employee
+Repository --> Service: 45. Employee
 
-Service -> Repository: 28. save(Employee)
-Repository -> DB: 29. INSERT employee
-DB --> Repository: 30. Saved employee
-Repository --> Service: 31. Employee
+Service -> Mapper: 46. toResponseDTO(Employee)
+Mapper --> Service: 47. EmployeeResponseDTO
 
-Service -> Mapper: 32. toResponseDTO(Employee)
-Mapper --> Service: 33. EmployeeResponseDTO
-
-    Service --> Controller: 40. EmployeeResponseDTO
-    Controller --> Gateway: 41. HTTP 201 Created
-    Gateway --> Frontend: 42. Response with employee data
+    Service --> Controller: 48. EmployeeResponseDTO
+    Controller --> Gateway: 49. HTTP 201 Created
+    Gateway --> Frontend: 50. Response with employee data\n(including managerId)
     
     participant "Employee Form Component" as FormComp
     participant "Table Component" as TableComp
     participant "Employee List Component" as ListComp
     
-    Frontend -> FormComp: 43. Emit employeeResponse (DialogData)
-    FormComp -> TableComp: 44. Close dialog with response
-    TableComp -> TableComp: 45. afterClosed() subscription triggers
-    TableComp -> TableComp: 46. Dispatch 'employeeAdded' event
-    TableComp -> ListComp: 47. Event listener receives 'employeeAdded'
-    ListComp -> Gateway: 48. POST /api/employees (query with pagination)
-    Gateway -> Controller: 49. Forward query request
-    Controller -> Service: 50. query(page, size, sortBy, sortDir)
-    Service -> Repository: 51. findAllFilteredByRole(pageable, role, deptId)
-    Repository -> DB: 52. SELECT * FROM employee\nWHERE ... ORDER BY ... LIMIT ... OFFSET ...
-    DB --> Repository: 53. Paginated employees
-    Repository --> Service: 54. Page<Employee>
-    Service --> Controller: 55. PaginatedResponseDTO<Employee>
-    Controller --> Gateway: 56. HTTP 200 OK
-    Gateway --> ListComp: 57. Updated employee list
-    ListComp -> ListComp: 58. Update table data
-    ListComp -> User: 59. Display updated employee list\nwith new employee included
+    Frontend -> FormComp: 51. Emit employeeResponse (DialogData)
+    FormComp -> TableComp: 52. Close dialog with response
+    TableComp -> TableComp: 53. afterClosed() subscription triggers
+    TableComp -> TableComp: 54. Dispatch 'employeeAdded' event
+    TableComp -> ListComp: 55. Event listener receives 'employeeAdded'
+    ListComp -> Gateway: 56. POST /api/employees (query with pagination)
+    Gateway -> Controller: 57. Forward query request
+    Controller -> Service: 58. query(page, size, sortBy, sortDir)
+    Service -> Repository: 59. findAllFilteredByRole(pageable, role, deptId)
+    Repository -> DB: 60. SELECT * FROM employee\nWHERE ... ORDER BY ... LIMIT ... OFFSET ...
+    DB --> Repository: 61. Paginated employees\n(with manager_id)
+    Repository --> Service: 62. Page<Employee>
+    Service -> Mapper: 63. toResponseDTO() for each employee
+    Mapper --> Service: 64. EmployeeResponseDTO[]\n(with managerId)
+    Service --> Controller: 65. PaginatedResponseDTO<Employee>
+    Controller --> Gateway: 66. HTTP 200 OK
+    Gateway --> ListComp: 67. Updated employee list\n(with managerId)
+    ListComp -> ListComp: 68. Update table data
+    ListComp -> User: 69. Display updated employee list\nwith new employee included\n(including manager if assigned)
 
 note right of Validation
   Business Rule:
   Manager must be in
   same department
+  Typeahead filters by
+  department automatically
+end note
+
+note right of Frontend
+  **Typeahead Component:**
+  - Filters managers by department
+  - Provides autocomplete search
+  - Searches employees by name/email
+  - Displays employee suggestions
+  - Stores selected manager ID
+  - Validates selection before submit
+  - Disabled until department selected
 end note
 
 note right of JwtFilter

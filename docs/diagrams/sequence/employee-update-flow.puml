@@ -21,10 +21,49 @@ database "PostgreSQL" as DB
 
 User -> Frontend: 1. Navigate to employee details
 User -> Frontend: 2. Click "Edit" button
-Frontend -> Frontend: 3. Load employee data and display edit form
+Frontend -> Gateway: 3. GET /api/employees/{id}
+Gateway -> Controller: 3a. Forward request
+Controller -> Service: 3b. getById(employeeId)
+Service -> Repository: 3c. findById(employeeId)
+Repository -> DB: 3d. SELECT * FROM employee WHERE id = ?
+DB --> Repository: 3e. Employee (with manager_id)
+Repository --> Service: 3f. Employee entity
+Service -> Mapper: 3g. toResponseDTO(Employee)
+Mapper --> Service: 3h. EmployeeResponseDTO\n(with managerId)
+Service --> Controller: 3i. EmployeeResponseDTO
+Controller --> Gateway: 3j. HTTP 200 OK
+Gateway --> Frontend: 3k. Employee data
+Frontend -> Frontend: 3l. Load employee data and display edit form
+Frontend -> Gateway: 3m. GET /api/employees/{managerId}\n(if managerId exists)
+Gateway -> Controller: 3n. Forward request
+Controller -> Service: 3o. getById(managerId)
+Service -> Repository: 3p. findById(managerId)
+Repository -> DB: 3q. SELECT * FROM employee WHERE id = ?
+DB --> Repository: 3r. Manager entity
+Repository --> Service: 3s. Employee
+Service -> Mapper: 3t. toResponseDTO(Employee)
+Mapper --> Service: 3u. EmployeeResponseDTO
+Service --> Controller: 3v. EmployeeResponseDTO
+Controller --> Gateway: 3w. HTTP 200 OK
+Gateway --> Frontend: 3x. Manager data
+Frontend -> Frontend: 3y. Pre-populate typeahead with manager
 User -> Frontend: 4. Modify employee information\n(name, designation, salary, etc.)
 User -> Frontend: 5. Optionally change department or location
-User -> Frontend: 6. Optionally change manager
+User -> Frontend: 6. Optionally search and change manager\nusing typeahead component
+Frontend -> Frontend: 6a. Typeahead: User types employee name/email\n(minimum 2 characters, filtered by department)
+Frontend -> Gateway: 6b. GET /api/employees/search?q={searchTerm}&departmentId={deptId}
+Gateway -> Controller: 6c. Forward search request
+Controller -> Service: 6d. searchEmployees(searchTerm, departmentId, excludeId)
+Service -> Repository: 6e. Search employees by name/email\nfiltered by department, excluding current employee
+Repository -> DB: 6f. SELECT * FROM employee WHERE...\nAND department_id = ? AND id != ?
+DB --> Repository: 6g. Matching employees in department
+Repository --> Service: 6h. List<Employee>
+Service --> Controller: 6i. EmployeeResponseDTO[]
+Controller --> Gateway: 6j. HTTP 200 OK
+Gateway --> Frontend: 6k. Employee list for typeahead\n(filtered by department)
+Frontend -> Frontend: 6l. Display employee suggestions\n(name, email, designation)
+User -> Frontend: 6m. Select manager from typeahead (or clear)
+Frontend -> Frontend: 6n. Store selected manager ID (or null)
 User -> Frontend: 7. Click "Save Changes"
 
 Frontend -> Gateway: 8. PUT /api/employees/{id}\n(EmployeeRequestDTO)\nAuthorization: Bearer {token}
@@ -91,13 +130,13 @@ else Authorized
             end
         end
         
-        alt Manager is provided
-            Service -> Validation: 46. validateManagerInDepartment(managerId, departmentId)
-            Validation -> Repository: 47. getById(managerId)
-            Repository -> DB: 48. SELECT * FROM employee WHERE id = ?
-            DB --> Repository: 49. Manager data
-            Repository --> Validation: 50. Manager entity
+        alt Manager is provided (not null)
+            Service -> Repository: 46. getById(managerId)
+            Repository -> DB: 47. SELECT * FROM employee WHERE id = ?
+            DB --> Repository: 48. Manager entity
+            Repository --> Service: 49. Manager
             
+            Service -> Validation: 50. validateManagerInDepartment(managerId, departmentId)
             Validation -> Validation: 51. Check manager.departmentId == employee.departmentId
             
             alt Manager in different department
@@ -109,6 +148,8 @@ else Authorized
             else Manager in same department
                 Validation --> Service: 57. Validation passed
             end
+        else Manager is null (cleared)
+            Service -> Service: 58. Set manager = null
         end
         
         Service -> Service: 58. Validate other fields\n(salary > 0, performance rating 0-5.0, etc.)
@@ -119,39 +160,42 @@ else Authorized
             Gateway --> Frontend: 61. Error response
             Frontend --> User: 62. Show validation errors
         else Validation passes
-            Service -> Mapper: 63. updateEntity(existingEmployee, DTO, dept, loc, mgr)
-            Mapper --> Service: 64. Updated Employee entity
+            Service -> Mapper: 59. toEntity(DTO, dept, loc, mgr)
+            Mapper --> Service: 60. Updated Employee entity
+            Service -> Service: 61. Set ID and joiningDate from existing
             
-            Service -> Repository: 65. save(Employee)
-            Repository -> DB: 66. UPDATE employee SET ... WHERE id = ?
-            DB --> Repository: 67. Updated employee
-            Repository --> Service: 68. Employee entity
+            Service -> Repository: 62. save(Employee)
+            Repository -> DB: 63. UPDATE employee SET ...\n(including manager_id or NULL)\nWHERE id = ?
+            DB --> Repository: 64. Updated employee
+            Repository --> Service: 65. Employee entity
             
-            Service -> Mapper: 69. toResponseDTO(Employee)
-            Mapper --> Service: 70. EmployeeResponseDTO
+            Service -> Mapper: 66. toResponseDTO(Employee)
+            Mapper --> Service: 67. EmployeeResponseDTO\n(with managerId)
             
-            Service --> Controller: 71. EmployeeResponseDTO
-            Controller --> Gateway: 72. HTTP 200 OK
-            Gateway --> Frontend: 73. Response with updated employee
+            Service --> Controller: 68. EmployeeResponseDTO
+            Controller --> Gateway: 69. HTTP 200 OK
+            Gateway --> Frontend: 70. Response with updated employee\n(including managerId)
             
             participant "Employee Form Component" as FormComp
             participant "Employee List Component" as ListComp
             
-            Frontend -> FormComp: 74. Emit employeeResponse (DialogData)
-            FormComp -> ListComp: 75. Close dialog with response
-            ListComp -> ListComp: 76. afterClosed() subscription triggers\n(with take(1) and isRefreshing guard)
-            ListComp -> Gateway: 77. POST /api/employees (query with pagination)
-            Gateway -> Controller: 78. Forward query request
-            Controller -> Service: 79. query(page, size, sortBy, sortDir)
-            Service -> Repository: 80. findAllFilteredByRole(pageable, role, deptId)
-            Repository -> DB: 81. SELECT * FROM employee\nWHERE ... ORDER BY ... LIMIT ... OFFSET ...
-            DB --> Repository: 82. Paginated employees
-            Repository --> Service: 83. Page<Employee>
-            Service --> Controller: 84. PaginatedResponseDTO<Employee>
-            Controller --> Gateway: 85. HTTP 200 OK
-            Gateway --> ListComp: 86. Updated employee list
-            ListComp -> ListComp: 87. Update table data
-            ListComp -> User: 88. Display updated employee list\nwith changes reflected
+            Frontend -> FormComp: 71. Emit employeeResponse (DialogData)
+            FormComp -> ListComp: 72. Close dialog with response
+            ListComp -> ListComp: 73. afterClosed() subscription triggers\n(with take(1) and isRefreshing guard)
+            ListComp -> Gateway: 74. POST /api/employees (query with pagination)
+            Gateway -> Controller: 75. Forward query request
+            Controller -> Service: 76. query(page, size, sortBy, sortDir)
+            Service -> Repository: 77. findAllFilteredByRole(pageable, role, deptId)
+            Repository -> DB: 78. SELECT * FROM employee\nWHERE ... ORDER BY ... LIMIT ... OFFSET ...
+            DB --> Repository: 79. Paginated employees\n(with manager_id)
+            Repository --> Service: 80. Page<Employee>
+            Service -> Mapper: 81. toResponseDTO() for each employee
+            Mapper --> Service: 82. EmployeeResponseDTO[]\n(with managerId)
+            Service --> Controller: 83. PaginatedResponseDTO<Employee>
+            Controller --> Gateway: 84. HTTP 200 OK
+            Gateway --> ListComp: 85. Updated employee list\n(with managerId)
+            ListComp -> ListComp: 86. Update table data
+            ListComp -> User: 87. Display updated employee list\nwith changes reflected\n(including manager if assigned)
         end
     end
 end
@@ -177,6 +221,21 @@ note right of Validation
   - Performance rating: 0.0-5.0
   - Email is immutable
   - Joining date is immutable
+  - Typeahead filters by
+    department automatically
+end note
+
+note right of Frontend
+  **Typeahead Component:**
+  - Pre-loads current manager if exists
+  - Filters managers by department
+  - Provides autocomplete search
+  - Searches employees by name/email
+  - Displays employee suggestions
+  - Stores selected manager ID or null
+  - Validates selection before submit
+  - Disabled until department selected
+  - Excludes current employee in edit mode
 end note
 
 @enduml

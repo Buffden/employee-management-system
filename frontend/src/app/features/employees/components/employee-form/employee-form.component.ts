@@ -302,10 +302,13 @@ export class EmployeeFormComponent implements OnInit {
       }
     }
     
-    // Manager ID (optional)
+    // Manager ID (optional) - explicitly set to null if cleared
     const managerId = formValue['managerId'];
     if (managerId && typeof managerId === 'string' && managerId.trim() !== '' && managerId !== 'null') {
       employeeData['managerId'] = managerId.trim();
+    } else {
+      // Explicitly set to null if empty/cleared to allow backend to clear the manager
+      employeeData['managerId'] = null;
     }
 
     this.employeeService.addEmployee(employeeData).pipe(
@@ -374,10 +377,13 @@ export class EmployeeFormComponent implements OnInit {
       }
     }
     
-    // Manager ID (optional)
+    // Manager ID (optional) - explicitly set to null if cleared
     const managerId = formValue['managerId'];
     if (managerId && typeof managerId === 'string' && managerId.trim() !== '' && managerId !== 'null') {
       employeeData['managerId'] = managerId.trim();
+    } else {
+      // Explicitly set to null if empty/cleared to allow backend to clear the manager
+      employeeData['managerId'] = null;
     }
 
     this.employeeService.updateEmployee(employeeId, employeeData).pipe(
