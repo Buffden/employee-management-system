@@ -94,8 +94,25 @@ else Authorized
             Service --> Controller: 49. LocationResponseDTO
             Controller --> Gateway: 50. HTTP 200 OK
             Gateway --> Frontend: 51. Response with updated location
-            Frontend -> User: 52. Display success: "Location updated successfully"
-            Frontend -> Frontend: 53. Refresh location details view
+            
+            participant "Location Form Component" as FormComp
+            participant "Location List Component" as ListComp
+            
+            Frontend -> FormComp: 52. Emit locationResponse (DialogData)
+            FormComp -> ListComp: 53. Close dialog with response
+            ListComp -> ListComp: 54. afterClosed() subscription triggers\n(with take(1) and isRefreshing guard)
+            ListComp -> Gateway: 55. POST /api/locations (query with pagination)
+            Gateway -> Controller: 56. Forward query request
+            Controller -> Service: 57. query(page, size, sortBy, sortDir)
+            Service -> LocRepo: 58. findAll(pageable)
+            LocRepo -> DB: 59. SELECT * FROM location\nORDER BY ... LIMIT ... OFFSET ...
+            DB --> LocRepo: 60. Paginated locations
+            LocRepo --> Service: 61. Page<Location>
+            Service --> Controller: 62. PaginatedResponseDTO<Location>
+            Controller --> Gateway: 63. HTTP 200 OK
+            Gateway --> ListComp: 64. Updated location list
+            ListComp -> ListComp: 65. Update table data
+            ListComp -> User: 66. Display updated location list\nwith changes reflected
         end
     end
 end

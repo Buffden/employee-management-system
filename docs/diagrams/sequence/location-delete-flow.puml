@@ -83,8 +83,25 @@ else Authorized
             Service --> Controller: 44. Success response
             Controller --> Gateway: 45. HTTP 200 OK or HTTP 204 No Content
             Gateway --> Frontend: 46. Success response
-            Frontend -> User: 47. Display success: "Location deleted successfully"
-            Frontend -> Frontend: 48. Redirect to location list
+            
+            participant "Location Form Component" as FormComp
+            participant "Location List Component" as ListComp
+            
+            Frontend -> FormComp: 47. Emit locationResponse (DialogData with deleted flag)
+            FormComp -> ListComp: 48. Close dialog with response
+            ListComp -> ListComp: 49. afterClosed() subscription triggers\n(with take(1) and isRefreshing guard)
+            ListComp -> Gateway: 50. POST /api/locations (query with pagination)
+            Gateway -> Controller: 51. Forward query request
+            Controller -> Service: 52. query(page, size, sortBy, sortDir)
+            Service -> LocRepo: 53. findAll(pageable)
+            LocRepo -> DB: 54. SELECT * FROM location\nORDER BY ... LIMIT ... OFFSET ...
+            DB --> LocRepo: 55. Paginated locations (without deleted one)
+            LocRepo --> Service: 56. Page<Location>
+            Service --> Controller: 57. PaginatedResponseDTO<Location>
+            Controller --> Gateway: 58. HTTP 200 OK
+            Gateway --> ListComp: 59. Updated location list
+            ListComp -> ListComp: 60. Update table data
+            ListComp -> User: 61. Display updated location list\nwith deleted location removed
         end
     end
 end
