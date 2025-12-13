@@ -261,48 +261,17 @@ export class TableComponent implements OnChanges, AfterViewInit {
       }
     });
     this.dialogRef.afterClosed().pipe(filter(result => !!result)).subscribe((isClosedWithData: DialogData) => {
-      console.log('isClosedWithData', isClosedWithData);
-
-      if (this.tableConfig.additionCardTitle === 'Add Department') {
-        // Department form component already handles the POST call
-        // Just check if it was successful and refresh if needed
-        if (isClosedWithData.content && 'id' in isClosedWithData.content) {
-          console.log('Department added:', isClosedWithData.content);
-          // If opened from departments page, trigger a custom event to refresh the table
-          // If opened from dashboard, stay on dashboard (handled by dashboard component)
-          if (isClosedWithData.returnToPage !== 'dashboard') {
-            // Dispatch a custom event to refresh the department list
-            globalThis.window.dispatchEvent(new CustomEvent('departmentAdded'));
-          }
+      // Dispatch events only for add operations (since table component opens add dialogs)
+      // Edit/Delete operations are handled by list component's afterClosed() subscriptions
+      if (isClosedWithData.content && 'id' in isClosedWithData.content) {
+        if (this.tableConfig.additionCardTitle === 'Add Department' && isClosedWithData.returnToPage !== 'dashboard') {
+          globalThis.window.dispatchEvent(new CustomEvent('departmentAdded'));
+        } else if (this.tableConfig.additionCardTitle === 'Add Location' && isClosedWithData.returnToPage !== 'dashboard') {
+          globalThis.window.dispatchEvent(new CustomEvent('locationAdded'));
+        } else if (this.tableConfig.additionCardTitle === 'Add Employee' && isClosedWithData.returnToPage !== 'dashboard') {
+          globalThis.window.dispatchEvent(new CustomEvent('employeeAdded'));
         }
       }
-      else if (this.tableConfig.additionCardTitle === 'Add Location') {
-        // Location form component already handles the POST call
-        // Just check if it was successful and refresh if needed
-        if (isClosedWithData.content && 'id' in isClosedWithData.content) {
-          console.log('Location added:', isClosedWithData.content);
-          // If opened from locations page, trigger a custom event to refresh the table
-          // If opened from dashboard, stay on dashboard (handled by dashboard component)
-          if (isClosedWithData.returnToPage !== 'dashboard') {
-            // Dispatch a custom event to refresh the location list
-            window.dispatchEvent(new CustomEvent('locationAdded'));
-          }
-        }
-      }
-      else if (this.tableConfig.additionCardTitle === 'Add Employee') {
-        // Employee form component already handles the POST call
-        // Just check if it was successful and refresh if needed
-        if (isClosedWithData.content && 'id' in isClosedWithData.content) {
-          console.log('Employee added:', isClosedWithData.content);
-          // If opened from employees page, trigger a custom event to refresh the table
-          // If opened from dashboard, stay on dashboard (handled by dashboard component)
-          if (isClosedWithData.returnToPage !== 'dashboard') {
-            // Dispatch a custom event to refresh the employee list
-            globalThis.window.dispatchEvent(new CustomEvent('employeeAdded'));
-          }
-        }
-      }
-
     });
   }
 
