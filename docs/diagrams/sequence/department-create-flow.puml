@@ -84,7 +84,28 @@ else Department name is unique
     Service --> Controller: 30. DepartmentResponseDTO
     Controller --> Gateway: 31. HTTP 201 Created
     Gateway --> Frontend: 32. Response with department data
-    Frontend -> User: 33. Display success message and department details
+    
+    participant "Department Form Component" as FormComp
+    participant "Table Component" as TableComp
+    participant "Department List Component" as ListComp
+    
+    Frontend -> FormComp: 33. Emit departmentResponse (DialogData)
+    FormComp -> TableComp: 34. Close dialog with response
+    TableComp -> TableComp: 35. afterClosed() subscription triggers
+    TableComp -> TableComp: 36. Dispatch 'departmentAdded' event
+    TableComp -> ListComp: 37. Event listener receives 'departmentAdded'
+    ListComp -> Gateway: 38. POST /api/departments (query with pagination)
+    Gateway -> Controller: 39. Forward query request
+    Controller -> Service: 40. query(page, size, sortBy, sortDir)
+    Service -> DeptRepo: 41. findAll(pageable)
+    DeptRepo -> DB: 42. SELECT * FROM department\nORDER BY ... LIMIT ... OFFSET ...
+    DB --> DeptRepo: 43. Paginated departments
+    DeptRepo --> Service: 44. Page<Department>
+    Service --> Controller: 45. PaginatedResponseDTO<Department>
+    Controller --> Gateway: 46. HTTP 200 OK
+    Gateway --> ListComp: 47. Updated department list
+    ListComp -> ListComp: 48. Update table data
+    ListComp -> User: 49. Display updated department list\nwith new department included
 end
 
 note right of JwtFilter
@@ -112,6 +133,22 @@ end note
 note right of Mapper
   **Adapter Pattern:**
   Converts DTO ↔ Entity
+end note
+
+note right of TableComp
+  **Refresh Pattern (Add Operations):**
+  - Table component opens add dialog
+  - Form emits response via @Output
+  - Table's afterClosed() dispatches event
+  - List component listens and refreshes
+  - Ensures single refresh call
+end note
+
+note right of ListComp
+  **List Refresh:**
+  - Single API call to query endpoint
+  - Maintains pagination and sorting
+  - Updates table data automatically
 end note
 
 @enduml

@@ -77,8 +77,25 @@ else Authorized
             Service --> Controller: 40. Success response
             Controller --> Gateway: 41. HTTP 200 OK or HTTP 204 No Content
             Gateway --> Frontend: 42. Success response
-            Frontend -> User: 43. Display success: "Department deleted successfully"
-            Frontend -> Frontend: 44. Redirect to department list
+            
+            participant "Department Form Component" as FormComp
+            participant "Department List Component" as ListComp
+            
+            Frontend -> FormComp: 43. Emit departmentResponse (DialogData with deleted flag)
+            FormComp -> ListComp: 44. Close dialog with response
+            ListComp -> ListComp: 45. afterClosed() subscription triggers\n(with take(1) and isRefreshing guard)
+            ListComp -> Gateway: 46. POST /api/departments (query with pagination)
+            Gateway -> Controller: 47. Forward query request
+            Controller -> Service: 48. query(page, size, sortBy, sortDir)
+            Service -> DeptRepo: 49. findAll(pageable)
+            DeptRepo -> DB: 50. SELECT * FROM department\nORDER BY ... LIMIT ... OFFSET ...
+            DB --> DeptRepo: 51. Paginated departments (without deleted one)
+            DeptRepo --> Service: 52. Page<Department>
+            Service --> Controller: 53. PaginatedResponseDTO<Department>
+            Controller --> Gateway: 54. HTTP 200 OK
+            Gateway --> ListComp: 55. Updated department list
+            ListComp -> ListComp: 56. Update table data
+            ListComp -> User: 57. Display updated department list\nwith deleted department removed
         end
     end
 end

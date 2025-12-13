@@ -123,11 +123,28 @@ else Authorized
             Service -> Mapper: 65. toResponseDTO(Department)
             Mapper --> Service: 66. DepartmentResponseDTO
             
-            Service --> Controller: 67. DepartmentResponseDTO
-            Controller --> Gateway: 68. HTTP 200 OK
-            Gateway --> Frontend: 69. Response with updated department
-            Frontend -> User: 70. Display success: "Department updated successfully"
-            Frontend -> Frontend: 71. Refresh department details view
+    Service --> Controller: 67. DepartmentResponseDTO
+    Controller --> Gateway: 68. HTTP 200 OK
+    Gateway --> Frontend: 69. Response with updated department
+    
+    participant "Department Form Component" as FormComp
+    participant "Department List Component" as ListComp
+    
+    Frontend -> FormComp: 70. Emit departmentResponse (DialogData)
+    FormComp -> ListComp: 71. Close dialog with response
+    ListComp -> ListComp: 72. afterClosed() subscription triggers\n(with take(1) and isRefreshing guard)
+    ListComp -> Gateway: 73. POST /api/departments (query with pagination)
+    Gateway -> Controller: 74. Forward query request
+    Controller -> Service: 75. query(page, size, sortBy, sortDir)
+    Service -> DeptRepo: 76. findAll(pageable)
+    DeptRepo -> DB: 77. SELECT * FROM department\nORDER BY ... LIMIT ... OFFSET ...
+    DB --> DeptRepo: 78. Paginated departments
+    DeptRepo --> Service: 79. Page<Department>
+    Service --> Controller: 80. PaginatedResponseDTO<Department>
+    Controller --> Gateway: 81. HTTP 200 OK
+    Gateway --> ListComp: 82. Updated department list
+    ListComp -> ListComp: 83. Update table data
+    ListComp -> User: 84. Display updated department list\nwith changes reflected
         end
     end
 end
@@ -152,6 +169,16 @@ note right of Service
   - Budget must be non-negative
   - Location must exist (if changed)
   - Department Head must exist (if changed)
+end note
+
+note right of ListComp
+  **Refresh Pattern (Edit/Delete Operations):**
+  - List component opens edit dialog
+  - Form emits response via @Output
+  - List's afterClosed() with take(1)
+    and isRefreshing guard refreshes
+  - Ensures single refresh call
+  - Prevents duplicate network requests
 end note
 
 @enduml
