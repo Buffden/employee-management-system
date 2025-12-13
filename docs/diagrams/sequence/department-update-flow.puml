@@ -20,10 +20,47 @@ database "PostgreSQL" as DB
 
 User -> Frontend: 1. Navigate to department details
 User -> Frontend: 2. Click "Edit" button
-Frontend -> Frontend: 3. Load department data and display edit form
+Frontend -> Gateway: 3. GET /api/departments/{id}
+Gateway -> Controller: 3a. Forward request
+Controller -> Service: 3b. getById(departmentId)
+Service -> DeptRepo: 3c. findById(departmentId)
+DeptRepo -> DB: 3d. SELECT * FROM department WHERE id = ?
+DB --> DeptRepo: 3e. Department (with department_head_id)
+DeptRepo --> Service: 3f. Department entity
+Service -> Mapper: 3g. toResponseDTO(Department)
+Mapper --> Service: 3h. DepartmentResponseDTO\n(with departmentHeadId)
+Service --> Controller: 3i. DepartmentResponseDTO
+Controller --> Gateway: 3j. HTTP 200 OK
+Gateway --> Frontend: 3k. Department data
+Frontend -> Frontend: 3l. Load department data and display edit form
+Frontend -> Gateway: 3m. GET /api/employees/{departmentHeadId}\n(if departmentHeadId exists)
+Gateway -> Controller: 3n. Forward request
+Controller -> EmployeeService: 3o. getById(departmentHeadId)
+EmployeeService -> EmpRepo: 3p. findById(departmentHeadId)
+EmpRepo -> DB: 3q. SELECT * FROM employee WHERE id = ?
+DB --> EmpRepo: 3r. Employee entity
+EmpRepo --> EmployeeService: 3s. Employee
+EmployeeService --> Controller: 3t. EmployeeResponseDTO
+Controller --> Gateway: 3u. HTTP 200 OK
+Gateway --> Frontend: 3v. Employee data
+Frontend -> Frontend: 3w. Pre-populate typeahead with employee
 User -> Frontend: 4. Modify department information\n(name, description, budget)
 User -> Frontend: 5. Optionally change location
-User -> Frontend: 6. Optionally change department head
+User -> Frontend: 6. Optionally search and change department head\nusing typeahead component
+Frontend -> Frontend: 6a. Typeahead: User types employee name/email
+Frontend -> Gateway: 6b. GET /api/employees/search?q={searchTerm}
+Gateway -> Controller: 6c. Forward search request
+Controller -> EmployeeService: 6d. searchEmployees(searchTerm)
+EmployeeService -> EmpRepo: 6e. Search employees by name/email
+EmpRepo -> DB: 6f. SELECT * FROM employee WHERE...
+DB --> EmpRepo: 6g. Matching employees
+EmpRepo --> EmployeeService: 6h. List<Employee>
+EmployeeService --> Controller: 6i. EmployeeResponseDTO[]
+Controller --> Gateway: 6j. HTTP 200 OK
+Gateway --> Frontend: 6k. Employee list for typeahead
+Frontend -> Frontend: 6l. Display employee suggestions
+User -> Frontend: 6m. Select employee from typeahead (or clear)
+Frontend -> Frontend: 6n. Store selected employee ID (or null)
 User -> Frontend: 7. Click "Save Changes"
 
 Frontend -> Gateway: 8. PUT /api/departments/{id}\n(DepartmentRequestDTO)\nAuthorization: Bearer {token}
@@ -49,102 +86,111 @@ else Authorized
     Controller -> SecurityService: 19. getCurrentUserRole()
     SecurityService --> Controller: 20. Role (e.g., 'HR_MANAGER')
     
-    Controller -> Service: 21. update(departmentId, DepartmentRequestDTO)
+    Controller -> Controller: 21. Extract departmentHeadId from DTO
     
-    Service -> DeptRepo: 22. findById(departmentId)
-    DeptRepo -> DB: 23. SELECT * FROM department WHERE id = ?
-    DB --> DeptRepo: 24. Department data
-    DeptRepo --> Service: 25. Existing Department entity
+    alt Department head is provided
+        Controller -> EmployeeService: 22. getById(departmentHeadId)
+        EmployeeService -> EmpRepo: 23. findById(departmentHeadId)
+        EmpRepo -> DB: 24. SELECT * FROM employee WHERE id = ?
+        DB --> EmpRepo: 25. Employee entity
+        EmpRepo --> EmployeeService: 26. Employee
+        EmployeeService --> Controller: 27. Employee (department head)
+        
+        alt Employee not found
+            Controller --> Gateway: 28. HTTP 400 Bad Request\n"Employee not found"
+            Gateway --> Frontend: 29. Error response
+            Frontend --> User: 30. Display error: "Department head not found"
+        else Employee found
+            Controller -> Service: 31. update(departmentId, DepartmentRequestDTO, location, head)
+        end
+    else No department head (null)
+        Controller -> Service: 31. update(departmentId, DepartmentRequestDTO, location, null)
+    end
+    
+    Service -> DeptRepo: 32. findById(departmentId)
+    DeptRepo -> DB: 33. SELECT * FROM department WHERE id = ?
+    DB --> DeptRepo: 34. Department data
+    DeptRepo --> Service: 35. Existing Department entity
     
     alt Department not found
-        Service --> Controller: 26. Throw DepartmentNotFoundException
-        Controller --> Gateway: 27. HTTP 404 Not Found
-        Gateway --> Frontend: 28. Error response
-        Frontend --> User: 29. Show error: "Department not found"
+        Service --> Controller: 36. Throw DepartmentNotFoundException
+        Controller --> Gateway: 37. HTTP 404 Not Found
+        Gateway --> Frontend: 38. Error response
+        Frontend --> User: 39. Show error: "Department not found"
     else Department found
         alt Location changed
-            Service -> LocRepo: 30. findById(newLocationId)
-            LocRepo -> DB: 31. SELECT * FROM location WHERE id = ?
-            DB --> LocRepo: 32. Location data
-            LocRepo --> Service: 33. New Location entity
+            Service -> LocRepo: 40. findById(newLocationId)
+            LocRepo -> DB: 41. SELECT * FROM location WHERE id = ?
+            DB --> LocRepo: 42. Location data
+            LocRepo --> Service: 43. New Location entity
             
             alt Location not found
-                Service --> Controller: 34. Throw LocationNotFoundException
-                Controller --> Gateway: 35. HTTP 404 Not Found
-                Gateway --> Frontend: 36. Error response
-                Frontend --> User: 37. Show error: "Location not found"
-            end
-        end
-        
-        alt Department Head changed
-            Service -> EmpRepo: 38. findById(newDepartmentHeadId)
-            EmpRepo -> DB: 39. SELECT * FROM employee WHERE id = ?
-            DB --> EmpRepo: 40. Employee data
-            EmpRepo --> Service: 41. Department Head entity
-            
-            alt Department Head not found
-                Service --> Controller: 42. Throw EmployeeNotFoundException
-                Controller --> Gateway: 43. HTTP 404 Not Found
-                Gateway --> Frontend: 44. Error response
-                Frontend --> User: 45. Show error: "Department Head not found"
+                Service --> Controller: 44. Throw LocationNotFoundException
+                Controller --> Gateway: 45. HTTP 404 Not Found
+                Gateway --> Frontend: 46. Error response
+                Frontend --> User: 47. Show error: "Location not found"
             end
         end
         
         alt Name changed
-            Service -> DeptRepo: 46. existsByNameAndIdNot(name, departmentId)
-            DeptRepo -> DB: 47. SELECT COUNT(*) FROM department\nWHERE name = ? AND id != ?
-            DB --> DeptRepo: 48. Count result
-            DeptRepo --> Service: 49. Name exists? (boolean)
+            Service -> DeptRepo: 48. existsByNameAndIdNot(name, departmentId)
+            DeptRepo -> DB: 49. SELECT COUNT(*) FROM department\nWHERE name = ? AND id != ?
+            DB --> DeptRepo: 50. Count result
+            DeptRepo --> Service: 51. Name exists? (boolean)
             
             alt Name already exists
-                Service --> Controller: 50. Throw DuplicateNameException
-                Controller --> Gateway: 51. HTTP 400 Bad Request
-                Gateway --> Frontend: 52. Error response
-                Frontend --> User: 53. Show error: "Department name already exists"
+                Service --> Controller: 52. Throw DuplicateNameException
+                Controller --> Gateway: 53. HTTP 400 Bad Request
+                Gateway --> Frontend: 54. Error response
+                Frontend --> User: 55. Show error: "Department name already exists"
             end
         end
         
-        Service -> Service: 54. Validate other fields\n(budget >= 0, etc.)
+        Service -> Service: 56. Validate other fields\n(budget >= 0, etc.)
         
         alt Validation fails
-            Service --> Controller: 55. Throw ValidationException
-            Controller --> Gateway: 56. HTTP 400 Bad Request
-            Gateway --> Frontend: 57. Error response
-            Frontend --> User: 58. Show validation errors
+            Service --> Controller: 57. Throw ValidationException
+            Controller --> Gateway: 58. HTTP 400 Bad Request
+            Gateway --> Frontend: 59. Error response
+            Frontend --> User: 60. Show validation errors
         else Validation passes
-            Service -> Mapper: 59. updateEntity(existingDepartment, DTO, loc, head)
-            Mapper --> Service: 60. Updated Department entity
+            Service -> Mapper: 61. toEntity(DTO, location, head)
+            Mapper --> Service: 62. Updated Department entity
+            Service -> Service: 63. Set ID and createdAt from existing
             
-            Service -> DeptRepo: 61. save(Department)
-            DeptRepo -> DB: 62. UPDATE department SET ... WHERE id = ?
-            DB --> DeptRepo: 63. Updated department
-            DeptRepo --> Service: 64. Department entity
+            Service -> DeptRepo: 64. save(Department)
+            DeptRepo -> DB: 65. UPDATE department SET ...\n(including department_head_id)\nWHERE id = ?
+            DB --> DeptRepo: 66. Updated department
+            DeptRepo --> Service: 67. Department entity
             
-            Service -> Mapper: 65. toResponseDTO(Department)
-            Mapper --> Service: 66. DepartmentResponseDTO
+            Service -> Mapper: 68. toResponseDTO(Department)
+            Mapper -> Mapper: 69. Extract departmentHeadId and departmentHeadName
+            Mapper --> Service: 70. DepartmentResponseDTO\n(with departmentHeadId)
             
-    Service --> Controller: 67. DepartmentResponseDTO
-    Controller --> Gateway: 68. HTTP 200 OK
-    Gateway --> Frontend: 69. Response with updated department
+    Service --> Controller: 71. DepartmentResponseDTO
+    Controller --> Gateway: 72. HTTP 200 OK
+    Gateway --> Frontend: 73. Response with updated department\n(including departmentHeadId)
     
     participant "Department Form Component" as FormComp
     participant "Department List Component" as ListComp
     
-    Frontend -> FormComp: 70. Emit departmentResponse (DialogData)
-    FormComp -> ListComp: 71. Close dialog with response
-    ListComp -> ListComp: 72. afterClosed() subscription triggers\n(with take(1) and isRefreshing guard)
-    ListComp -> Gateway: 73. POST /api/departments (query with pagination)
-    Gateway -> Controller: 74. Forward query request
-    Controller -> Service: 75. query(page, size, sortBy, sortDir)
-    Service -> DeptRepo: 76. findAll(pageable)
-    DeptRepo -> DB: 77. SELECT * FROM department\nORDER BY ... LIMIT ... OFFSET ...
-    DB --> DeptRepo: 78. Paginated departments
-    DeptRepo --> Service: 79. Page<Department>
-    Service --> Controller: 80. PaginatedResponseDTO<Department>
-    Controller --> Gateway: 81. HTTP 200 OK
-    Gateway --> ListComp: 82. Updated department list
-    ListComp -> ListComp: 83. Update table data
-    ListComp -> User: 84. Display updated department list\nwith changes reflected
+    Frontend -> FormComp: 74. Emit departmentResponse (DialogData)
+    FormComp -> ListComp: 75. Close dialog with response
+    ListComp -> ListComp: 76. afterClosed() subscription triggers\n(with take(1) and isRefreshing guard)
+    ListComp -> Gateway: 77. POST /api/departments (query with pagination)
+    Gateway -> Controller: 78. Forward query request
+    Controller -> Service: 79. query(page, size, sortBy, sortDir)
+    Service -> DeptRepo: 80. findAll(pageable)
+    DeptRepo -> DB: 81. SELECT * FROM department\nORDER BY ... LIMIT ... OFFSET ...
+    DB --> DeptRepo: 82. Paginated departments\n(with department_head_id)
+    DeptRepo --> Service: 83. Page<Department>
+    Service -> Mapper: 84. toResponseDTO() for each department
+    Mapper --> Service: 85. DepartmentResponseDTO[]\n(with departmentHeadId)
+    Service --> Controller: 86. PaginatedResponseDTO<Department>
+    Controller --> Gateway: 87. HTTP 200 OK
+    Gateway --> ListComp: 88. Updated department list\n(with departmentHeadId)
+    ListComp -> ListComp: 89. Update table data
+    ListComp -> User: 90. Display updated department list\nwith changes reflected\n(including department head)
         end
     end
 end
@@ -169,6 +215,18 @@ note right of Service
   - Budget must be non-negative
   - Location must exist (if changed)
   - Department Head must exist (if changed)
+  - Controller validates employee before
+    passing to service
+end note
+
+note right of Frontend
+  **Typeahead Component:**
+  - Pre-loads current employee if exists
+  - Provides autocomplete search
+  - Searches employees by name/email
+  - Displays employee suggestions
+  - Stores selected employee ID or null
+  - Validates selection before submit
 end note
 
 note right of ListComp

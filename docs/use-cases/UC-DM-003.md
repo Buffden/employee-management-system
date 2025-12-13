@@ -42,6 +42,8 @@
 2. **Initiate Edit**: Actor clicks "Edit" button
    - System displays department edit form
    - Form is pre-populated with current department data
+   - If department has a head assigned, system loads employee data and pre-populates typeahead
+   - Department head field uses typeahead component for employee search
 
 3. **Modify Department Information**: Actor modifies department information
    - Actor can modify:
@@ -49,7 +51,10 @@
      - Description
      - Budget
      - Location
-     - Department Head
+     - Department Head (using typeahead component)
+       - Actor can search for new employee by typing name/email
+       - Actor can clear selection to remove department head
+       - System validates selected employee exists before submission
 
 4. **Submit Changes**: Actor clicks "Save Changes" button
    - Frontend performs client-side validation
@@ -115,6 +120,19 @@
 ### Security
 - **Authentication**: Required (JWT token)
 - **Authorization**: `@PreAuthorize(hasRole('SYSTEM_ADMIN') or hasRole('HR_MANAGER'))`
+
+### Components Involved
+- **Frontend**: DepartmentFormComponent, DepartmentService, TypeaheadComponent, EmployeeService
+- **Backend**: DepartmentController, DepartmentService, DepartmentRepository, DepartmentMapper, EmployeeService, EmployeeRepository
+
+### UI Components
+- **Typeahead Component**: Reusable autocomplete component for employee selection
+  - Pre-loads current department head employee if assigned
+  - Provides real-time search as user types
+  - Displays employee suggestions with name, email, and designation
+  - Allows clearing selection to remove department head
+  - Validates selection before form submission
+  - Handles loading states and error messages
 
 ---
 

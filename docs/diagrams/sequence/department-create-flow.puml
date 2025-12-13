@@ -19,8 +19,22 @@ participant "Employee Repository" as EmpRepo
 database "PostgreSQL" as DB
 
 User -> Frontend: 1. Fill department form (name, description, budget)
-User -> Frontend: 2. Select location
-User -> Frontend: 3. Optionally select department head
+User -> Frontend: 2. Select location from dropdown
+User -> Frontend: 3. Optionally search and select department head\nusing typeahead component
+Frontend -> Frontend: 3a. Typeahead: User types employee name/email
+Frontend -> Gateway: 3b. GET /api/employees/search?q={searchTerm}
+Gateway -> Controller: 3c. Forward search request
+Controller -> Service: 3d. searchEmployees(searchTerm)
+Service -> EmpRepo: 3e. Search employees by name/email
+EmpRepo -> DB: 3f. SELECT * FROM employee WHERE...
+DB --> EmpRepo: 3g. Matching employees
+EmpRepo --> Service: 3h. List<Employee>
+Service --> Controller: 3i. EmployeeResponseDTO[]
+Controller --> Gateway: 3j. HTTP 200 OK
+Gateway --> Frontend: 3k. Employee list for typeahead
+Frontend -> Frontend: 3l. Display employee suggestions
+User -> Frontend: 3m. Select employee from typeahead
+Frontend -> Frontend: 3n. Store selected employee ID
 User -> Frontend: 4. Click "Create Department"
 
 Frontend -> Gateway: 5. POST /api/departments\nAuthorization: Bearer {token}\n(DepartmentRequestDTO)
@@ -44,68 +58,83 @@ else Authorized
     Controller -> SecurityService: 15. getCurrentUserRole()
     SecurityService --> Controller: 16. Role (must be 'SYSTEM_ADMIN')
     
-    Controller -> Service: 17. create(DepartmentRequestDTO)
-
-alt Department head is provided
-    Service -> EmpRepo: 8. getById(departmentHeadId)
-    EmpRepo -> DB: 9. SELECT * FROM employee WHERE id = ?
-    DB --> EmpRepo: 10. Employee entity
-    EmpRepo --> Service: 11. DepartmentHead
-end
-
-Service -> LocRepo: 12. getById(locationId)
-LocRepo -> DB: 13. SELECT * FROM location WHERE id = ?
-DB --> LocRepo: 14. Location entity
-LocRepo --> Service: 15. Location
-
-Service -> Service: 16. Validate department name (unique)
-Service -> DeptRepo: 17. findByName(name)
-DeptRepo -> DB: 18. SELECT * FROM department WHERE name = ?
-DB --> DeptRepo: 19. Optional<Department>
-DeptRepo --> Service: 20. Optional (empty if new)
-
-alt Department name exists
-    Service --> Controller: 18. Throw exception: "Department name already exists"
-    Controller --> Gateway: 19. HTTP 400 Bad Request
-    Gateway --> Frontend: 20. Error response
-    Frontend --> User: 21. Display error message
-else Department name is unique
-    Service -> Mapper: 22. toEntity(DTO, location, head)
-    Mapper --> Service: 23. Department entity
+    Controller -> Controller: 17. Extract departmentHeadId from DTO
     
-    Service -> DeptRepo: 24. save(Department)
-    DeptRepo -> DB: 25. INSERT INTO department
-    DB --> DeptRepo: 26. Saved department
-    DeptRepo --> Service: 27. Department
-    
-    Service -> Mapper: 28. toResponseDTO(Department)
-    Mapper --> Service: 29. DepartmentResponseDTO
-    
-    Service --> Controller: 30. DepartmentResponseDTO
-    Controller --> Gateway: 31. HTTP 201 Created
-    Gateway --> Frontend: 32. Response with department data
+    alt Department head is provided
+        Controller -> EmployeeService: 18. getById(departmentHeadId)
+        EmployeeService -> EmpRepo: 19. findById(departmentHeadId)
+        EmpRepo -> DB: 20. SELECT * FROM employee WHERE id = ?
+        DB --> EmpRepo: 21. Employee entity
+        EmpRepo --> EmployeeService: 22. Employee
+        EmployeeService --> Controller: 23. Employee (department head)
+        
+        alt Employee not found
+            Controller --> Gateway: 24. HTTP 400 Bad Request\n"Employee not found"
+            Gateway --> Frontend: 25. Error response
+            Frontend --> User: 26. Display error: "Department head not found"
+        else Employee found
+            Controller -> Service: 27. create(DepartmentRequestDTO, location, head)
+        end
+    else No department head
+        Controller -> Service: 27. create(DepartmentRequestDTO, location, null)
+    end
+
+    Service -> LocRepo: 28. getById(locationId)
+    LocRepo -> DB: 29. SELECT * FROM location WHERE id = ?
+    DB --> LocRepo: 30. Location entity
+    LocRepo --> Service: 31. Location
+
+    Service -> Service: 32. Validate department name (unique)
+    Service -> DeptRepo: 33. findByName(name)
+    DeptRepo -> DB: 34. SELECT * FROM department WHERE name = ?
+    DB --> DeptRepo: 35. Optional<Department>
+    DeptRepo --> Service: 36. Optional (empty if new)
+
+    alt Department name exists
+        Service --> Controller: 37. Throw exception: "Department name already exists"
+        Controller --> Gateway: 38. HTTP 400 Bad Request
+        Gateway --> Frontend: 39. Error response
+        Frontend --> User: 40. Display error message
+    else Department name is unique
+        Service -> Mapper: 41. toEntity(DTO, location, head)
+        Mapper --> Service: 42. Department entity
+        
+        Service -> DeptRepo: 43. save(Department)
+        DeptRepo -> DB: 44. INSERT INTO department\n(including department_head_id)
+        DB --> DeptRepo: 45. Saved department
+        DeptRepo --> Service: 46. Department
+        
+        Service -> Mapper: 47. toResponseDTO(Department)
+        Mapper -> Mapper: 48. Extract departmentHeadId and departmentHeadName
+        Mapper --> Service: 49. DepartmentResponseDTO\n(with departmentHeadId)
+        
+        Service --> Controller: 50. DepartmentResponseDTO
+        Controller --> Gateway: 51. HTTP 201 Created
+        Gateway --> Frontend: 52. Response with department data\n(including departmentHeadId)
     
     participant "Department Form Component" as FormComp
     participant "Table Component" as TableComp
     participant "Department List Component" as ListComp
     
-    Frontend -> FormComp: 33. Emit departmentResponse (DialogData)
-    FormComp -> TableComp: 34. Close dialog with response
-    TableComp -> TableComp: 35. afterClosed() subscription triggers
-    TableComp -> TableComp: 36. Dispatch 'departmentAdded' event
-    TableComp -> ListComp: 37. Event listener receives 'departmentAdded'
-    ListComp -> Gateway: 38. POST /api/departments (query with pagination)
-    Gateway -> Controller: 39. Forward query request
-    Controller -> Service: 40. query(page, size, sortBy, sortDir)
-    Service -> DeptRepo: 41. findAll(pageable)
-    DeptRepo -> DB: 42. SELECT * FROM department\nORDER BY ... LIMIT ... OFFSET ...
-    DB --> DeptRepo: 43. Paginated departments
-    DeptRepo --> Service: 44. Page<Department>
-    Service --> Controller: 45. PaginatedResponseDTO<Department>
-    Controller --> Gateway: 46. HTTP 200 OK
-    Gateway --> ListComp: 47. Updated department list
-    ListComp -> ListComp: 48. Update table data
-    ListComp -> User: 49. Display updated department list\nwith new department included
+    Frontend -> FormComp: 53. Emit departmentResponse (DialogData)
+    FormComp -> TableComp: 54. Close dialog with response
+    TableComp -> TableComp: 55. afterClosed() subscription triggers
+    TableComp -> TableComp: 56. Dispatch 'departmentAdded' event
+    TableComp -> ListComp: 57. Event listener receives 'departmentAdded'
+    ListComp -> Gateway: 58. POST /api/departments (query with pagination)
+    Gateway -> Controller: 59. Forward query request
+    Controller -> Service: 60. query(page, size, sortBy, sortDir)
+    Service -> DeptRepo: 61. findAll(pageable)
+    DeptRepo -> DB: 62. SELECT * FROM department\nORDER BY ... LIMIT ... OFFSET ...
+    DB --> DeptRepo: 63. Paginated departments\n(with department_head_id)
+    DeptRepo --> Service: 64. Page<Department>
+    Service -> Mapper: 65. toResponseDTO() for each department
+    Mapper --> Service: 66. DepartmentResponseDTO[]\n(with departmentHeadId)
+    Service --> Controller: 67. PaginatedResponseDTO<Department>
+    Controller --> Gateway: 68. HTTP 200 OK
+    Gateway --> ListComp: 69. Updated department list\n(with departmentHeadId)
+    ListComp -> ListComp: 70. Update table data
+    ListComp -> User: 71. Display updated department list\nwith new department included\n(including department head)
 end
 
 note right of JwtFilter
@@ -128,6 +157,17 @@ note right of Service
   - Department name must be unique
   - Location must exist
   - Department head must exist (if provided)
+  - Controller validates employee before
+    passing to service
+end note
+
+note right of Frontend
+  **Typeahead Component:**
+  - Provides autocomplete search
+  - Searches employees by name/email
+  - Displays employee suggestions
+  - Stores selected employee ID
+  - Validates selection before submit
 end note
 
 note right of Mapper
