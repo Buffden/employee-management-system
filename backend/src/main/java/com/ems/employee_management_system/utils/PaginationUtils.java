@@ -40,12 +40,74 @@ public class PaginationUtils {
         
         // Create Pageable with sorting
         if (sortBy != null && !sortBy.isEmpty()) {
+            // Map frontend column names to backend entity field names
+            String mappedSortBy = mapSortField(sortBy);
             Sort sort = sortDir != null && sortDir.equalsIgnoreCase("DESC") 
-                    ? Sort.by(sortBy).descending() 
-                    : Sort.by(sortBy).ascending();
+                    ? Sort.by(mappedSortBy).descending() 
+                    : Sort.by(mappedSortBy).ascending();
             return PageRequest.of(page, size, sort);
         } else {
             return PageRequest.of(page, size);
+        }
+    }
+    
+    /**
+     * Maps frontend column names to backend entity field names for sorting
+     * This handles cases where frontend uses computed/display names that don't match entity fields
+     * 
+     * Note: "name" is used by multiple entities (Department, Location, Employee), so we only map
+     * employee-specific computed fields. For "name", we return it as-is since most entities have a "name" field.
+     * 
+     * @param sortBy Frontend column name
+     * @return Backend entity field name
+     */
+    private static String mapSortField(String sortBy) {
+        if (sortBy == null || sortBy.isEmpty()) {
+            return sortBy;
+        }
+        
+        // Map frontend column names to backend entity fields
+        // Use lowercase comparison for case-insensitive matching
+        String lowerSortBy = sortBy.toLowerCase();
+        
+        switch (lowerSortBy) {
+            // Employee-specific computed fields
+            case "departmentname":
+            case "department_name":
+                // Frontend uses "departmentName", backend entity has department.name
+                return "department.name";
+            case "locationname":
+            case "location_name":
+                // Frontend uses "locationName", backend entity has location.name
+                return "location.name";
+            case "managername":
+            case "manager_name":
+                // Frontend uses "managerName", backend entity has manager.firstName
+                return "manager.firstName";
+            // Employee entity fields (camelCase to camelCase)
+            case "firstname":
+            case "first_name":
+                return "firstName";
+            case "lastname":
+            case "last_name":
+                return "lastName";
+            case "joiningdate":
+            case "joining_date":
+                return "joiningDate";
+            case "performancerating":
+            case "performance_rating":
+                return "performanceRating";
+            case "worklocation":
+            case "work_location":
+                return "workLocation";
+            case "experienceyears":
+            case "experience_years":
+                return "experienceYears";
+            default:
+                // For "name" and other common fields, use as-is
+                // "name" exists in Department, Location, and other entities
+                // Other common fields: email, phone, address, designation, salary, city, state, etc.
+                return sortBy;
         }
     }
 

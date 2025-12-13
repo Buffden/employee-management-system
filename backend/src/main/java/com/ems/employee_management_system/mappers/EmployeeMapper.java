@@ -28,13 +28,21 @@ public class EmployeeMapper {
         dto.setJoiningDate(employee.getJoiningDate());
         dto.setPerformanceRating(employee.getPerformanceRating());
         
-        // Denormalized names for better API responses
-        dto.setDepartmentName(employee.getDepartment() != null ? employee.getDepartment().getName() : null);
-        dto.setLocationName(employee.getLocation() != null ? employee.getLocation().getName() : null);
+        // Include IDs for relationships
+        if (employee.getLocation() != null) {
+            dto.setLocationId(employee.getLocation().getId());
+            dto.setLocationName(employee.getLocation().getName());
+        }
+        if (employee.getDepartment() != null) {
+            dto.setDepartmentId(employee.getDepartment().getId());
+            dto.setDepartmentName(employee.getDepartment().getName());
+        }
         if (employee.getManager() != null) {
+            dto.setManagerId(employee.getManager().getId());
             String managerFullName = employee.getManager().getFirstName() + " " + employee.getManager().getLastName();
             dto.setManagerName(managerFullName);
         } else {
+            dto.setManagerId(null);
             dto.setManagerName(null);
         }
         
@@ -65,7 +73,13 @@ public class EmployeeMapper {
         employee.setDepartment(department);
         employee.setLocation(location);
         employee.setManager(manager);
-        employee.setWorkLocation(dto.getWorkLocation());
+        // Set workLocation - use location name as default if not provided (required field)
+        String workLocation = dto.getWorkLocation();
+        if (workLocation == null || workLocation.trim().isEmpty()) {
+            // Default to location name if workLocation is not provided
+            workLocation = location != null && location.getName() != null ? location.getName() : "Not Specified";
+        }
+        employee.setWorkLocation(workLocation);
         employee.setExperienceYears(dto.getExperienceYears());
         return employee;
     }

@@ -2,14 +2,20 @@ import { CommonModule } from '@angular/common';
 import { Component, EventEmitter, Input, OnInit, Output } from '@angular/core';
 import { SharedModule } from '../../../../shared/shared.module';
 import { DialogData, overlayType } from '../../../../shared/models/dialog';
-import { FormBuilder, FormControl, FormGroup, Validators } from '@angular/forms';
-import { FormMode } from '../../../../shared/models/table';
 import { Employee, EmployeeFormField } from '../../../../shared/models/employee.model';
+import { FormMode } from '../../../../shared/models/table';
+import { FormBuilder, FormGroup, Validators } from '@angular/forms';
+import { EmployeeService } from '../../services/employee.service';
+import { DepartmentService } from '../../../departments/services/department.service';
+import { LocationService } from '../../../locations/services/location.service';
+import { MatDialog } from '@angular/material/dialog';
+import { AuthService } from '../../../../core/services/auth.service';
+import { ConfirmationDialogComponent } from '../../../../shared/components/confirmation-dialog/confirmation-dialog.component';
 import { defaultTableConfig } from '../../../../shared/components/table/table.config';
-
-function isManagerObject(value: unknown): value is { id: string } {
-  return typeof value === 'object' && value !== null && 'id' in value && typeof (value as { id?: unknown }).id === 'string';
-}
+import { Department } from '../../../../shared/models/department.model';
+import { Location } from '../../../../shared/models/location.model';
+import { FilterOption } from '../../../../shared/models/paginated-response.model';
+import { finalize } from 'rxjs/operators';
 
 @Component({
   selector: 'app-employee-form',
@@ -25,75 +31,196 @@ export class EmployeeFormComponent implements OnInit {
   FormFields: EmployeeFormField[] = [];
   initialFormValues = {};
   mode: FormMode = FormMode.ADD;
-  employeeForm = new FormGroup({
-    name: new FormControl(''),
-    email: new FormControl(''),
-    address: new FormControl(''),
-    department: new FormControl(''),
-    designation: new FormControl(''),
-    phone: new FormControl(''),
-    manager: new FormControl(''),
-    salary: new FormControl(0),
-    employmentType: new FormControl(''),
-    workLocation: new FormControl(''),
-    experienceYears: new FormControl(null as number | null),
-    performanceRating: new FormControl(null as number | null),
-    lastAppraisalDate: new FormControl(''),
-    isActive: new FormControl(true),
-  });
+  isSubmitting = false;
+  errorMessage: string | null = null;
+  departments: Department[] = [];
+  locations: Location[] = [];
+  managers: Employee[] = []; // Managers filtered by selected department
+  loadingDepartments = false;
+  loadingLocations = false;
+  loadingManagers = false;
+  
+  employeeForm!: FormGroup;
 
   constructor(
-    private fb: FormBuilder,
+    private readonly fb: FormBuilder,
+    private readonly employeeService: EmployeeService,
+    private readonly departmentService: DepartmentService,
+    private readonly locationService: LocationService,
+    private readonly matDialog: MatDialog,
+    private readonly authService: AuthService
   ) { }
 
   ngOnInit() {
     this.initForm();
-    if (this.employee?.config.mode === 'edit') {
-      this.loadEmployeeDetails(this.employee);
+    
+    // Load departments and locations from filters (passed via DialogData)
+    if (this.employee?.filters) {
+      // Load departments from filters
+      if (this.employee.filters['departments'] && this.employee.filters['departments'].length > 0) {
+        const departmentFilters = this.employee.filters['departments'];
+        this.departments = departmentFilters.map((dept: FilterOption) => ({
+          id: dept.id,
+          name: dept.label,
+          description: '',
+          locationId: '',
+          locationName: '',
+          createdAt: '',
+          budget: 0,
+          budgetUtilization: 0,
+          performanceMetric: 0
+        } as Department));
+      } else {
+        this.loadDepartments();
+      }
+      
+      // Load locations from filters
+      if (this.employee.filters['locations'] && this.employee.filters['locations'].length > 0) {
+        const locationFilters = this.employee.filters['locations'];
+        this.locations = locationFilters.map((loc: FilterOption) => {
+          const valueParts = loc.value ? loc.value.split(',').map((s: string) => s.trim()) : [];
+          return {
+            id: loc.id,
+            name: loc.label,
+            city: valueParts[0] || '',
+            state: valueParts[1] || '',
+            country: 'USA',
+            address: '',
+            postalCode: ''
+          } as Location;
+        });
+      } else {
+        this.loadLocations();
+      }
+    } else {
+      // Fallback: load from API if filters not available
+      this.loadDepartments();
+      this.loadLocations();
     }
+    
+    // Subscribe to department changes to filter managers
+    this.employeeForm.get('departmentId')?.valueChanges.subscribe((departmentId) => {
+      if (departmentId) {
+        this.loadManagers(departmentId);
+      } else {
+        this.managers = [];
+        this.employeeForm.get('managerId')?.setValue('');
+      }
+    });
+    
+    if (this.employee?.config.mode === 'edit') {
+      this.loadEmployeeDetails();
+    }
+  }
+
+  loadDepartments(): void {
+    this.loadingDepartments = true;
+    this.departmentService.getAllDepartments().pipe(
+      finalize(() => this.loadingDepartments = false)
+    ).subscribe({
+      next: (departments: Department[]) => {
+        this.departments = departments || [];
+      },
+      error: () => {
+        this.errorMessage = 'Failed to load departments. Please refresh and try again.';
+      }
+    });
+  }
+
+  loadLocations(): void {
+    this.loadingLocations = true;
+    this.locationService.getAllLocations().pipe(
+      finalize(() => this.loadingLocations = false)
+    ).subscribe({
+      next: (locations) => {
+        this.locations = locations || [];
+      },
+      error: () => {
+        this.errorMessage = 'Failed to load locations. Please refresh and try again.';
+      }
+    });
+  }
+
+  loadManagers(departmentId: string): void {
+    this.loadingManagers = true;
+    // Note: This endpoint doesn't exist yet, but we'll prepare for it
+    // For now, we'll use getAllEmployees and filter by department
+    this.employeeService.getAllEmployees().pipe(
+      finalize(() => this.loadingManagers = false)
+    ).subscribe({
+      next: (employees) => {
+        // Filter employees by department and exclude self (if editing)
+        const currentEmployeeId = (this.employee?.content as Employee)?.id;
+        this.managers = (employees || []).filter((emp: Employee) => {
+          return emp.departmentId === departmentId && emp.id !== currentEmployeeId;
+        });
+        
+        // If current manager is not in the filtered list, clear manager selection
+        const currentManagerId = this.employeeForm.get('managerId')?.value;
+        if (currentManagerId && !this.managers.some(m => m.id === currentManagerId)) {
+          this.employeeForm.get('managerId')?.setValue('');
+        }
+      },
+      error: () => {
+        // Don't show error message for managers - it's optional
+      }
+    });
   }
 
   initForm() {
     this.FormFields = this.createFormFields();
     this.employeeForm = this.fb.group({
-      name: ['', Validators.required],
-      email: ['', [Validators.required, Validators.email]],
-      address: ['', Validators.required],
-      department: ['', Validators.required],
-      designation: ['', Validators.required],
-      phone: ['', Validators.required],
-      manager: ['', Validators.required],
-      salary: [0, Validators.required],
-      employmentType: [''],
-      workLocation: [''],
-      experienceYears: [null as number | null],
-      performanceRating: [null as number | null],
-      lastAppraisalDate: [''],
-      isActive: [true],
+      firstName: ['', [Validators.required, Validators.maxLength(100)]],
+      lastName: ['', [Validators.required, Validators.maxLength(100)]],
+      email: ['', [Validators.required, Validators.email, Validators.maxLength(255)]],
+      phone: ['', Validators.maxLength(20)],
+      address: ['', Validators.maxLength(500)],
+      designation: ['', [Validators.required, Validators.maxLength(100)]],
+      salary: [null as number | null, [Validators.required, Validators.min(0.01)]],
+      joiningDate: ['', Validators.required],
+      locationId: ['', Validators.required],
+      departmentId: ['', Validators.required],
+      managerId: [''],
+      performanceRating: [null as number | null, Validators.min(0)],
+      workLocation: ['', Validators.maxLength(200)],
+      experienceYears: [null as number | null, Validators.min(0)],
     });
   }
 
-  loadEmployeeDetails(employee: DialogData) {
-    const content = employee.content as Employee;
+  loadEmployeeDetails() {
+    const content = this.employee!.content as Employee;
     this.employeeForm?.patchValue({
-      name: content.firstName + ' ' + content.lastName,
-      email: content.email,
-      address: content.address,
-      department: 'department' in content && typeof content.department === 'object' && content.department !== null ? String((content.department as { name?: string }).name) : undefined,
-      designation: 'designation' in content ? String(content.designation) : undefined,
-      phone: content.phone,
-      salary: content.salary,
-      workLocation: content.workLocation,
-      performanceRating: content.performanceRating,
-      experienceYears: content.experienceYears,
-      employmentType: undefined,
-      lastAppraisalDate: undefined,
-      isActive: undefined
+      firstName: content.firstName || '',
+      lastName: content.lastName || '',
+      email: content.email || '',
+      phone: content.phone || '',
+      address: content.address || '',
+      designation: content.designation || '',
+      salary: content.salary ?? null,
+      joiningDate: content.joiningDate || '',
+      locationId: content.locationId || '',
+      departmentId: content.departmentId || '',
+      managerId: content.managerId || '',
+      performanceRating: content.performanceRating ?? null,
+      workLocation: content.workLocation || '',
+      experienceYears: content.experienceYears ?? null,
     });
     this.initialFormValues = this.employeeForm.getRawValue();
+    
+    // Load managers for the selected department
+    if (content.departmentId) {
+      this.loadManagers(content.departmentId);
+    }
   }
 
   onSubmit() {
+    if (this.employeeForm.invalid || this.isSubmitting) {
+      return;
+    }
+
+    this.isSubmitting = true;
+    this.errorMessage = null;
+
     if (this.employee?.config.mode === 'add') {
       this.addEmployee();
     } else {
@@ -101,145 +228,359 @@ export class EmployeeFormComponent implements OnInit {
     }
   }
 
-  addEmployee() {
-    let employeeData = this.employeeForm!.value;
-    const managerValue: unknown = employeeData.manager;
-    let managerId: string | null = null;
-    if (isManagerObject(managerValue)) {
-      managerId = managerValue.id;
-    } else if (typeof managerValue === 'string' && managerValue !== '' && managerValue !== 'null') {
-      managerId = managerValue;
+  addEmployee(): void {
+    const formValue = this.employeeForm.getRawValue();
+    const employeeData: Record<string, string | number | null> = {
+      firstName: (formValue['firstName'] || '').trim(),
+      lastName: (formValue['lastName'] || '').trim(),
+      email: (formValue['email'] || '').trim(),
+      designation: (formValue['designation'] || '').trim(),
+      salary: formValue['salary'] ? Number(formValue['salary']) : null,
+      joiningDate: (formValue['joiningDate'] || '').trim(),
+      locationId: (formValue['locationId'] || '').trim() || null,
+      departmentId: (formValue['departmentId'] || '').trim() || null,
+    };
+
+    // Optional fields
+    if (formValue['phone'] && (formValue['phone'] as string).trim()) {
+      employeeData['phone'] = (formValue['phone'] as string).trim();
     }
-    employeeData = {
-      ...employeeData,
-      experienceYears: typeof employeeData.experienceYears === 'string' && employeeData.experienceYears !== '' ? Number(employeeData.experienceYears) : employeeData.experienceYears,
-      performanceRating: typeof employeeData.performanceRating === 'string' && employeeData.performanceRating !== '' ? Number(employeeData.performanceRating) : employeeData.performanceRating,
-      isActive: typeof employeeData.isActive === 'string' ? employeeData.isActive === 'true' : employeeData.isActive
-    };
-    const outgoingData = {
-      id: 0,
-      name: employeeData.name ?? '',
-      designation: employeeData.designation ?? '',
-      salary: employeeData.salary ?? 0,
-      department: { id: employeeData.department ?? '' },
-      manager: managerId ? { id: managerId } : null,
-      address: employeeData.address ?? '',
-      email: employeeData.email ?? '',
-      phone: employeeData.phone ?? '',
-      employmentType: employeeData.employmentType ?? '',
-      workLocation: employeeData.workLocation ?? '',
-      experienceYears: employeeData.experienceYears ?? 0,
-      performanceRating: employeeData.performanceRating ?? 0,
-      lastAppraisalDate: employeeData.lastAppraisalDate ?? '',
-      isActive: typeof employeeData.isActive === 'boolean' ? employeeData.isActive : true
-    };
-    this.employeeResponse.emit({
-      title: this.employee?.title || 'Employee',
-      content: {
-        id: String(outgoingData.id),
-        firstName: outgoingData.name.split(' ')[0],
-        lastName: outgoingData.name.split(' ')[1],
-        email: outgoingData.email,
-        phone: outgoingData.phone,
-        address: outgoingData.address,
-        designation: outgoingData.designation,
-        salary: outgoingData.salary,
-        joiningDate: '',
-        locationId: outgoingData.workLocation,
-        performanceRating: outgoingData.performanceRating,
-        managerId: outgoingData.manager ? outgoingData.manager.id : null,
-        departmentId: outgoingData.department.id,
-        workLocation: outgoingData.workLocation,
-        experienceYears: outgoingData.experienceYears
+    if (formValue['address'] && (formValue['address'] as string).trim()) {
+      employeeData['address'] = (formValue['address'] as string).trim();
+    }
+    // workLocation is required in database, so always send it (backend will set default if empty)
+    employeeData['workLocation'] = (formValue['workLocation'] || '').trim();
+    
+    // Numeric optional fields
+    const performanceRating = formValue['performanceRating'];
+    if (performanceRating !== null && performanceRating !== undefined) {
+      const perfRatingNum = Number(performanceRating);
+      if (!Number.isNaN(perfRatingNum)) {
+        employeeData['performanceRating'] = perfRatingNum;
+      }
+    }
+    
+    const experienceYears = formValue['experienceYears'];
+    if (experienceYears !== null && experienceYears !== undefined) {
+      const expYearsNum = Number(experienceYears);
+      if (!Number.isNaN(expYearsNum)) {
+        employeeData['experienceYears'] = expYearsNum;
+      }
+    }
+    
+    // Manager ID (optional)
+    const managerId = formValue['managerId'];
+    if (managerId && typeof managerId === 'string' && managerId.trim() !== '' && managerId !== 'null') {
+      employeeData['managerId'] = managerId.trim();
+    }
+
+    this.employeeService.addEmployee(employeeData).pipe(
+      finalize(() => this.isSubmitting = false)
+    ).subscribe({
+      next: (response) => {
+        this.errorMessage = null;
+        this.employeeResponse.emit({
+          title: this.employee?.title || '',
+          content: response,
+          viewController: overlayType.NODATA,
+          config: this.employee?.config || defaultTableConfig,
+          returnToPage: this.employee?.returnToPage
+        } as DialogData);
+        globalThis.window.dispatchEvent(new CustomEvent('employeeAdded'));
       },
-      viewController: this.employee?.viewController || overlayType.ADDEMPLOYEE,
-      config: this.employee?.config || defaultTableConfig
+      error: (error) => {
+        this.handleError(error);
+      }
     });
   }
 
-  updateEmployee() {
-    let employeeData = this.employeeForm!.value;
-    const managerValue: unknown = employeeData.manager;
-    let managerId: string | null = null;
-    if (isManagerObject(managerValue)) {
-      managerId = managerValue.id;
-    } else if (typeof managerValue === 'string' && managerValue !== '' && managerValue !== 'null') {
-      managerId = managerValue;
+  updateEmployee(): void {
+    const employeeId = (this.employee?.content as Employee)?.id;
+    if (!employeeId) {
+      this.errorMessage = 'Employee ID is missing for update.';
+      return;
     }
-    employeeData = {
-      ...employeeData,
-      experienceYears: typeof employeeData.experienceYears === 'string' && employeeData.experienceYears !== '' ? Number(employeeData.experienceYears) : employeeData.experienceYears,
-      performanceRating: typeof employeeData.performanceRating === 'string' && employeeData.performanceRating !== '' ? Number(employeeData.performanceRating) : employeeData.performanceRating,
-      isActive: typeof employeeData.isActive === 'string' ? employeeData.isActive === 'true' : employeeData.isActive
+
+    const formValue = this.employeeForm.getRawValue();
+    const employeeData: Record<string, string | number | null> = {
+      firstName: (formValue['firstName'] || '').trim(),
+      lastName: (formValue['lastName'] || '').trim(),
+      email: (formValue['email'] || '').trim(),
+      designation: (formValue['designation'] || '').trim(),
+      salary: formValue['salary'] ? Number(formValue['salary']) : null,
+      joiningDate: (formValue['joiningDate'] || '').trim(),
+      locationId: (formValue['locationId'] || '').trim() || null,
+      departmentId: (formValue['departmentId'] || '').trim() || null,
     };
-    const outgoingData = {
-      id: this.employee?.content.id ?? 0,
-      name: employeeData.name ?? '',
-      designation: employeeData.designation ?? '',
-      salary: employeeData.salary ?? 0,
-      department: { id: employeeData.department ?? '' },
-      manager: managerId ? { id: managerId } : null,
-      address: employeeData.address ?? '',
-      email: employeeData.email ?? '',
-      phone: employeeData.phone ?? '',
-      employmentType: employeeData.employmentType ?? '',
-      workLocation: employeeData.workLocation ?? '',
-      experienceYears: employeeData.experienceYears ?? 0,
-      performanceRating: employeeData.performanceRating ?? 0,
-      lastAppraisalDate: employeeData.lastAppraisalDate ?? '',
-      isActive: typeof employeeData.isActive === 'boolean' ? employeeData.isActive : true
-    };
-    this.employeeResponse.emit({
-      title: this.employee?.title || 'Employee',
-      content: {
-        id: String(outgoingData.id),
-        firstName: outgoingData.name.split(' ')[0],
-        lastName: outgoingData.name.split(' ')[1],
-        email: outgoingData.email,
-        phone: outgoingData.phone,
-        address: outgoingData.address,
-        designation: outgoingData.designation,
-        salary: outgoingData.salary,
-        joiningDate: '',
-        locationId: outgoingData.workLocation,
-        performanceRating: outgoingData.performanceRating,
-        managerId: outgoingData.manager ? outgoingData.manager.id : null,
-        departmentId: outgoingData.department.id,
-        workLocation: outgoingData.workLocation,
-        experienceYears: outgoingData.experienceYears
+
+    // Optional fields
+    if (formValue['phone'] && (formValue['phone'] as string).trim()) {
+      employeeData['phone'] = (formValue['phone'] as string).trim();
+    }
+    if (formValue['address'] && (formValue['address'] as string).trim()) {
+      employeeData['address'] = (formValue['address'] as string).trim();
+    }
+    // workLocation is required in database, so always send it (backend will set default if empty)
+    employeeData['workLocation'] = (formValue['workLocation'] || '').trim();
+    
+    // Numeric optional fields
+    const performanceRating = formValue['performanceRating'];
+    if (performanceRating !== null && performanceRating !== undefined) {
+      const perfRatingNum = Number(performanceRating);
+      if (!Number.isNaN(perfRatingNum)) {
+        employeeData['performanceRating'] = perfRatingNum;
+      }
+    }
+    
+    const experienceYears = formValue['experienceYears'];
+    if (experienceYears !== null && experienceYears !== undefined) {
+      const expYearsNum = Number(experienceYears);
+      if (!Number.isNaN(expYearsNum)) {
+        employeeData['experienceYears'] = expYearsNum;
+      }
+    }
+    
+    // Manager ID (optional)
+    const managerId = formValue['managerId'];
+    if (managerId && typeof managerId === 'string' && managerId.trim() !== '' && managerId !== 'null') {
+      employeeData['managerId'] = managerId.trim();
+    }
+
+    this.employeeService.updateEmployee(employeeId, employeeData).pipe(
+      finalize(() => this.isSubmitting = false)
+    ).subscribe({
+      next: (response) => {
+        this.errorMessage = null;
+        this.employeeResponse.emit({
+          title: this.employee?.title || '',
+          content: response,
+          viewController: overlayType.NODATA,
+          config: this.employee?.config || defaultTableConfig,
+          returnToPage: this.employee?.returnToPage
+        } as DialogData);
+        globalThis.window.dispatchEvent(new CustomEvent('employeeUpdated'));
       },
-      viewController: this.employee?.viewController || overlayType.EDITEMPLOYEE,
-      config: this.employee?.config || defaultTableConfig
+      error: (error) => {
+        this.handleError(error);
+      }
     });
+  }
+
+  handleError(error: { error?: { fieldErrors?: { field: string; message: string; rejectedValue?: unknown }[]; message?: string } }): void {
+    let errorMsg = '';
+    
+    if (error.error) {
+      // Handle validation errors with field-level details
+      if (error.error.fieldErrors && error.error.fieldErrors.length > 0) {
+        const fieldErrors = error.error.fieldErrors.map((fe: { field: string; message: string; rejectedValue?: unknown }) => {
+          const fieldName = fe.field.charAt(0).toUpperCase() + fe.field.slice(1).replaceAll(/([A-Z])/g, ' $1');
+          let msg = `${fieldName}: ${fe.message}`;
+          if (fe.rejectedValue !== null && fe.rejectedValue !== undefined) {
+            const rejectedValueStr = typeof fe.rejectedValue === 'object' ? JSON.stringify(fe.rejectedValue) : String(fe.rejectedValue);
+            msg += ` (received: ${rejectedValueStr})`;
+          }
+          return msg;
+        }).join('; ');
+        errorMsg = `Validation failed: ${fieldErrors}`;
+      } else if (error.error.message) {
+        // Handle business rule errors (like duplicate email, manager validation)
+        errorMsg = error.error.message;
+      } else {
+        errorMsg = 'Failed to save employee. Please check the console for details.';
+      }
+    } else {
+      errorMsg = 'Failed to save employee. Unknown error occurred.';
+    }
+    
+    this.errorMessage = errorMsg;
   }
 
   submitButtonText() {
     return this.employee?.config.mode === 'add' ? 'Add Employee' : 'Update Employee';
   }
 
-  isSubmitDisabled(): boolean {
-    if (this.mode === 'add') {
-      return this.employeeForm.invalid;
-    } else if (this.mode === 'edit') {
-      return (
-        this.employeeForm.invalid ||
-        JSON.stringify(this.initialFormValues) ===
-        JSON.stringify(this.employeeForm.getRawValue())
-      );
-    }
-    return true;
+  canDeleteEmployee(): boolean {
+    return this.employee?.config.mode === 'edit' && (this.authService.isAdmin() || this.authService.isHRManager());
   }
 
-  isFieldInvalid(field: EmployeeFormField): boolean {
-    return (this.employeeForm.get(field.formControlName)?.invalid && this.employeeForm.get(field.formControlName)?.touched) || false;
+  onDeleteClick(): void {
+    const content = this.employee?.content as Employee;
+    const employeeName = content ? `${content.firstName} ${content.lastName}` : 'this employee';
+    const dialogRef = this.matDialog.open(ConfirmationDialogComponent, {
+      width: '400px',
+      data: {
+        title: 'Delete Employee',
+        message: `Are you sure you want to delete '${employeeName}'?`,
+        confirmText: 'Delete',
+        cancelText: 'Cancel',
+        warning: 'This action is irreversible and cannot be undone. The employee must have no active project assignments and no direct reports.'
+      }
+    });
+
+    dialogRef.afterClosed().subscribe(result => {
+      if (result === true) {
+        this.deleteEmployee();
+      }
+    });
+  }
+
+  deleteEmployee(): void {
+    const employeeId = (this.employee?.content as Employee)?.id;
+    if (!employeeId) {
+      this.errorMessage = 'Employee ID is missing for deletion.';
+      return;
+    }
+
+    this.isSubmitting = true;
+    this.employeeService.deleteEmployee(employeeId).pipe(
+      finalize(() => this.isSubmitting = false)
+    ).subscribe({
+      next: () => {
+        this.errorMessage = null;
+        this.employeeResponse.emit({
+          title: this.employee?.title || '',
+          content: { id: employeeId, deleted: true } as Employee & { deleted: boolean },
+          viewController: overlayType.NODATA,
+          config: this.employee?.config || defaultTableConfig,
+          returnToPage: this.employee?.returnToPage
+        } as DialogData);
+        globalThis.window.dispatchEvent(new CustomEvent('employeeDeleted'));
+      },
+      error: (error) => {
+        let errorMsg = 'Failed to delete employee. ';
+        if (error.error && error.error.message) {
+          errorMsg += error.error.message;
+        } else {
+          errorMsg += 'An unknown error occurred.';
+        }
+        this.errorMessage = errorMsg;
+      }
+    });
   }
 
   dialogClose() {
-    console.log('dialog close');
-    this.employeeResponse.emit({} as DialogData);
+    this.employeeResponse.emit({
+      title: this.employee?.title || '',
+      content: {},
+      viewController: this.employee?.viewController || overlayType.NODATA,
+      config: this.employee?.config || defaultTableConfig
+    } as DialogData);
+  }
+
+  isFieldInvalid(field: EmployeeFormField): boolean {
+    const control = this.employeeForm.get(field.formControlName);
+    return !!(control && control.invalid && (control.dirty || control.touched));
+  }
+
+  isSubmitDisabled(): boolean {
+    return this.employeeForm.invalid || this.isSubmitting;
   }
 
   createFormFields(): EmployeeFormField[] {
-    return this.employee?.config.columns?.map((column) => column.formField).filter((field): field is EmployeeFormField => field !== undefined) || [];
+    return [
+      {
+        label: 'First Name',
+        formControlName: 'firstName',
+        placeholder: 'Enter first name',
+        errorMessage: 'First name is required (max 100 characters)',
+        required: true
+      },
+      {
+        label: 'Last Name',
+        formControlName: 'lastName',
+        placeholder: 'Enter last name',
+        errorMessage: 'Last name is required (max 100 characters)',
+        required: true
+      },
+      {
+        label: 'Email',
+        formControlName: 'email',
+        placeholder: 'Enter email address',
+        errorMessage: 'Valid email is required (max 255 characters)',
+        type: 'email',
+        required: true
+      },
+      {
+        label: 'Phone',
+        formControlName: 'phone',
+        placeholder: 'Enter phone number (optional)',
+        errorMessage: 'Phone must not exceed 20 characters',
+        type: 'tel'
+      },
+      {
+        label: 'Address',
+        formControlName: 'address',
+        placeholder: 'Enter address (optional)',
+        errorMessage: 'Address must not exceed 500 characters',
+        type: 'text'
+      },
+      {
+        label: 'Designation',
+        formControlName: 'designation',
+        placeholder: 'Enter designation',
+        errorMessage: 'Designation is required (max 100 characters)',
+        required: true
+      },
+      {
+        label: 'Salary',
+        formControlName: 'salary',
+        placeholder: 'Enter salary',
+        errorMessage: 'Salary must be a positive number',
+        type: 'number',
+        required: true
+      },
+      {
+        label: 'Joining Date',
+        formControlName: 'joiningDate',
+        placeholder: 'Select joining date',
+        errorMessage: 'Joining date is required',
+        type: 'date',
+        required: true
+      },
+      {
+        label: 'Department',
+        formControlName: 'departmentId',
+        placeholder: 'Select department',
+        errorMessage: 'Department is required',
+        type: 'select',
+        required: true
+      },
+      {
+        label: 'Location',
+        formControlName: 'locationId',
+        placeholder: 'Select location',
+        errorMessage: 'Location is required',
+        type: 'select',
+        required: true
+      },
+      {
+        label: 'Manager',
+        formControlName: 'managerId',
+        placeholder: 'Select manager (optional)',
+        errorMessage: 'Manager must be in the same department',
+        type: 'select'
+      },
+      {
+        label: 'Performance Rating',
+        formControlName: 'performanceRating',
+        placeholder: 'Enter performance rating (optional)',
+        errorMessage: 'Performance rating must be positive or zero',
+        type: 'number'
+      },
+      {
+        label: 'Work Location',
+        formControlName: 'workLocation',
+        placeholder: 'Enter work location (optional)',
+        errorMessage: 'Work location must not exceed 200 characters',
+        type: 'text'
+      },
+      {
+        label: 'Experience (Years)',
+        formControlName: 'experienceYears',
+        placeholder: 'Enter years of experience (optional)',
+        errorMessage: 'Experience years must be positive or zero',
+        type: 'number'
+      },
+    ];
   }
 }

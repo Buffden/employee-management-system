@@ -1,6 +1,10 @@
 package com.ems.employee_management_system.controllers;
 
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -14,11 +18,12 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.ems.employee_management_system.dtos.EmployeeQueryRequestDTO;
 import com.ems.employee_management_system.dtos.EmployeeRequestDTO;
 import com.ems.employee_management_system.dtos.EmployeeResponseDTO;
+import com.ems.employee_management_system.dtos.FilterOptionDTO;
 import com.ems.employee_management_system.dtos.PaginatedResponseDTO;
 import com.ems.employee_management_system.mappers.EmployeeMapper;
 import com.ems.employee_management_system.models.Department;
@@ -48,19 +53,68 @@ public class EmployeeController {
         this.locationService = locationService;
     }
 
-    @GetMapping
+    @PostMapping
     @PreAuthorize("hasAnyRole('" + RoleConstants.SYSTEM_ADMIN + "','" + RoleConstants.HR_MANAGER + "','" + RoleConstants.DEPARTMENT_MANAGER + "','" + RoleConstants.EMPLOYEE + "')")
-    public ResponseEntity<PaginatedResponseDTO<EmployeeResponseDTO>> getAll(
-            @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "20") int size,
-            @RequestParam(required = false) String sortBy,
-            @RequestParam(required = false, defaultValue = "ASC") String sortDir) {
-        logger.debug("Fetching employees with pagination: page={}, size={}, sortBy={}, sortDir={}", page, size, sortBy, sortDir);
+    public ResponseEntity<PaginatedResponseDTO<EmployeeResponseDTO>> query(@RequestBody EmployeeQueryRequestDTO queryRequest) {
+        logger.debug("Querying employees with pagination: page={}, size={}, sortBy={}, sortDir={}", 
+                queryRequest.getPage(), queryRequest.getSize(), queryRequest.getSortBy(), queryRequest.getSortDir());
         
-        Pageable pageable = PaginationUtils.createPageable(page, size, sortBy, sortDir);
-        Page<Employee> employeePage = employeeService.getAll(pageable);
-        
-        return ResponseEntity.ok(PaginationUtils.toPaginatedResponse(employeePage, EmployeeMapper::toResponseDTO));
+        try {
+            Pageable pageable = PaginationUtils.createPageable(
+                    queryRequest.getPage(), 
+                    queryRequest.getSize(), 
+                    queryRequest.getSortBy(), 
+                    queryRequest.getSortDir());
+            Page<Employee> employeePage = employeeService.getAll(pageable);
+            
+            // Build filters array with departments, locations, and designations for reusable table filtering
+            // IMPORTANT: Filters should ALWAYS contain ALL possible values, independent of pagination
+            Map<String, List<FilterOptionDTO>> filters = new HashMap<>();
+            
+            // Get all departments for filter dropdown
+            List<Department> allDepartments = departmentService.getAll();
+            List<FilterOptionDTO> departmentFilters = allDepartments.stream()
+                    .map(dept -> new FilterOptionDTO(
+                            dept.getId().toString(),
+                            dept.getName()
+                    ))
+                    .collect(Collectors.toList());
+            filters.put("departments", departmentFilters);
+            
+            // Get all locations for filter dropdown
+            List<Location> allLocations = locationService.getAll();
+            List<FilterOptionDTO> locationFilters = allLocations.stream()
+                    .map(loc -> new FilterOptionDTO(
+                            loc.getId().toString(),
+                            loc.getName(),
+                            loc.getCity() + ", " + loc.getState() // Additional display info
+                    ))
+                    .collect(Collectors.toList());
+            filters.put("locations", locationFilters);
+            
+            // Get unique designations from all employees (for filter dropdown)
+            // Note: This could be optimized by adding a Designation entity in the future
+            try {
+                List<Employee> allEmployees = employeeService.getAll();
+                List<FilterOptionDTO> designationFilters = allEmployees.stream()
+                        .map(Employee::getDesignation)
+                        .filter(designation -> designation != null && !designation.isEmpty())
+                        .distinct()
+                        .sorted()
+                        .map(designation -> new FilterOptionDTO(designation, designation))
+                        .collect(Collectors.toList());
+                filters.put("designations", designationFilters);
+            } catch (Exception e) {
+                logger.warn("Error fetching all employees for designation filter: {}", e.getMessage());
+                // If this fails, just use an empty list for designations
+                filters.put("designations", new java.util.ArrayList<>());
+            }
+            
+            return ResponseEntity.ok(PaginationUtils.toPaginatedResponse(employeePage, EmployeeMapper::toResponseDTO, filters));
+        } catch (Exception e) {
+            logger.error("Error querying employees: {}", e.getMessage(), e);
+            throw new RuntimeException("Failed to query employees: " + e.getMessage(), e);
+        }
     }
 
     @GetMapping("/{id}")
@@ -77,7 +131,7 @@ public class EmployeeController {
         return ResponseEntity.ok(EmployeeMapper.toResponseDTO(employee));
     }
 
-    @PostMapping
+    @PostMapping("/create")
     @PreAuthorize("hasAnyRole('" + RoleConstants.SYSTEM_ADMIN + "','" + RoleConstants.HR_MANAGER + "')")
     public ResponseEntity<EmployeeResponseDTO> create(@Valid @RequestBody EmployeeRequestDTO requestDTO) {
         logger.info("Creating new employee: {}", requestDTO.getEmail());
@@ -97,6 +151,10 @@ public class EmployeeController {
             manager = employeeService.getById(requestDTO.getManagerId());
             if (manager == null) {
                 throw new IllegalArgumentException("Manager not found with id: " + requestDTO.getManagerId());
+            }
+            // Validate manager is in same department
+            if (manager.getDepartment() == null || !manager.getDepartment().getId().equals(department.getId())) {
+                throw new IllegalArgumentException("Manager must be in the same department as the employee");
             }
         }
         
@@ -133,6 +191,10 @@ public class EmployeeController {
             manager = employeeService.getById(requestDTO.getManagerId());
             if (manager == null) {
                 throw new IllegalArgumentException("Manager not found with id: " + requestDTO.getManagerId());
+            }
+            // Validate manager is in same department
+            if (manager.getDepartment() == null || !manager.getDepartment().getId().equals(department.getId())) {
+                throw new IllegalArgumentException("Manager must be in the same department as the employee");
             }
         }
         

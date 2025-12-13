@@ -13,9 +13,12 @@ public class EmployeeResponseDTO {
     private String designation;
     private Double salary;
     private LocalDate joiningDate;
+    private UUID locationId;
     private String locationName;
     private Double performanceRating;
+    private UUID managerId;
     private String managerName;
+    private UUID departmentId;
     private String departmentName;
     private String workLocation;
     private Integer experienceYears;
@@ -93,6 +96,14 @@ public class EmployeeResponseDTO {
         this.joiningDate = joiningDate;
     }
 
+    public UUID getLocationId() {
+        return locationId;
+    }
+
+    public void setLocationId(UUID locationId) {
+        this.locationId = locationId;
+    }
+
     public String getLocationName() {
         return locationName;
     }
@@ -109,12 +120,28 @@ public class EmployeeResponseDTO {
         this.performanceRating = performanceRating;
     }
 
+    public UUID getManagerId() {
+        return managerId;
+    }
+
+    public void setManagerId(UUID managerId) {
+        this.managerId = managerId;
+    }
+
     public String getManagerName() {
         return managerName;
     }
 
     public void setManagerName(String managerName) {
         this.managerName = managerName;
+    }
+
+    public UUID getDepartmentId() {
+        return departmentId;
+    }
+
+    public void setDepartmentId(UUID departmentId) {
+        this.departmentId = departmentId;
     }
 
     public String getDepartmentName() {

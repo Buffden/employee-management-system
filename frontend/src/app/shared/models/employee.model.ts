@@ -5,17 +5,20 @@ export interface Employee {
     firstName: string;
     lastName: string;
     email: string;
-    phone: string;
-    address: string;
+    phone?: string;
+    address?: string;
     designation: string;
     salary: number;
     joiningDate: string;
-    locationId: string;
-    performanceRating: number;
-    managerId: string | null;
-    departmentId: string;
-    workLocation: string;
-    experienceYears: number;
+    locationId?: string;
+    locationName?: string; // Denormalized from backend
+    performanceRating?: number;
+    managerId?: string | null;
+    managerName?: string | null; // Denormalized from backend
+    departmentId?: string;
+    departmentName?: string; // Denormalized from backend
+    workLocation?: string;
+    experienceYears?: number;
 }
 
 export interface EmployeeFormField {
@@ -25,23 +28,24 @@ export interface EmployeeFormField {
     errorMessage: string;
     type?: string;
     options?: string[];
+    required?: boolean;
 }
 
 export interface EmployeeRequest {
-    name: string;
+    firstName: string;
+    lastName: string;
+    email: string;
+    phone?: string;
+    address?: string;
     designation: string;
     salary: number;
-    department: DepartmentID;
-    manager: ManagerID | null;
-    phone: string;
-    address: string;
-    email: string;
-    employmentType?: string;
+    joiningDate: string;
+    locationId: string;
+    performanceRating?: number;
+    managerId?: string | null;
+    departmentId: string;
     workLocation?: string;
     experienceYears?: number;
-    performanceRating?: number;
-    lastAppraisalDate?: string;
-    isActive?: boolean;
 }
 
 export interface ManagerID {

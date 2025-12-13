@@ -1,5 +1,5 @@
 import { overlayType } from "../../../../shared/models/dialog";
-import { ColumnType, FormMode, TableConfig } from "../../../../shared/models/table";
+import { ColumnType, FormMode, TableConfig, SortDirection } from "../../../../shared/models/table";
 
 export const employeeListConfig: TableConfig = {
     tableTitle: 'Employee List',
@@ -10,21 +10,17 @@ export const employeeListConfig: TableConfig = {
         { key: 'name', header: 'Name', sortable: true, type: ColumnType.LINK, isSticky: true },
         { key: 'email', header: 'Email', sortable: true, type: ColumnType.EMAIL },
         { key: 'phone', header: 'Phone', sortable: true, type: ColumnType.TEXT },
-        { key: 'address', header: 'Address', sortable: true, type: ColumnType.TEXT },
         { key: 'designation', header: 'Designation', sortable: true, type: ColumnType.TEXT },
+        { key: 'departmentName', header: 'Department', sortable: true, type: ColumnType.TEXT },
+        { key: 'locationName', header: 'Location', sortable: true, type: ColumnType.TEXT },
+        { key: 'managerName', header: 'Manager', sortable: true, type: ColumnType.TEXT },
         { key: 'salary', header: 'Salary', sortable: true, type: ColumnType.NUMBER },
         { key: 'joiningDate', header: 'Joining Date', sortable: true, type: ColumnType.DATE },
-        { key: 'locationId', header: 'Location ID', sortable: true, type: ColumnType.TEXT },
         { key: 'performanceRating', header: 'Performance Rating', sortable: true, type: ColumnType.NUMBER },
-        { key: 'managerId', header: 'Manager ID', sortable: true, type: ColumnType.TEXT },
-        { key: 'departmentId', header: 'Department ID', sortable: true, type: ColumnType.TEXT },
-        { key: 'workLocation', header: 'Work Location', sortable: true, type: ColumnType.TEXT },
-        { key: 'experienceYears', header: 'Experience (Years)', sortable: true, type: ColumnType.NUMBER },
-        { key: 'id', header: 'ID', sortable: true, type: ColumnType.TEXT },
     ],
-    pageSize: 10,
-    pageSizeOptions: [5, 10, 25, 50, 100],
-    displayActionButtons: true,
+    pageSize: 20,
+    pageSizeOptions: [5, 10, 20, 50, 100],
+    displayActionButtons: false,
     viewController: overlayType.DISPLAYEMPLOYEE,
     additionController: overlayType.ADDEMPLOYEE,
     editController: overlayType.EDITEMPLOYEE,
@@ -32,6 +28,9 @@ export const employeeListConfig: TableConfig = {
     allowExport: true,
     allowAddButton: true,
     allowCustomize: true,
+    allowFiltering: true,
+    defaultSortColumn: 'firstName',
+    defaultSortDirection: SortDirection.ASC,
     noDataInfo: {
         title: 'No Employee Data Found',
         description: 'No data available for the selected criteria',
