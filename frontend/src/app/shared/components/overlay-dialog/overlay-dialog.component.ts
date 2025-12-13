@@ -85,12 +85,9 @@ export class OverlayDialogComponent {
         title: this.dialogData.config.editCardTitle,
         viewController: this.dialogData.config.editController,
         content: this.dialogData.content,
-        config: this.dialogData.config
+        config: this.dialogData.config,
+        filters: this.dialogData.filters // Pass filters to edit dialog
       }
-    });
-    this.dialogRef.afterClosed().subscribe(result => {
-      console.log('edit afterClosed', result);
-      this.updateTableData();
     });
   }
 

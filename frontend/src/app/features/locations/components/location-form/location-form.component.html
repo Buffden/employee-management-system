@@ -32,7 +32,6 @@
                 <button mat-raised-button
                         color="primary"
                         type="submit"
-                        (click)="onSubmit()"
                         [disabled]="isSubmitDisabled()">
                     <span *ngIf="!isSubmitting">{{ submitButtonText() }}</span>
                     <span *ngIf="isSubmitting">Submitting...</span>

@@ -15,6 +15,7 @@ import { OverlayDialogComponent } from '../../../../shared/components/overlay-di
 import { DialogData, overlayType } from '../../../../shared/models/dialog';
 import { AuthService } from '../../../../core/services/auth.service';
 import { filter } from 'rxjs';
+import { take } from 'rxjs/operators';
 
 @Component({
   selector: 'app-employee-list',
@@ -35,6 +36,7 @@ export class EmployeeListComponent implements OnInit {
   currentSortColumn = '';
   currentSortDirection = 'ASC';
   filters: Record<string, FilterOption[]> = {}; // Store filters from paginated response
+  private isRefreshing = false; // Guard to prevent duplicate refresh calls
 
   // Custom handler for employee name click - opens edit dialog
   onEmployeeNameClick = (row: TableCellData, colKey: string) => {
@@ -64,10 +66,10 @@ export class EmployeeListComponent implements OnInit {
     }
     this.loadEmployees(this.currentPage, this.pageSize, this.currentSortColumn, this.currentSortDirection);
     
-    // Listen for employee added/updated/deleted events
-    globalThis.window.addEventListener('employeeAdded', () => this.loadEmployees(this.currentPage, this.pageSize, this.currentSortColumn, this.currentSortDirection));
-    globalThis.window.addEventListener('employeeUpdated', () => this.loadEmployees(this.currentPage, this.pageSize, this.currentSortColumn, this.currentSortDirection));
-    globalThis.window.addEventListener('employeeDeleted', () => this.loadEmployees(this.currentPage, this.pageSize, this.currentSortColumn, this.currentSortDirection));
+    // Listen only for add operations from table component (edit/delete handled by afterClosed())
+    globalThis.window.addEventListener('employeeAdded', () => {
+      this.loadEmployees(this.currentPage, this.pageSize, this.currentSortColumn, this.currentSortDirection);
+    });
   }
 
   canEditEmployee(): boolean {
@@ -91,11 +93,24 @@ export class EmployeeListComponent implements OnInit {
       } as DialogData
     });
 
-    dialogRef.afterClosed().pipe(filter(result => !!result)).subscribe((result: DialogData) => {
-      if (result?.content && 'id' in result.content) {
-        // Refresh the employee list after update or delete
-        this.loadEmployees(this.currentPage, this.pageSize, this.currentSortColumn, this.currentSortDirection);
+    // Use take(1) to ensure the subscription only fires once
+    dialogRef.afterClosed().pipe(
+      filter(result => !!result && result?.content && 'id' in result.content),
+      take(1)
+    ).subscribe(() => {
+      // Guard to prevent duplicate refresh calls
+      if (this.isRefreshing) {
+        return;
       }
+      this.isRefreshing = true;
+      
+      // Refresh the employee list after update or delete
+      this.loadEmployees(this.currentPage, this.pageSize, this.currentSortColumn, this.currentSortDirection);
+      
+      // Reset flag after a short delay to allow the refresh to complete
+      setTimeout(() => {
+        this.isRefreshing = false;
+      }, 500);
     });
   }
 

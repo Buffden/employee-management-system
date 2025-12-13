@@ -13,7 +13,7 @@ import { MatDialog, MatDialogRef } from '@angular/material/dialog';
 import { OverlayDialogComponent } from '../../../../shared/components/overlay-dialog/overlay-dialog.component';
 import { DialogData, overlayType } from '../../../../shared/models/dialog';
 import { AuthService } from '../../../../core/services/auth.service';
-import { filter } from 'rxjs';
+import { filter, take } from 'rxjs/operators';
 
 @Component({
   selector: 'app-department-list',
@@ -32,6 +32,7 @@ export class DepartmentListComponent implements OnInit {
   totalElements = 0;
   totalPages = 0;
   filters: Record<string, FilterOption[]> = {}; // Store filters from paginated response
+  private isRefreshing = false; // Guard to prevent duplicate refresh calls
 
   // Custom handler for department name click - opens edit dialog
   onDepartmentNameClick = (row: TableCellData, colKey: string) => {
@@ -73,18 +74,24 @@ export class DepartmentListComponent implements OnInit {
       } as DialogData
     });
 
-    dialogRef.afterClosed().pipe(filter(result => !!result)).subscribe((result: DialogData) => {
-      if (result?.content && 'id' in result.content) {
-        const dept = result.content as Department & { deleted?: boolean };
-        // Check if department was deleted
-        if (dept.deleted) {
-          console.log('Department deleted:', dept.id);
-        } else {
-          console.log('Department updated:', result.content);
-        }
-        // Refresh the department list after update or delete
-        this.loadDepartments(this.currentPage, this.pageSize);
+    // Use take(1) to ensure the subscription only fires once
+    dialogRef.afterClosed().pipe(
+      filter(result => !!result && result?.content && 'id' in result.content),
+      take(1)
+    ).subscribe(() => {
+      // Guard to prevent duplicate refresh calls
+      if (this.isRefreshing) {
+        return;
       }
+      this.isRefreshing = true;
+      
+      // Refresh the department list after update or delete
+      this.loadDepartments(this.currentPage, this.pageSize);
+      
+      // Reset flag after a short delay to allow the refresh to complete
+      setTimeout(() => {
+        this.isRefreshing = false;
+      }, 500);
     });
   }
 
@@ -106,12 +113,8 @@ export class DepartmentListComponent implements OnInit {
     const defaultSortDir = this.tableConfig.defaultSortDirection === 'desc' ? 'DESC' : 'ASC';
     this.loadDepartments(0, this.pageSize, defaultSortColumn, defaultSortDir);
     
-    // Listen for department added event to refresh the list
+    // Listen only for add operations from table component (edit/delete handled by afterClosed())
     globalThis.window.addEventListener('departmentAdded', () => {
-      this.loadDepartments(this.currentPage, this.pageSize);
-    });
-    // Listen for department deleted event to refresh the list
-    globalThis.window.addEventListener('departmentDeleted', () => {
       this.loadDepartments(this.currentPage, this.pageSize);
     });
   }
@@ -129,7 +132,6 @@ export class DepartmentListComponent implements OnInit {
         // Extract filters from response (e.g., locations for dropdown/filtering)
         if (response.filters) {
           this.filters = response.filters;
-          console.log('Available filters:', this.filters);
           // Store filters to pass to form component (avoids redundant API calls)
         }
         
@@ -145,12 +147,9 @@ export class DepartmentListComponent implements OnInit {
           performanceMetric: dept.performanceMetric || 0,
           departmentHeadId: dept.departmentHeadId || ''
         }));
-        
-        console.log('Loaded departments:', this.departments.length, 'Total:', this.totalElements);
       },
-      error: (error) => {
-        console.error('Error loading departments:', error);
-        console.error('Error details:', error.error);
+      error: () => {
+        // Error handled by global error handler or service
       }
     });
   }

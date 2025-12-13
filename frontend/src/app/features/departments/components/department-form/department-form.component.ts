@@ -209,8 +209,7 @@ export class DepartmentFormComponent implements OnInit {
           config: this.department?.config || defaultTableConfig,
           returnToPage: this.department?.returnToPage
         } as DialogData);
-        // Dispatch a custom event to refresh the department list
-        globalThis.window.dispatchEvent(new CustomEvent('departmentAdded'));
+        // No need to dispatch event - afterClosed() in list/table component handles refresh
       },
       error: (error) => {
         console.error('Error adding department:', error);
@@ -424,7 +423,6 @@ export class DepartmentFormComponent implements OnInit {
       finalize(() => this.isSubmitting = false)
     ).subscribe({
       next: () => {
-        console.log('Department deleted successfully');
         this.errorMessage = null;
         // Emit a response to close the dialog and notify the parent to refresh
         this.departmentResponse.emit({
@@ -434,8 +432,7 @@ export class DepartmentFormComponent implements OnInit {
           config: this.department?.config || defaultTableConfig,
           returnToPage: this.department?.returnToPage
         } as DialogData);
-        // Dispatch a custom event to refresh the department list
-        globalThis.window.dispatchEvent(new CustomEvent('departmentDeleted'));
+        // No need to dispatch event - afterClosed() in list component handles refresh
       },
       error: (error) => {
         console.error('Error deleting department:', error);

@@ -286,7 +286,7 @@ export class EmployeeFormComponent implements OnInit {
           config: this.employee?.config || defaultTableConfig,
           returnToPage: this.employee?.returnToPage
         } as DialogData);
-        globalThis.window.dispatchEvent(new CustomEvent('employeeAdded'));
+        // No need to dispatch event - afterClosed() in list/table component handles refresh
       },
       error: (error) => {
         this.handleError(error);
@@ -358,7 +358,7 @@ export class EmployeeFormComponent implements OnInit {
           config: this.employee?.config || defaultTableConfig,
           returnToPage: this.employee?.returnToPage
         } as DialogData);
-        globalThis.window.dispatchEvent(new CustomEvent('employeeUpdated'));
+        // No need to dispatch event - afterClosed() in list component handles refresh
       },
       error: (error) => {
         this.handleError(error);
@@ -444,7 +444,7 @@ export class EmployeeFormComponent implements OnInit {
           config: this.employee?.config || defaultTableConfig,
           returnToPage: this.employee?.returnToPage
         } as DialogData);
-        globalThis.window.dispatchEvent(new CustomEvent('employeeDeleted'));
+        // No need to dispatch event - afterClosed() in list component handles refresh
       },
       error: (error) => {
         let errorMsg = 'Failed to delete employee. ';
