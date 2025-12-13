@@ -16,11 +16,12 @@ import { Department } from '../../../../shared/models/department.model';
 import { Location } from '../../../../shared/models/location.model';
 import { FilterOption } from '../../../../shared/models/paginated-response.model';
 import { finalize } from 'rxjs/operators';
+import { TypeaheadComponent, TypeaheadConfig } from '../../../../shared/components/typeahead/typeahead.component';
 
 @Component({
   selector: 'app-employee-form',
   standalone: true,
-  imports: [CommonModule, SharedModule],
+  imports: [CommonModule, SharedModule, TypeaheadComponent],
   templateUrl: './employee-form.component.html',
   styleUrls: ['./employee-form.component.css']
 })
@@ -31,16 +32,18 @@ export class EmployeeFormComponent implements OnInit {
   FormFields: EmployeeFormField[] = [];
   initialFormValues = {};
   mode: FormMode = FormMode.ADD;
+  FormMode = FormMode; // Expose FormMode enum to template
   isSubmitting = false;
   errorMessage: string | null = null;
   departments: Department[] = [];
   locations: Location[] = [];
-  managers: Employee[] = []; // Managers filtered by selected department
   loadingDepartments = false;
   loadingLocations = false;
-  loadingManagers = false;
   
   employeeForm!: FormGroup;
+  
+  // Typeahead configuration for manager selection
+  managerTypeaheadConfig!: TypeaheadConfig<Employee>;
 
   constructor(
     private readonly fb: FormBuilder,
@@ -53,6 +56,7 @@ export class EmployeeFormComponent implements OnInit {
 
   ngOnInit() {
     this.initForm();
+    this.initManagerTypeaheadConfig();
     
     // Load departments and locations from filters (passed via DialogData)
     if (this.employee?.filters) {
@@ -98,17 +102,17 @@ export class EmployeeFormComponent implements OnInit {
       this.loadLocations();
     }
     
-    // Subscribe to department changes to filter managers
+    // Subscribe to department changes to clear manager if department changes
     this.employeeForm.get('departmentId')?.valueChanges.subscribe((departmentId) => {
-      if (departmentId) {
-        this.loadManagers(departmentId);
-      } else {
-        this.managers = [];
+      // Clear manager selection when department changes
+      // The typeahead will automatically filter by the new department
+      const currentManagerId = this.employeeForm.get('managerId')?.value;
+      if (currentManagerId && !departmentId) {
         this.employeeForm.get('managerId')?.setValue('');
       }
     });
     
-    if (this.employee?.config.mode === 'edit') {
+    if (this.employee?.config.mode === FormMode.EDIT) {
       this.loadEmployeeDetails();
     }
   }
@@ -141,30 +145,64 @@ export class EmployeeFormComponent implements OnInit {
     });
   }
 
-  loadManagers(departmentId: string): void {
-    this.loadingManagers = true;
-    // Note: This endpoint doesn't exist yet, but we'll prepare for it
-    // For now, we'll use getAllEmployees and filter by department
-    this.employeeService.getAllEmployees().pipe(
-      finalize(() => this.loadingManagers = false)
-    ).subscribe({
-      next: (employees) => {
-        // Filter employees by department and exclude self (if editing)
-        const currentEmployeeId = (this.employee?.content as Employee)?.id;
-        this.managers = (employees || []).filter((emp: Employee) => {
-          return emp.departmentId === departmentId && emp.id !== currentEmployeeId;
-        });
-        
-        // If current manager is not in the filtered list, clear manager selection
-        const currentManagerId = this.employeeForm.get('managerId')?.value;
-        if (currentManagerId && !this.managers.some(m => m.id === currentManagerId)) {
-          this.employeeForm.get('managerId')?.setValue('');
-        }
+  initManagerTypeaheadConfig(): void {
+    this.managerTypeaheadConfig = {
+      searchFn: (searchTerm: string, filters?: Record<string, unknown>) => {
+        return this.employeeService.searchEmployees(
+          searchTerm,
+          filters?.['departmentId'] as string | undefined,
+          filters?.['excludeEmployeeId'] as string | undefined
+        );
       },
-      error: () => {
-        // Don't show error message for managers - it's optional
+      getByIdFn: (id: string) => this.employeeService.getEmployeeById(id),
+      displayFn: (employee: Employee | null) => {
+        if (!employee) return '';
+        const firstName = employee.firstName || '';
+        const lastName = employee.lastName || '';
+        const email = employee.email || '';
+        return `${firstName} ${lastName} (${email})`.trim();
+      },
+      getIdFn: (employee: Employee) => employee.id,
+      itemTemplate: (employee: Employee) => {
+        return `
+          <div style="display: flex; flex-direction: column; padding: 4px 0;">
+            <div style="font-weight: 500; font-size: 14px; color: rgba(0, 0, 0, 0.87);">
+              ${employee.firstName} ${employee.lastName}
+            </div>
+            <div style="display: flex; gap: 12px; font-size: 12px; color: rgba(0, 0, 0, 0.54); margin-top: 2px;">
+              <span style="flex: 1;">${employee.email}</span>
+              ${employee.designation ? `<span style="font-style: italic;">${employee.designation}</span>` : ''}
+            </div>
+          </div>
+        `;
+      },
+      minSearchLength: 2,
+      debounceTime: 300,
+      noResultsMessage: 'No employees found'
+    };
+  }
+
+  onManagerSelected(manager: Employee | null): void {
+    // Manager selection is handled by the typeahead component
+    // This method can be used for additional logic if needed
+    if (manager) {
+      // Validate manager is in the same department (handled by typeahead filtering)
+    }
+  }
+  
+  getManagerTypeaheadFilters(): Record<string, unknown> {
+    const filters: Record<string, unknown> = {};
+    const departmentId = this.employeeForm.get('departmentId')?.value;
+    if (departmentId) {
+      filters['departmentId'] = departmentId;
+    }
+    if (this.mode === FormMode.EDIT && this.employee?.content) {
+      const employeeId = (this.employee.content as Employee)?.id;
+      if (employeeId) {
+        filters['excludeEmployeeId'] = employeeId;
       }
-    });
+    }
+    return filters;
   }
 
   initForm() {
@@ -206,11 +244,7 @@ export class EmployeeFormComponent implements OnInit {
       experienceYears: content.experienceYears ?? null,
     });
     this.initialFormValues = this.employeeForm.getRawValue();
-    
-    // Load managers for the selected department
-    if (content.departmentId) {
-      this.loadManagers(content.departmentId);
-    }
+    // Manager will be loaded by typeahead component when department is set
   }
 
   onSubmit() {
@@ -268,10 +302,13 @@ export class EmployeeFormComponent implements OnInit {
       }
     }
     
-    // Manager ID (optional)
+    // Manager ID (optional) - explicitly set to null if cleared
     const managerId = formValue['managerId'];
     if (managerId && typeof managerId === 'string' && managerId.trim() !== '' && managerId !== 'null') {
       employeeData['managerId'] = managerId.trim();
+    } else {
+      // Explicitly set to null if empty/cleared to allow backend to clear the manager
+      employeeData['managerId'] = null;
     }
 
     this.employeeService.addEmployee(employeeData).pipe(
@@ -340,10 +377,13 @@ export class EmployeeFormComponent implements OnInit {
       }
     }
     
-    // Manager ID (optional)
+    // Manager ID (optional) - explicitly set to null if cleared
     const managerId = formValue['managerId'];
     if (managerId && typeof managerId === 'string' && managerId.trim() !== '' && managerId !== 'null') {
       employeeData['managerId'] = managerId.trim();
+    } else {
+      // Explicitly set to null if empty/cleared to allow backend to clear the manager
+      employeeData['managerId'] = null;
     }
 
     this.employeeService.updateEmployee(employeeId, employeeData).pipe(

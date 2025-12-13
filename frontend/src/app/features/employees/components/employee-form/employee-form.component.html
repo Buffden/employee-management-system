@@ -2,7 +2,21 @@
     <form [formGroup]="employeeForm"
           (ngSubmit)="onSubmit()">
         <ng-container *ngFor="let field of FormFields;">
-            <mat-form-field appearance="outline">
+            <!-- Manager typeahead (filtered by department) - has its own mat-form-field -->
+            <app-typeahead
+                *ngIf="field.type === 'select' && field.formControlName === 'managerId'"
+                [formControl]="$any(employeeForm.get('managerId'))"
+                [config]="managerTypeaheadConfig"
+                [label]="field.label"
+                [placeholder]="field.placeholder"
+                [required]="field.required ?? false"
+                [filters]="getManagerTypeaheadFilters()"
+                [disabled]="!employeeForm.get('departmentId')?.value || isSubmitting"
+                (itemSelected)="onManagerSelected($event)">
+            </app-typeahead>
+            
+            <!-- Other fields with mat-form-field wrapper -->
+            <mat-form-field *ngIf="!(field.type === 'select' && field.formControlName === 'managerId')" appearance="outline">
                 <mat-label>{{ field.label }}</mat-label>
                 
                 <!-- Department dropdown -->
@@ -24,21 +38,6 @@
                     <mat-option *ngIf="loadingLocations">Loading locations...</mat-option>
                     <mat-option *ngFor="let loc of locations" [value]="loc.id">
                         {{ loc.name }} ({{ loc.city }}, {{ loc.state }})
-                    </mat-option>
-                </mat-select>
-                
-                <!-- Manager dropdown (filtered by department) -->
-                <mat-select *ngIf="field.type === 'select' && field.formControlName === 'managerId'"
-                           [formControlName]="field.formControlName"
-                           [required]="field.required ?? false"
-                           [disabled]="!employeeForm.get('departmentId')?.value">
-                    <mat-option value="">-- No Manager --</mat-option>
-                    <mat-option *ngIf="loadingManagers">Loading managers...</mat-option>
-                    <mat-option *ngIf="!employeeForm.get('departmentId')?.value" disabled>
-                        Please select a department first
-                    </mat-option>
-                    <mat-option *ngFor="let manager of managers" [value]="manager.id">
-                        {{ manager.firstName }} {{ manager.lastName }} ({{ manager.designation }})
                     </mat-option>
                 </mat-select>
                 

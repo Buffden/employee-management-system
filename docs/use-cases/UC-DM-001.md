@@ -40,6 +40,7 @@
 2. **Initiate Creation**: Actor clicks "Add Department" button
    - System displays department creation form
    - Form includes fields: name, description, budget, location, departmentHead (optional)
+   - Department head field uses typeahead component for employee search
 
 3. **Fill Department Details**: Actor fills in department information
    - **Required Fields**:
@@ -54,10 +55,15 @@
    - System validates location exists
    - System displays location details (city, state, country)
 
-5. **Assign Department Head (Optional)**: Actor optionally selects department head
+5. **Assign Department Head (Optional)**: Actor optionally selects department head using typeahead component
+   - Actor types employee name or email in typeahead field (minimum 2 characters)
+   - System searches employees matching the search term via `/api/employees/search`
+   - System displays matching employees in dropdown with name, email, and designation
+   - Actor selects an employee from the suggestions
+   - System stores the selected employee ID
    - If department head is selected:
      - System validates employee exists
-     - System displays employee details
+     - System displays employee details (name, email) in the typeahead field
 
 6. **Submit Form**: Actor clicks "Create Department" button
    - Frontend performs client-side validation
@@ -207,11 +213,18 @@
 - **Authorization**: `@PreAuthorize(hasRole('SYSTEM_ADMIN') or hasRole('HR_MANAGER'))`
 
 ### Components Involved
-- **Frontend**: DepartmentFormComponent, DepartmentService
-- **Backend**: DepartmentController, DepartmentService, DepartmentRepository, DepartmentMapper
+- **Frontend**: DepartmentFormComponent, DepartmentService, TypeaheadComponent, EmployeeService
+- **Backend**: DepartmentController, DepartmentService, DepartmentRepository, DepartmentMapper, EmployeeService, EmployeeRepository
 
 ---
 
 **Last Updated**: 2024-12-12  
 **Status**: Active
+
+### UI Components
+- **Typeahead Component**: Reusable autocomplete component for employee selection
+  - Provides real-time search as user types
+  - Displays employee suggestions with name, email, and designation
+  - Validates selection before form submission
+  - Handles loading states and error messages
 

@@ -53,12 +53,37 @@ export class EmployeeService {
 
     // GET employees by department ID (for manager dropdown filtering)
     getEmployeesByDepartment(departmentId: string): Observable<Employee[]> {
-        // This will be implemented when we add the endpoint
-        // For now, return empty array
-        return new Observable(observer => {
-            observer.next([]);
-            observer.complete();
-        });
+        return this.http.get<Employee[]>(`${this.apiUrl}/search`, {
+            params: {
+                departmentId: departmentId
+            }
+        }).pipe(
+            catchError((error) => {
+                this.handleError(error);
+                throw error;
+            })
+        );
+    }
+
+    // Search employees for typeahead/autocomplete
+    searchEmployees(searchTerm: string, departmentId?: string, excludeId?: string): Observable<Employee[]> {
+        const params: Record<string, string> = {};
+        if (searchTerm && searchTerm.trim()) {
+            params['q'] = searchTerm.trim();
+        }
+        if (departmentId) {
+            params['departmentId'] = departmentId;
+        }
+        if (excludeId) {
+            params['excludeId'] = excludeId;
+        }
+        
+        return this.http.get<Employee[]>(`${this.apiUrl}/search`, { params }).pipe(
+            catchError((error) => {
+                this.handleError(error);
+                throw error;
+            })
+        );
     }
 
     // GET a single employee by ID

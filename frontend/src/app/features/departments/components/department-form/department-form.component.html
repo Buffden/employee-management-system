@@ -2,7 +2,19 @@
     <form [formGroup]="departmentForm"
           (ngSubmit)="onSubmit()">
         <ng-container *ngFor="let field of FormFields;">
-            <mat-form-field appearance="outline">
+            <!-- Department Head typeahead - has its own mat-form-field -->
+            <app-typeahead
+                *ngIf="field.type === 'typeahead' && field.formControlName === 'departmentHeadId'"
+                [formControl]="$any(departmentForm.get('departmentHeadId'))"
+                [config]="departmentHeadTypeaheadConfig"
+                [label]="field.label"
+                [placeholder]="field.placeholder"
+                [required]="field.required ?? false"
+                [disabled]="isSubmitting">
+            </app-typeahead>
+            
+            <!-- Other fields with mat-form-field wrapper -->
+            <mat-form-field *ngIf="!(field.type === 'typeahead' && field.formControlName === 'departmentHeadId')" appearance="outline">
                 <mat-label>{{ field.label }}</mat-label>
                 <!-- Select dropdown for location -->
                 <mat-select *ngIf="field.type === 'select' && field.formControlName === 'locationId'"

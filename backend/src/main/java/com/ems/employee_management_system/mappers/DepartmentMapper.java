@@ -31,11 +31,13 @@ public class DepartmentMapper {
         dto.setBudgetUtilization(department.getBudgetUtilization());
         dto.setPerformanceMetric(department.getPerformanceMetric());
         
-        // Denormalized department head name
+        // Department head ID and name
         if (department.getHead() != null) {
+            dto.setDepartmentHeadId(department.getHead().getId());
             String headFullName = department.getHead().getFirstName() + " " + department.getHead().getLastName();
             dto.setDepartmentHeadName(headFullName);
         } else {
+            dto.setDepartmentHeadId(null);
             dto.setDepartmentHeadName(null);
         }
         

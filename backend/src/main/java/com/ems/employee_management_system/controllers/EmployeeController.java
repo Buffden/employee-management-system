@@ -117,6 +117,20 @@ public class EmployeeController {
         }
     }
 
+    @GetMapping("/search")
+    @PreAuthorize("hasAnyRole('" + RoleConstants.SYSTEM_ADMIN + "','" + RoleConstants.HR_MANAGER + "','" + RoleConstants.DEPARTMENT_MANAGER + "','" + RoleConstants.EMPLOYEE + "')")
+    public ResponseEntity<List<EmployeeResponseDTO>> search(
+            @org.springframework.web.bind.annotation.RequestParam(required = false) String q,
+            @org.springframework.web.bind.annotation.RequestParam(required = false) UUID departmentId,
+            @org.springframework.web.bind.annotation.RequestParam(required = false) UUID excludeId) {
+        logger.debug("Searching employees - term: {}, departmentId: {}, excludeId: {}", q, departmentId, excludeId);
+        List<Employee> employees = employeeService.searchEmployees(q, departmentId, excludeId);
+        List<EmployeeResponseDTO> response = employees.stream()
+                .map(EmployeeMapper::toResponseDTO)
+                .collect(Collectors.toList());
+        return ResponseEntity.ok(response);
+    }
+
     @GetMapping("/{id}")
     @PreAuthorize("hasAnyRole('" + RoleConstants.SYSTEM_ADMIN + "','" + RoleConstants.HR_MANAGER + "') or " +
                   "(hasRole('" + RoleConstants.DEPARTMENT_MANAGER + "') and @securityService.isInOwnDepartment(#id)) or " +
