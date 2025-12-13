@@ -4,28 +4,85 @@
         <ng-container *ngFor="let field of FormFields;">
             <mat-form-field appearance="outline">
                 <mat-label>{{ field.label }}</mat-label>
-                <input matInput
+                
+                <!-- Department dropdown -->
+                <mat-select *ngIf="field.type === 'select' && field.formControlName === 'departmentId'"
+                           [formControlName]="field.formControlName"
+                           [required]="field.required ?? false">
+                    <mat-option value="">-- Select Department --</mat-option>
+                    <mat-option *ngIf="loadingDepartments">Loading departments...</mat-option>
+                    <mat-option *ngFor="let dept of departments" [value]="dept.id">
+                        {{ dept.name }}
+                    </mat-option>
+                </mat-select>
+                
+                <!-- Location dropdown -->
+                <mat-select *ngIf="field.type === 'select' && field.formControlName === 'locationId'"
+                           [formControlName]="field.formControlName"
+                           [required]="field.required ?? false">
+                    <mat-option value="">-- Select Location --</mat-option>
+                    <mat-option *ngIf="loadingLocations">Loading locations...</mat-option>
+                    <mat-option *ngFor="let loc of locations" [value]="loc.id">
+                        {{ loc.name }} ({{ loc.city }}, {{ loc.state }})
+                    </mat-option>
+                </mat-select>
+                
+                <!-- Manager dropdown (filtered by department) -->
+                <mat-select *ngIf="field.type === 'select' && field.formControlName === 'managerId'"
+                           [formControlName]="field.formControlName"
+                           [required]="field.required ?? false"
+                           [disabled]="!employeeForm.get('departmentId')?.value">
+                    <mat-option value="">-- No Manager --</mat-option>
+                    <mat-option *ngIf="loadingManagers">Loading managers...</mat-option>
+                    <mat-option *ngIf="!employeeForm.get('departmentId')?.value" disabled>
+                        Please select a department first
+                    </mat-option>
+                    <mat-option *ngFor="let manager of managers" [value]="manager.id">
+                        {{ manager.firstName }} {{ manager.lastName }} ({{ manager.designation }})
+                    </mat-option>
+                </mat-select>
+                
+                <!-- Regular input for other fields -->
+                <input *ngIf="field.type !== 'select'"
+                       matInput
                        [formControlName]="field.formControlName"
                        [placeholder]="field.placeholder"
-                       required />
+                       [type]="field.type || 'text'"
+                       [required]="field.required ?? false" />
+                
                 <mat-error *ngIf="isFieldInvalid(field)">
                     {{ field.errorMessage }}
                 </mat-error>
             </mat-form-field>
         </ng-container>
 
+        <div *ngIf="errorMessage" class="error-message">
+            <mat-error>{{ errorMessage }}</mat-error>
+        </div>
+
         <div class="form-actions">
-            <button mat-raised-button
-                    color="primary"
-                    type="submit"
-                    (click)="onSubmit()"
-                    [disabled]="isSubmitDisabled()">
-                {{ submitButtonText() }}
-            </button>
-            <button mat-raised-button
-                    color="warn"
-                    type="button"
-                    (click)="dialogClose()">Cancel</button>
+            <div class="left-actions">
+                <button mat-raised-button
+                        color="warn"
+                        type="button"
+                        *ngIf="canDeleteEmployee()"
+                        (click)="onDeleteClick()"
+                        [disabled]="isSubmitting">Delete Employee</button>
+            </div>
+            <div class="right-actions">
+                <button mat-raised-button
+                        color="primary"
+                        type="submit"
+                        (click)="onSubmit()"
+                        [disabled]="isSubmitDisabled()">
+                    <span *ngIf="!isSubmitting">{{ submitButtonText() }}</span>
+                    <span *ngIf="isSubmitting">Submitting...</span>
+                </button>
+                <button mat-raised-button
+                        color="basic"
+                        type="button"
+                        (click)="dialogClose()">Cancel</button>
+            </div>
         </div>
     </form>
 </div>
