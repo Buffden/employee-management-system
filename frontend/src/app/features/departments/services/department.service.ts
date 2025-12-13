@@ -54,6 +54,17 @@ export class DepartmentService {
         );
     }
 
+    // GET all departments (no pagination) - for dropdowns
+    getAllDepartments(): Observable<Department[]> {
+        return this.queryDepartments(0, 1000).pipe(
+            map((response: PaginatedResponse<Department>) => response.content || []),
+            catchError((error) => {
+                this.handleError(error);
+                throw error;
+            })
+        );
+    }
+
     // GET a single department by ID
     getDepartment(id: number): Observable<Department> {
         return this.http.get<Department>(`${this.apiUrl}/${id}`).pipe(
