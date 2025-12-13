@@ -1,3 +1,36 @@
+.form-container {
+  padding: 20px;
+  max-height: calc(100vh - 200px);
+  overflow-y: auto;
+  overflow-x: hidden;
+  background-color: #f9f9f9;
+}
+
 mat-form-field {
-    padding: 10px;
+  width: 100%;
+  margin-bottom: 16px;
+  background-color: white;
+}
+
+.form-actions {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 20px;
+  position: sticky;
+  bottom: 0;
+  background-color: #f9f9f9;
+  padding-top: 10px;
+  padding-bottom: 10px;
+  z-index: 10;
+}
+
+.left-actions, .right-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.error-message {
+  margin-bottom: 16px;
+  text-align: center;
 }
