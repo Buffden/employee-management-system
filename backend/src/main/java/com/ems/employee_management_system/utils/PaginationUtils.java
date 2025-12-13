@@ -55,6 +55,9 @@ public class PaginationUtils {
      * Maps frontend column names to backend entity field names for sorting
      * This handles cases where frontend uses computed/display names that don't match entity fields
      * 
+     * Note: "name" is used by multiple entities (Department, Location, Employee), so we only map
+     * employee-specific computed fields. For "name", we return it as-is since most entities have a "name" field.
+     * 
      * @param sortBy Frontend column name
      * @return Backend entity field name
      */
@@ -63,14 +66,12 @@ public class PaginationUtils {
             return sortBy;
         }
         
-        // Map common frontend column names to backend entity fields
+        // Map frontend column names to backend entity fields
         // Use lowercase comparison for case-insensitive matching
         String lowerSortBy = sortBy.toLowerCase();
         
         switch (lowerSortBy) {
-            case "name":
-                // Frontend "name" is computed from firstName + lastName, sort by firstName
-                return "firstName";
+            // Employee-specific computed fields
             case "departmentname":
             case "department_name":
                 // Frontend uses "departmentName", backend entity has department.name
@@ -83,6 +84,7 @@ public class PaginationUtils {
             case "manager_name":
                 // Frontend uses "managerName", backend entity has manager.firstName
                 return "manager.firstName";
+            // Employee entity fields (camelCase to camelCase)
             case "firstname":
             case "first_name":
                 return "firstName";
@@ -102,8 +104,9 @@ public class PaginationUtils {
             case "experience_years":
                 return "experienceYears";
             default:
-                // For other fields, use as-is (assuming they match entity field names)
-                // Common fields that should match: email, phone, address, designation, salary
+                // For "name" and other common fields, use as-is
+                // "name" exists in Department, Location, and other entities
+                // Other common fields: email, phone, address, designation, salary, city, state, etc.
                 return sortBy;
         }
     }
