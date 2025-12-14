@@ -2,6 +2,8 @@ package com.ems.employee_management_system.controllers;
 
 import java.util.UUID;
 
+import com.ems.employee_management_system.dtos.*;
+import com.ems.employee_management_system.mappers.EmployeeMapper;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
@@ -22,11 +24,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-import com.ems.employee_management_system.dtos.DepartmentRequestDTO;
-import com.ems.employee_management_system.dtos.DepartmentResponseDTO;
-import com.ems.employee_management_system.dtos.DepartmentQueryRequestDTO;
-import com.ems.employee_management_system.dtos.FilterOptionDTO;
-import com.ems.employee_management_system.dtos.PaginatedResponseDTO;
 import com.ems.employee_management_system.mappers.DepartmentMapper;
 import com.ems.employee_management_system.models.Department;
 import com.ems.employee_management_system.models.Employee;
@@ -146,6 +143,20 @@ public class DepartmentController {
         Department savedDepartment = departmentService.save(department);
         logger.info("Department created successfully with id: {}", savedDepartment.getId());
         return ResponseEntity.status(HttpStatus.CREATED).body(DepartmentMapper.toResponseDTO(savedDepartment));
+    }
+
+    @GetMapping("/search")
+    @PreAuthorize("hasAnyRole('" + RoleConstants.SYSTEM_ADMIN + "','" + RoleConstants.HR_MANAGER + "','" + RoleConstants.DEPARTMENT_MANAGER + "','" + RoleConstants.EMPLOYEE + "')")
+    public ResponseEntity<List<DepartmentResponseDTO>> search(
+            @org.springframework.web.bind.annotation.RequestParam(required = false) String q,
+            @org.springframework.web.bind.annotation.RequestParam(required = false) UUID locationId,
+            @org.springframework.web.bind.annotation.RequestParam(required = false) UUID excludeId) {
+        logger.debug("Searching departments - term: {}, locationId: {}, excludeId: {}", q, locationId, excludeId);
+        List<Department> departments = departmentService.searchDepartments(q, locationId, excludeId);
+        List<DepartmentResponseDTO> response = departments.stream()
+                .map(DepartmentMapper::toResponseDTO)
+                .collect(Collectors.toList());
+        return ResponseEntity.ok(response);
     }
 
     @PutMapping("/{id}")
