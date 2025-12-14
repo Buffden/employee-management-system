@@ -1,6 +1,10 @@
 package com.ems.employee_management_system.controllers;
 
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -17,7 +21,10 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.ems.employee_management_system.constants.Constants;
+import com.ems.employee_management_system.dtos.FilterOptionDTO;
 import com.ems.employee_management_system.dtos.PaginatedResponseDTO;
+import com.ems.employee_management_system.dtos.ProjectQueryRequestDTO;
 import com.ems.employee_management_system.dtos.ProjectRequestDTO;
 import com.ems.employee_management_system.dtos.ProjectResponseDTO;
 import com.ems.employee_management_system.mappers.ProjectMapper;
@@ -67,9 +74,50 @@ public class ProjectController {
         return ResponseEntity.ok(PaginationUtils.toPaginatedResponse(projectPage, ProjectMapper::toResponseDTO));
     }
 
+    @PostMapping
+    @PreAuthorize("hasAnyRole('" + RoleConstants.SYSTEM_ADMIN + "', '" + RoleConstants.HR_MANAGER + "', '" + RoleConstants.DEPARTMENT_MANAGER + "', '" + RoleConstants.EMPLOYEE + "')")
+    public ResponseEntity<PaginatedResponseDTO<ProjectResponseDTO>> query(@RequestBody ProjectQueryRequestDTO queryRequest) {
+        logger.debug("Querying projects with pagination: page={}, size={}, sortBy={}, sortDir={}", 
+                queryRequest.getPage(), queryRequest.getSize(), queryRequest.getSortBy(), queryRequest.getSortDir());
+        
+        try {
+            Pageable pageable = PaginationUtils.createPageable(
+                    queryRequest.getPage(), 
+                    queryRequest.getSize(), 
+                    queryRequest.getSortBy(), 
+                    queryRequest.getSortDir());
+            Page<Project> projectPage = projectService.getAll(pageable);
+            
+            // Build filters array with departments and statuses for reusable table filtering
+            // IMPORTANT: Filters should ALWAYS contain ALL possible values, independent of pagination
+            Map<String, List<FilterOptionDTO>> filters = new HashMap<>();
+            
+            // Get all departments for filter dropdown
+            List<Department> allDepartments = departmentService.getAll();
+            List<FilterOptionDTO> departmentFilters = allDepartments.stream()
+                    .map(dept -> new FilterOptionDTO(
+                            dept.getId().toString(),
+                            dept.getName()
+                    ))
+                    .collect(Collectors.toList());
+            filters.put("departments", departmentFilters);
+            
+            // Get project statuses for filter dropdown
+            List<FilterOptionDTO> statusFilters = java.util.Arrays.stream(Constants.VALID_PROJECT_STATUSES)
+                    .map(status -> new FilterOptionDTO(status, status))
+                    .collect(Collectors.toList());
+            filters.put("statuses", statusFilters);
+            
+            return ResponseEntity.ok(PaginationUtils.toPaginatedResponse(projectPage, ProjectMapper::toResponseDTO, filters));
+        } catch (Exception e) {
+            logger.error("Error querying projects: {}", e.getMessage(), e);
+            throw new RuntimeException("Failed to query projects: " + e.getMessage(), e);
+        }
+    }
+
     @GetMapping("/{id}")
     @PreAuthorize("hasAnyRole('" + RoleConstants.SYSTEM_ADMIN + "', '" + RoleConstants.HR_MANAGER + "', '" + RoleConstants.DEPARTMENT_MANAGER + "') or " +
-                  "(hasRole('" + RoleConstants.EMPLOYEE + "') and @securityService.isProjectInOwnDepartmentByProjectId(#id))")
+                  "(hasRole('" + RoleConstants.EMPLOYEE + "') and @securityService.isProjectAssignedToUser(#id))")
     public ResponseEntity<ProjectResponseDTO> getById(@PathVariable UUID id) {
         logger.debug("Fetching project with id: {}", id);
         Project project = projectService.getById(id);
@@ -80,7 +128,7 @@ public class ProjectController {
         return ResponseEntity.ok(ProjectMapper.toResponseDTO(project));
     }
 
-    @PostMapping
+    @PostMapping("/create")
     @PreAuthorize("hasRole('" + RoleConstants.SYSTEM_ADMIN + "') or " +
                   "(hasRole('" + RoleConstants.DEPARTMENT_MANAGER + "') and @securityService.isProjectInOwnDepartment(#requestDTO.departmentId))")
     public ResponseEntity<ProjectResponseDTO> create(@Valid @RequestBody ProjectRequestDTO requestDTO) {
@@ -91,12 +139,10 @@ public class ProjectController {
             throw new IllegalArgumentException("Department not found with id: " + requestDTO.getDepartmentId());
         }
         
-        Employee manager = null;
-        if (requestDTO.getProjectManagerId() != null) {
-            manager = employeeService.getById(requestDTO.getProjectManagerId());
-            if (manager == null) {
-                throw new IllegalArgumentException("Project manager not found with id: " + requestDTO.getProjectManagerId());
-            }
+        // Project manager is required (validated at DTO level with @NotNull)
+        Employee manager = employeeService.getById(requestDTO.getProjectManagerId());
+        if (manager == null) {
+            throw new IllegalArgumentException("Project manager not found with id: " + requestDTO.getProjectManagerId());
         }
         
         Project project = ProjectMapper.toEntity(requestDTO, department, manager);
@@ -121,12 +167,10 @@ public class ProjectController {
             throw new IllegalArgumentException("Department not found with id: " + requestDTO.getDepartmentId());
         }
         
-        Employee manager = null;
-        if (requestDTO.getProjectManagerId() != null) {
-            manager = employeeService.getById(requestDTO.getProjectManagerId());
-            if (manager == null) {
-                throw new IllegalArgumentException("Project manager not found with id: " + requestDTO.getProjectManagerId());
-            }
+        // Project manager is required (validated at DTO level with @NotNull)
+        Employee manager = employeeService.getById(requestDTO.getProjectManagerId());
+        if (manager == null) {
+            throw new IllegalArgumentException("Project manager not found with id: " + requestDTO.getProjectManagerId());
         }
         
         Project updatedProject = ProjectMapper.toEntity(requestDTO, department, manager);

@@ -11,7 +11,9 @@ public class ProjectResponseDTO {
     private LocalDate endDate;
     private String status;
     private Double budget;
+    private UUID departmentId; // Department ID for form binding
     private String departmentName; // Denormalized
+    private UUID projectManagerId; // Project manager ID for form binding
     private String projectManagerName; // Denormalized (firstName + lastName)
 
     // Getters and setters
@@ -71,12 +73,28 @@ public class ProjectResponseDTO {
         this.budget = budget;
     }
 
+    public UUID getDepartmentId() {
+        return departmentId;
+    }
+
+    public void setDepartmentId(UUID departmentId) {
+        this.departmentId = departmentId;
+    }
+
     public String getDepartmentName() {
         return departmentName;
     }
 
     public void setDepartmentName(String departmentName) {
         this.departmentName = departmentName;
+    }
+
+    public UUID getProjectManagerId() {
+        return projectManagerId;
+    }
+
+    public void setProjectManagerId(UUID projectManagerId) {
+        this.projectManagerId = projectManagerId;
     }
 
     public String getProjectManagerName() {

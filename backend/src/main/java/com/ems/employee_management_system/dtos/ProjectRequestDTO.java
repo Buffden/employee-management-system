@@ -30,6 +30,7 @@ public class ProjectRequestDTO {
     @NotNull(message = "Department ID is required")
     private UUID departmentId;
     
+    @NotNull(message = "Project manager ID is required")
     private UUID projectManagerId;
 
     // Getters and setters

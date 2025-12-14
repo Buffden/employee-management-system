@@ -25,6 +25,10 @@ public class ProjectMapper {
         dto.setStatus(project.getStatus());
         dto.setBudget(project.getBudget());
         
+        // Include IDs for form binding
+        dto.setDepartmentId(project.getDepartment() != null ? project.getDepartment().getId() : null);
+        dto.setProjectManagerId(project.getProjectManager() != null ? project.getProjectManager().getId() : null);
+        
         // Denormalized names for better API responses
         dto.setDepartmentName(project.getDepartment() != null ? project.getDepartment().getName() : null);
         if (project.getProjectManager() != null) {

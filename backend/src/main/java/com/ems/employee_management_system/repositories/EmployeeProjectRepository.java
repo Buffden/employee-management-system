@@ -32,4 +32,19 @@ public interface EmployeeProjectRepository extends JpaRepository<EmployeeProject
      */
     @Query("SELECT COUNT(ep) FROM EmployeeProject ep WHERE ep.employee.id = :employeeId")
     Long countByEmployeeId(@Param("employeeId") UUID employeeId);
+
+    /**
+     * Count employee assignments for a project
+     * Used for logging when deleting projects (to show how many assignments were deleted)
+     */
+    @Query("SELECT COUNT(ep) FROM EmployeeProject ep WHERE ep.project.id = :projectId")
+    Long countByProjectId(@Param("projectId") UUID projectId);
+
+    /**
+     * Delete all employee-project assignments for a project (for cascade delete)
+     * Used when deleting a project to automatically remove all employee assignments
+     */
+    @org.springframework.data.jpa.repository.Modifying
+    @org.springframework.data.jpa.repository.Query("DELETE FROM EmployeeProject ep WHERE ep.project.id = :projectId")
+    void deleteByProjectId(@Param("projectId") UUID projectId);
 }

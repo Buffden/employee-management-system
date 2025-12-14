@@ -23,4 +23,19 @@ public interface TaskRepository extends JpaRepository<Task, UUID> {
                                      @Param("departmentId") UUID departmentId,
                                      @Param("userId") UUID userId,
                                      Pageable pageable);
+
+    /**
+     * Count tasks for a project
+     * Used for logging when deleting projects (to show how many tasks were deleted)
+     */
+    @Query("SELECT COUNT(t) FROM Task t WHERE t.project.id = :projectId")
+    Long countByProjectId(@Param("projectId") UUID projectId);
+
+    /**
+     * Delete all tasks for a project (for cascade delete)
+     * Used when deleting a project to automatically delete all associated tasks
+     */
+    @org.springframework.data.jpa.repository.Modifying
+    @org.springframework.data.jpa.repository.Query("DELETE FROM Task t WHERE t.project.id = :projectId")
+    void deleteByProjectId(@Param("projectId") UUID projectId);
 }

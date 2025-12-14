@@ -17,10 +17,14 @@ public interface ProjectRepository extends JpaRepository<Project, UUID> {
 
     @Query("""
         SELECT p FROM Project p
-        WHERE (:role = '" + UserRole.SYSTEM_ADMIN.getValue() + "' OR :role = '" + UserRole.HR_MANAGER.getValue() + "')
-           OR (:role = '" + UserRole.DEPARTMENT_MANAGER.getValue() + "' AND p.department.id = :departmentId)
+        WHERE (:role = 'SYSTEM_ADMIN' OR :role = 'HR_MANAGER')
+           OR (:role = 'DEPARTMENT_MANAGER' AND :departmentId IS NOT NULL AND p.department IS NOT NULL AND p.department.id = :departmentId)
+           OR (:role = 'EMPLOYEE' AND :userId IS NOT NULL AND EXISTS (
+               SELECT ep FROM EmployeeProject ep WHERE ep.project.id = p.id AND ep.employee.id = :userId
+           ))
         """)
     Page<Project> findAllFilteredByRole(@Param("role") String role,
                                         @Param("departmentId") UUID departmentId,
+                                        @Param("userId") UUID userId,
                                         Pageable pageable);
 }
