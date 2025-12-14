@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { SharedModule } from '../../../../shared/shared.module';
 import { TableComponent } from '../../../../shared/components/table/table.component';
@@ -24,7 +24,7 @@ import { take } from 'rxjs/operators';
   templateUrl: './location-list.component.html',
   styleUrls: ['./location-list.component.css'],
 })
-export class LocationListComponent implements OnInit {
+export class LocationListComponent implements OnInit, OnDestroy {
   locations: Location[] = [];
   tableData: TableCellData[] = [];
   tableConfig = locationListConfig;
@@ -33,6 +33,7 @@ export class LocationListComponent implements OnInit {
   totalElements = 0;
   totalPages = 0;
   private isRefreshing = false; // Guard to prevent duplicate refresh calls
+  private locationAddedHandler?: () => void; // Store handler reference for cleanup
 
   // Custom handler for location name click - opens edit dialog
   onLocationNameClick = (row: TableCellData, colKey: string) => {
@@ -113,9 +114,20 @@ export class LocationListComponent implements OnInit {
     this.loadLocations(0, this.pageSize, defaultSortColumn, defaultSortDir);
     
     // Listen only for add operations from table component (edit/delete handled by afterClosed())
-    globalThis.window.addEventListener('locationAdded', () => {
+    // Store handler reference so we can remove it later
+    this.locationAddedHandler = () => {
       this.loadLocations(this.currentPage, this.pageSize);
-    });
+    };
+    
+    globalThis.window.addEventListener('locationAdded', this.locationAddedHandler);
+  }
+
+  ngOnDestroy(): void {
+    // Clean up event listener to prevent memory leaks and duplicate calls
+    if (this.locationAddedHandler) {
+      globalThis.window.removeEventListener('locationAdded', this.locationAddedHandler);
+      this.locationAddedHandler = undefined;
+    }
   }
 
   loadLocations(page = 0, size = 10, sortBy?: string, sortDir = 'ASC'): void {

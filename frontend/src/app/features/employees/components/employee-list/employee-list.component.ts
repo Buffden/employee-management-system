@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { SharedModule } from '../../../../shared/shared.module';
 import { TableComponent } from '../../../../shared/components/table/table.component';
@@ -25,7 +25,7 @@ import { take } from 'rxjs/operators';
   templateUrl: './employee-list.component.html',
   styleUrls: ['./employee-list.component.css'],
 })
-export class EmployeeListComponent implements OnInit {
+export class EmployeeListComponent implements OnInit, OnDestroy {
   employees: Employee[] = [];
   tableData: TableCellData[] = [];
   tableConfig = employeeListConfig;
@@ -37,6 +37,7 @@ export class EmployeeListComponent implements OnInit {
   currentSortDirection = 'ASC';
   filters: Record<string, FilterOption[]> = {}; // Store filters from paginated response
   private isRefreshing = false; // Guard to prevent duplicate refresh calls
+  private employeeAddedHandler?: () => void; // Store handler reference for cleanup
 
   // Custom handler for employee name click - opens edit dialog
   onEmployeeNameClick = (row: TableCellData, colKey: string) => {
@@ -67,9 +68,20 @@ export class EmployeeListComponent implements OnInit {
     this.loadEmployees(this.currentPage, this.pageSize, this.currentSortColumn, this.currentSortDirection);
     
     // Listen only for add operations from table component (edit/delete handled by afterClosed())
-    globalThis.window.addEventListener('employeeAdded', () => {
+    // Store handler reference so we can remove it later
+    this.employeeAddedHandler = () => {
       this.loadEmployees(this.currentPage, this.pageSize, this.currentSortColumn, this.currentSortDirection);
-    });
+    };
+    
+    globalThis.window.addEventListener('employeeAdded', this.employeeAddedHandler);
+  }
+
+  ngOnDestroy(): void {
+    // Clean up event listener to prevent memory leaks and duplicate calls
+    if (this.employeeAddedHandler) {
+      globalThis.window.removeEventListener('employeeAdded', this.employeeAddedHandler);
+      this.employeeAddedHandler = undefined;
+    }
   }
 
   canEditEmployee(): boolean {
