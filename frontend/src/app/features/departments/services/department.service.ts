@@ -75,6 +75,37 @@ export class DepartmentService {
         );
     }
 
+    // Search departments for typeahead/autocomplete
+    searchDepartments(searchTerm?: string, locationId?: string, excludeId?: string): Observable<Department[]> {
+        const params: Record<string, string> = {};
+        if (searchTerm?.trim()) {
+            params['q'] = searchTerm.trim();
+        }
+        if (locationId?.trim()) {
+            params['locationId'] = locationId.trim();
+        }
+        if (excludeId?.trim()) {
+            params['excludeId'] = excludeId.trim();
+        }
+        
+        return this.http.get<Department[]>(`${this.apiUrl}/search`, { params }).pipe(
+            catchError((error) => {
+                this.handleError(error);
+                throw error;
+            })
+        );
+    }
+
+    // GET department by ID for typeahead
+    getDepartmentById(id: string): Observable<Department> {
+        return this.http.get<Department>(`${this.apiUrl}/${id}`).pipe(
+            catchError((error) => {
+                this.handleError(error);
+                throw error;
+            })
+        );
+    }
+
     // POST (add) a new department
     addDepartment(department: Partial<Department>): Observable<Department> {
         return this.http.post<Department>(`${this.apiUrl}/create`, department).pipe(
