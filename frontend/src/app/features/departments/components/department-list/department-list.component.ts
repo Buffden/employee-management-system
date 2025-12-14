@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { SharedModule } from '../../../../shared/shared.module';
 import { TableComponent } from '../../../../shared/components/table/table.component';
@@ -23,7 +23,7 @@ import { filter, take } from 'rxjs/operators';
   templateUrl: './department-list.component.html',
   styleUrls: ['./department-list.component.css'],
 })
-export class DepartmentListComponent implements OnInit {
+export class DepartmentListComponent implements OnInit, OnDestroy {
   departments: Department[] = [];
   tableData: TableCellData[] = [];
   tableConfig = departmentListConfig;
@@ -33,6 +33,7 @@ export class DepartmentListComponent implements OnInit {
   totalPages = 0;
   filters: Record<string, FilterOption[]> = {}; // Store filters from paginated response
   private isRefreshing = false; // Guard to prevent duplicate refresh calls
+  private departmentAddedHandler?: () => void; // Store handler reference for cleanup
 
   // Custom handler for department name click - opens edit dialog
   onDepartmentNameClick = (row: TableCellData, colKey: string) => {
@@ -114,9 +115,20 @@ export class DepartmentListComponent implements OnInit {
     this.loadDepartments(0, this.pageSize, defaultSortColumn, defaultSortDir);
     
     // Listen only for add operations from table component (edit/delete handled by afterClosed())
-    globalThis.window.addEventListener('departmentAdded', () => {
+    // Store handler reference so we can remove it later
+    this.departmentAddedHandler = () => {
       this.loadDepartments(this.currentPage, this.pageSize);
-    });
+    };
+    
+    globalThis.window.addEventListener('departmentAdded', this.departmentAddedHandler);
+  }
+
+  ngOnDestroy(): void {
+    // Clean up event listener to prevent memory leaks and duplicate calls
+    if (this.departmentAddedHandler) {
+      globalThis.window.removeEventListener('departmentAdded', this.departmentAddedHandler);
+      this.departmentAddedHandler = undefined;
+    }
   }
 
   loadDepartments(page = 0, size = 10, sortBy?: string, sortDir = 'ASC'): void {

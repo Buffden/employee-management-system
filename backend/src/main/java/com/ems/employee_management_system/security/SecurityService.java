@@ -7,7 +7,9 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 
 import com.ems.employee_management_system.models.Employee;
+import com.ems.employee_management_system.models.EmployeeProject.EmployeeProjectId;
 import com.ems.employee_management_system.models.User;
+import com.ems.employee_management_system.repositories.EmployeeProjectRepository;
 import com.ems.employee_management_system.repositories.EmployeeRepository;
 import com.ems.employee_management_system.repositories.ProjectRepository;
 import com.ems.employee_management_system.repositories.TaskRepository;
@@ -20,15 +22,18 @@ public class SecurityService {
     private final EmployeeRepository employeeRepository;
     private final ProjectRepository projectRepository;
     private final TaskRepository taskRepository;
+    private final EmployeeProjectRepository employeeProjectRepository;
     
     public SecurityService(UserRepository userRepository, 
                           EmployeeRepository employeeRepository,
                           ProjectRepository projectRepository,
-                          TaskRepository taskRepository) {
+                          TaskRepository taskRepository,
+                          EmployeeProjectRepository employeeProjectRepository) {
         this.userRepository = userRepository;
         this.employeeRepository = employeeRepository;
         this.projectRepository = projectRepository;
         this.taskRepository = taskRepository;
+        this.employeeProjectRepository = employeeProjectRepository;
     }
     
     /**
@@ -185,6 +190,19 @@ public class SecurityService {
                 .map(task -> task.getAssignedTo() != null && 
                      task.getAssignedTo().getId().equals(userEmployeeId))
                 .orElse(false);
+    }
+    
+    /**
+     * Check if current user (employee) is assigned to a project
+     */
+    public boolean isProjectAssignedToUser(UUID projectId) {
+        UUID userEmployeeId = getCurrentUserEmployeeId();
+        if (userEmployeeId == null) {
+            return false;
+        }
+        
+        EmployeeProjectId id = new EmployeeProjectId(userEmployeeId, projectId);
+        return employeeProjectRepository.findById(id).isPresent();
     }
 }
 

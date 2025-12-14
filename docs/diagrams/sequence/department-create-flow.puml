@@ -99,10 +99,59 @@ else Authorized
         Service -> Mapper: 41. toEntity(DTO, location, head)
         Mapper --> Service: 42. Department entity
         
-        Service -> DeptRepo: 43. save(Department)
-        DeptRepo -> DB: 44. INSERT INTO department\n(including department_head_id)
-        DB --> DeptRepo: 45. Saved department
-        DeptRepo --> Service: 46. Department
+        alt Department head is provided
+            Service -> Service: 43. Validate head not already head of another dept
+            Service -> DeptRepo: 44. findDepartmentsByHeadId(head.id)
+            DeptRepo -> DB: 45. SELECT * FROM department\nWHERE department_head_id = ?
+            DB --> DeptRepo: 46. List<Department>
+            DeptRepo --> Service: 47. Departments where employee is head
+            
+            alt Employee already head of another department
+                Service --> Controller: 48. Throw IllegalStateException\n"Employee already head of department X"
+                Controller --> Gateway: 49. HTTP 400 Bad Request
+                Gateway --> Frontend: 50. Error response
+                Frontend --> User: 51. Display error: "Employee already head\nof another department"
+            else Employee can be assigned
+                Service -> DeptRepo: 52. save(Department)
+                DeptRepo -> DB: 53. INSERT INTO department\n(including department_head_id)
+                DB --> DeptRepo: 54. Saved department
+                DeptRepo --> Service: 55. Department
+                
+                Service -> Service: 56. Synchronize head's department_id
+                Service -> EmployeeService: 57. getById(head.id)
+                EmployeeService -> EmpRepo: 58. findById(head.id)
+                EmpRepo -> DB: 59. SELECT * FROM employee WHERE id = ?
+                DB --> EmpRepo: 60. Employee entity
+                EmpRepo --> EmployeeService: 61. Employee
+                EmployeeService --> Service: 62. Employee (head)
+                
+                alt Employee's department != this department
+                    Service -> EmployeeService: 63. Update employee.department_id\nto match this department
+                    EmployeeService -> EmployeeService: 64. Validate manager in same department\n(if employee has reports)
+                    
+                    alt Validation fails (reports in different dept)
+                        EmployeeService --> Service: 65. Throw IllegalArgumentException\n"Manager must be in same department"
+                        Service --> Controller: 66. HTTP 400 Bad Request
+                        Controller --> Gateway: 67. Error response
+                        Gateway --> Frontend: 68. Error response
+                        Frontend --> User: 69. Display error: "Cannot assign head\nwith reports in different department"
+                    else Validation passes
+                        EmployeeService -> EmpRepo: 70. save(Employee with updated department_id)
+                        EmpRepo -> DB: 71. UPDATE employee SET department_id = ?\nWHERE id = ?
+                        DB --> EmpRepo: 72. Updated employee
+                        EmpRepo --> EmployeeService: 73. Employee
+                        EmployeeService --> Service: 74. Head synchronized
+                    end
+                else Employee's department already matches
+                    Service -> Service: 75. No update needed\n(head already in correct department)
+                end
+            end
+        else No department head
+            Service -> DeptRepo: 52. save(Department)
+            DeptRepo -> DB: 53. INSERT INTO department
+            DB --> DeptRepo: 54. Saved department
+            DeptRepo --> Service: 55. Department
+        end
         
         Service -> Mapper: 47. toResponseDTO(Department)
         Mapper -> Mapper: 48. Extract departmentHeadId and departmentHeadName
@@ -157,8 +206,14 @@ note right of Service
   - Department name must be unique
   - Location must exist
   - Department head must exist (if provided)
+  - Employee can only be head of ONE department
+  - Department head's department_id must match
+  - Head's direct reports must be in same department
   - Controller validates employee before
     passing to service
+  **Bidirectional Sync:**
+  - Updates employee.department_id when
+    assigning department head
 end note
 
 note right of Frontend

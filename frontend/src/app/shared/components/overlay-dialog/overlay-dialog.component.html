@@ -191,6 +191,29 @@
                               (locationResponse)="locationFormResponse($event)"></app-location-form>
         </div>
         <div class="td-content"
+             *ngSwitchCase="overlayType.ADDPROJECT">
+            <app-project-form [project]="dialogData"
+                             (projectResponse)="projectFormResponse($event)"></app-project-form>
+        </div>
+        <div class="td-content"
+             *ngSwitchCase="overlayType.EDITPROJECT">
+            <app-project-form [project]="dialogData"
+                             (projectResponse)="projectFormResponse($event)"></app-project-form>
+        </div>
+        <div class="td-content"
+             *ngSwitchCase="overlayType.DISPLAYPROJECT">
+            <div class="overlay-content">
+                <div class="text-details">
+                    <ng-container *ngFor="let field of textFields">
+                        <p class="text-placeholder">
+                            <span class="text-placeholder-key">{{ field.label }}:</span>
+                            &nbsp;{{ field.value }}
+                        </p>
+                    </ng-container>
+                </div>
+            </div>
+        </div>
+        <div class="td-content"
              *ngSwitchCase="overlayType.NODATA">NO-DATA-AVAILABLE-PLACEHOLDER</div>
 
     </div>

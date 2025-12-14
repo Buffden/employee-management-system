@@ -12,7 +12,7 @@ import { OverlayDialogComponent } from '../overlay-dialog/overlay-dialog.compone
 import { SharedModule } from '../../shared.module';
 import { NoDataComponent } from '../no-data/no-data.component';
 import { Router } from '@angular/router';
-import { filter } from 'rxjs';
+import { filter, take } from 'rxjs/operators';
 import { EmployeeService } from '../../../features/employees/services/employee.service';
 import { DialogData } from '../../models/dialog';
 import { DepartmentService } from '../../../features/departments/services/department.service';
@@ -246,6 +246,8 @@ export class TableComponent implements OnChanges, AfterViewInit {
       returnToPage = 'locations';
     } else if (currentUrl.includes('/departments')) {
       returnToPage = 'departments';
+    } else if (currentUrl.includes('/projects')) {
+      returnToPage = 'projects';
     }
     
     this.dialogRef = this.matDialog.open(OverlayDialogComponent, {
@@ -260,7 +262,10 @@ export class TableComponent implements OnChanges, AfterViewInit {
         filters: this.filters // Pass generic filters to form component (e.g., locations for department form)
       }
     });
-    this.dialogRef.afterClosed().pipe(filter(result => !!result)).subscribe((isClosedWithData: DialogData) => {
+    this.dialogRef.afterClosed().pipe(
+      filter(result => !!result),
+      take(1) // Ensure subscription only fires once per dialog instance
+    ).subscribe((isClosedWithData: DialogData) => {
       // Dispatch events only for add operations (since table component opens add dialogs)
       // Edit/Delete operations are handled by list component's afterClosed() subscriptions
       if (isClosedWithData.content && 'id' in isClosedWithData.content) {
@@ -270,6 +275,8 @@ export class TableComponent implements OnChanges, AfterViewInit {
           globalThis.window.dispatchEvent(new CustomEvent('locationAdded'));
         } else if (this.tableConfig.additionCardTitle === 'Add Employee' && isClosedWithData.returnToPage !== 'dashboard') {
           globalThis.window.dispatchEvent(new CustomEvent('employeeAdded'));
+        } else if (this.tableConfig.additionCardTitle === 'Add Project' && isClosedWithData.returnToPage !== 'dashboard') {
+          globalThis.window.dispatchEvent(new CustomEvent('projectAdded'));
         }
       }
     });

@@ -158,10 +158,60 @@ else Authorized
             Mapper --> Service: 62. Updated Department entity
             Service -> Service: 63. Set ID and createdAt from existing
             
-            Service -> DeptRepo: 64. save(Department)
-            DeptRepo -> DB: 65. UPDATE department SET ...\n(including department_head_id)\nWHERE id = ?
-            DB --> DeptRepo: 66. Updated department
-            DeptRepo --> Service: 67. Department entity
+            Service -> Service: 64. Validate department head changes\n(if head is being changed)
+            
+            alt New head is assigned
+                Service -> DeptRepo: 65. findDepartmentsByHeadId(newHead.id)
+                DeptRepo -> DB: 66. SELECT * FROM department\nWHERE department_head_id = ?
+                DB --> DeptRepo: 67. List<Department> (if head of other dept)
+                DeptRepo --> Service: 68. Departments where employee is head
+                
+                alt Employee already head of different department
+                    Service --> Controller: 69. Throw IllegalStateException\n"Employee already head of department X"
+                    Controller --> Gateway: 70. HTTP 400 Bad Request
+                    Gateway --> Frontend: 71. Error response
+                    Frontend --> User: 72. Display error: "Employee already head\nof another department"
+                else Employee can be assigned
+                    Service -> DeptRepo: 73. save(Department)
+                    DeptRepo -> DB: 74. UPDATE department SET ...\n(including department_head_id)\nWHERE id = ?
+                    DB --> DeptRepo: 75. Updated department
+                    DeptRepo --> Service: 76. Department entity
+                    
+                    Service -> Service: 77. Synchronize head's department_id
+                    Service -> EmployeeService: 78. getById(head.id)
+                    EmployeeService -> EmpRepo: 79. findById(head.id)
+                    EmpRepo -> DB: 80. SELECT * FROM employee WHERE id = ?
+                    DB --> EmpRepo: 81. Employee entity
+                    EmpRepo --> EmployeeService: 82. Employee
+                    EmployeeService --> Service: 83. Employee (head)
+                    
+                    alt Employee's department != this department
+                        Service -> EmployeeService: 84. Update employee.department_id\nto match this department
+                        EmployeeService -> EmployeeService: 85. Validate manager in same department\n(if employee has reports)
+                        
+                        alt Validation fails (reports in different dept)
+                            EmployeeService --> Service: 86. Throw IllegalArgumentException\n"Manager must be in same department"
+                            Service --> Controller: 87. HTTP 400 Bad Request
+                            Controller --> Gateway: 88. Error response
+                            Gateway --> Frontend: 89. Error response
+                            Frontend --> User: 90. Display error: "Cannot assign head\nwith reports in different department"
+                        else Validation passes
+                            EmployeeService -> EmpRepo: 91. save(Employee with updated department_id)
+                            EmpRepo -> DB: 92. UPDATE employee SET department_id = ?\nWHERE id = ?
+                            DB --> EmpRepo: 93. Updated employee
+                            EmpRepo --> EmployeeService: 94. Employee
+                            EmployeeService --> Service: 95. Head synchronized
+                        end
+                    else Employee's department already matches
+                        Service -> Service: 96. No update needed\n(head already in correct department)
+                    end
+                end
+            else No head or head unchanged
+                Service -> DeptRepo: 73. save(Department)
+                DeptRepo -> DB: 74. UPDATE department SET ...\nWHERE id = ?
+                DB --> DeptRepo: 75. Updated department
+                DeptRepo --> Service: 76. Department entity
+            end
             
             Service -> Mapper: 68. toResponseDTO(Department)
             Mapper -> Mapper: 69. Extract departmentHeadId and departmentHeadName
@@ -215,8 +265,15 @@ note right of Service
   - Budget must be non-negative
   - Location must exist (if changed)
   - Department Head must exist (if changed)
+  - Employee can only be head of ONE department
+  - Department head's department_id must match
+  - Head's direct reports must be in same department
   - Controller validates employee before
     passing to service
+  **Bidirectional Sync:**
+  - Updates employee.department_id when
+    assigning/changing department head
+  - Old head keeps department_id (still works there)
 end note
 
 note right of Frontend

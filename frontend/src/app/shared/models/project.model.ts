@@ -22,4 +22,14 @@ export interface Project {
     firstName: string;
     lastName: string;
   };
+}
+
+export interface ProjectFormField {
+  label: string;
+  formControlName: string;
+  placeholder: string;
+  errorMessage: string;
+  type?: string;
+  options?: string[];
+  required?: boolean;
 } 

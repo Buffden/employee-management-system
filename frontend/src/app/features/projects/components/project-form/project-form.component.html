@@ -1,0 +1,81 @@
+<div class="form-container">
+    <form [formGroup]="projectForm"
+          (ngSubmit)="onSubmit()">
+        <ng-container *ngFor="let field of FormFields;">
+            <!-- Department typeahead -->
+            <app-typeahead
+                *ngIf="field.type === 'typeahead' && field.formControlName === 'departmentId'"
+                [formControl]="$any(projectForm.get('departmentId'))"
+                [config]="departmentTypeaheadConfig"
+                [label]="field.label"
+                [placeholder]="field.placeholder"
+                [required]="field.required ?? false"
+                [disabled]="isSubmitting">
+            </app-typeahead>
+            
+            <!-- Project Manager typeahead -->
+            <app-typeahead
+                *ngIf="field.type === 'typeahead' && field.formControlName === 'projectManagerId'"
+                [formControl]="$any(projectForm.get('projectManagerId'))"
+                [config]="projectManagerTypeaheadConfig"
+                [label]="field.label"
+                [placeholder]="field.placeholder"
+                [required]="field.required ?? false"
+                [filters]="getProjectManagerTypeaheadFilters()"
+                [disabled]="isSubmitting">
+            </app-typeahead>
+            
+            <!-- Other fields with mat-form-field wrapper -->
+            <mat-form-field *ngIf="!(field.type === 'typeahead' && (field.formControlName === 'departmentId' || field.formControlName === 'projectManagerId'))" appearance="outline">
+                <mat-label>{{ field.label }}</mat-label>
+                <!-- Select dropdown for status -->
+                <mat-select *ngIf="field.type === 'select' && field.formControlName === 'status'"
+                           [formControlName]="field.formControlName"
+                           [required]="field.required ?? false">
+                    <mat-option *ngFor="let status of projectStatuses" [value]="status">
+                        {{ status }}
+                    </mat-option>
+                </mat-select>
+                <!-- Regular input for other fields -->
+                <input *ngIf="field.type !== 'select'"
+                       matInput
+                       [formControlName]="field.formControlName"
+                       [placeholder]="field.placeholder"
+                       [type]="field.type || 'text'"
+                       [required]="field.required ?? false" />
+                <mat-error *ngIf="isFieldInvalid(field)">
+                    {{ field.errorMessage }}
+                </mat-error>
+            </mat-form-field>
+        </ng-container>
+
+        <div *ngIf="errorMessage" class="error-message">
+            <mat-error>{{ errorMessage }}</mat-error>
+        </div>
+
+        <div class="form-actions">
+            <div class="left-actions">
+                <button mat-raised-button
+                        color="warn"
+                        type="button"
+                        *ngIf="canDeleteProject()"
+                        (click)="onDeleteClick()"
+                        [disabled]="isSubmitting">Delete Project</button>
+            </div>
+            <div class="right-actions">
+                <button mat-raised-button
+                        color="primary"
+                        type="submit"
+                        [disabled]="isSubmitDisabled()">
+                    <span *ngIf="!isSubmitting">{{ submitButtonText() }}</span>
+                    <span *ngIf="isSubmitting">Submitting...</span>
+                </button>
+                <button mat-raised-button
+                        color="basic"
+                        type="button"
+                        (click)="dialogClose()">Cancel</button>
+            </div>
+        </div>
+    </form>
+</div>
+

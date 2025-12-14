@@ -13,7 +13,9 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.ems.employee_management_system.constants.Constants;
 import com.ems.employee_management_system.models.Project;
+import com.ems.employee_management_system.repositories.EmployeeProjectRepository;
 import com.ems.employee_management_system.repositories.ProjectRepository;
+import com.ems.employee_management_system.repositories.TaskRepository;
 import com.ems.employee_management_system.security.SecurityService;
 
 @Service
@@ -22,18 +24,36 @@ public class ProjectService {
     
     private final ProjectRepository projectRepository;
     private final SecurityService securityService;
+    private final EmployeeProjectRepository employeeProjectRepository;
+    private final TaskRepository taskRepository;
 
     public ProjectService(ProjectRepository projectRepository,
-                          SecurityService securityService) {
+                          SecurityService securityService,
+                          EmployeeProjectRepository employeeProjectRepository,
+                          TaskRepository taskRepository) {
         this.projectRepository = projectRepository;
         this.securityService = securityService;
+        this.employeeProjectRepository = employeeProjectRepository;
+        this.taskRepository = taskRepository;
     }
 
-    public org.springframework.data.domain.Page<Project> getAll(org.springframework.data.domain.Pageable pageable) {
+    public Page<Project> getAll(Pageable pageable) {
         logger.debug("Fetching projects with pagination: page={}, size={}", pageable.getPageNumber(), pageable.getPageSize());
         String role = securityService.getCurrentUserRole();
         UUID departmentId = securityService.getCurrentUserDepartmentId();
-        return projectRepository.findAllFilteredByRole(role, departmentId, pageable);
+        UUID userId = securityService.getCurrentUserEmployeeId();
+        
+        logger.debug("Role-based filtering - role: {}, departmentId: {}, userId: {}", role, departmentId, userId);
+        
+        // If role is null, default to empty result (should not happen due to @PreAuthorize, but defensive coding)
+        if (role == null) {
+            logger.warn("User role is null, returning empty page");
+            return org.springframework.data.domain.Page.empty(pageable);
+        }
+        
+        Page<Project> result = projectRepository.findAllFilteredByRole(role, departmentId, userId, pageable);
+        logger.debug("Found {} projects for role: {}", result.getTotalElements(), role);
+        return result;
     }
 
     public List<Project> getAll() {
@@ -91,10 +111,51 @@ public class ProjectService {
         return saved;
     }
 
+    /**
+     * Deletes a project with cascade delete of related records
+     * Automatically deletes:
+     * 1. All employee-project assignments (employee_project records)
+     * 2. All tasks associated with the project
+     * 3. The project itself
+     * 
+     * Business rule: Tasks and employee assignments are automatically deleted
+     * when a project is deleted, regardless of their state or assignments.
+     */
     @Transactional
     public void delete(UUID id) {
         logger.info("Deleting project with id: {}", id);
+        
+        Project project = projectRepository.findById(id)
+            .orElseThrow(() -> {
+                logger.warn("Project not found with id: {}", id);
+                return new IllegalArgumentException("Project not found with id: " + id);
+            });
+        
+        String projectName = project.getName();
+        
+        // Count related records for logging
+        Long employeeAssignmentCount = employeeProjectRepository.countByProjectId(id);
+        Long taskCount = taskRepository.countByProjectId(id);
+        
+        logger.debug("Project '{}' has {} employee assignment(s) and {} task(s) to be deleted", 
+            projectName, employeeAssignmentCount, taskCount);
+        
+        // Step 1: Delete all employee-project assignments (cascade delete)
+        if (employeeAssignmentCount > 0) {
+            employeeProjectRepository.deleteByProjectId(id);
+            logger.debug("Deleted {} employee-project assignment(s) for project '{}'", 
+                employeeAssignmentCount, projectName);
+        }
+        
+        // Step 2: Delete all tasks associated with the project (cascade delete)
+        if (taskCount > 0) {
+            taskRepository.deleteByProjectId(id);
+            logger.debug("Deleted {} task(s) for project '{}'", taskCount, projectName);
+        }
+        
+        // Step 3: Delete the project itself
         projectRepository.deleteById(id);
-        logger.info("Project deleted successfully with id: {}", id);
+        logger.info("Project '{}' deleted successfully along with {} employee assignment(s) and {} task(s)", 
+            projectName, employeeAssignmentCount, taskCount);
     }
 } 

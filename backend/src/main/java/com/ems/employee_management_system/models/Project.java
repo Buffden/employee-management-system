@@ -34,11 +34,11 @@ public class Project {
     private Double budget = 0.0;
 
     @ManyToOne
-    @JoinColumn(nullable = false)
+    @JoinColumn(name = "department_id", nullable = false)
     private Department department;
 
     @ManyToOne
-    @JoinColumn(nullable = false)
+    @JoinColumn(name = "project_manager_id", nullable = false)
     private Employee projectManager;
 
     // Getters and setters

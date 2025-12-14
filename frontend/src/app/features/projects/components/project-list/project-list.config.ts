@@ -1,5 +1,5 @@
 import { overlayType } from '../../../../shared/models/dialog';
-import { ColumnType, FormMode, TableConfig } from '../../../../shared/models/table';
+import { ColumnType, FormMode, SortDirection, TableConfig } from '../../../../shared/models/table';
 
 export const projectListConfig: TableConfig = {
   tableTitle: 'Project List',
@@ -10,7 +10,6 @@ export const projectListConfig: TableConfig = {
     { key: 'name', header: 'Project Name', sortable: true, type: ColumnType.LINK, isSticky: true },
     { key: 'department', header: 'Department', sortable: true, type: ColumnType.TEXT },
     { key: 'projectManager', header: 'Project Manager', sortable: true, type: ColumnType.TEXT },
-    { key: 'taskStatus', header: 'Tasks', sortable: false, type: ColumnType.TEXT },
     { key: 'startDate', header: 'Start Date', sortable: true, type: ColumnType.DATE },
     { key: 'endDate', header: 'End Date', sortable: true, type: ColumnType.DATE },
     { key: 'status', header: 'Status', sortable: true, type: ColumnType.TEXT },
@@ -19,13 +18,16 @@ export const projectListConfig: TableConfig = {
   pageSize: 10,
   pageSizeOptions: [5, 10, 25, 50, 100],
   displayActionButtons: true,
-  viewController: overlayType.NODATA, // Custom linkClickHandler in ProjectListComponent will take precedence for project name
-  additionController: overlayType.NODATA,
-  editController: overlayType.NODATA,
+  viewController: overlayType.DISPLAYPROJECT,
+  additionController: overlayType.ADDPROJECT,
+  editController: overlayType.EDITPROJECT,
   allowGenericButtons: true,
   allowExport: true,
   allowAddButton: true,
   allowCustomize: true,
+  allowFiltering: true, // Allow filtering on project table
+  defaultSortColumn: 'name', // Default sort by project name
+  defaultSortDirection: SortDirection.ASC, // Default sort direction
   noDataInfo: {
     title: 'No Project Data Found',
     description: 'No data available for the selected criteria',
