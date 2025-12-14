@@ -6,15 +6,17 @@ import { SharedModule } from '../../shared.module';
 import { DepartmentFormComponent } from '../../../features/departments/components/department-form/department-form.component';
 import { EmployeeFormComponent } from '../../../features/employees/components/employee-form/employee-form.component';
 import { LocationFormComponent } from '../../../features/locations/components/location-form/location-form.component';
+import { ProjectFormComponent } from '../../../features/projects/components/project-form/project-form.component';
 import { defaultTableConfig } from '../table/table.config';
 import { SampleDisplayData } from '../../consts/employee.consts';
 import { FormMode } from '../../models/table';
 import { Employee } from '../../models/employee.model';
 import { Department } from '../../models/department.model';
+import { Project } from '../../models/project.model';
 
 @Component({
   selector: 'app-overlay-dialog',
-  imports: [SharedModule, DepartmentFormComponent, EmployeeFormComponent, LocationFormComponent],
+  imports: [SharedModule, DepartmentFormComponent, EmployeeFormComponent, LocationFormComponent, ProjectFormComponent],
   templateUrl: './overlay-dialog.component.html',
   styleUrl: './overlay-dialog.component.css'
 })
@@ -107,6 +109,17 @@ export class OverlayDialogComponent {
   }
 
   locationFormResponse(response: DialogData): void {
+    this.dialogClose(response);
+  }
+
+  projectFormResponse(response: DialogData): void {
+    // Check if project was deleted
+    const project = response.content as unknown as Project & { deleted?: boolean };
+    if (project && project.deleted) {
+      console.log('Project deleted:', project.id);
+    } else {
+      console.log('Project form response:', response);
+    }
     this.dialogClose(response);
   }
 
