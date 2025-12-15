@@ -1,93 +1,228 @@
-.container {
-  max-width: 90%;
-  margin: 2rem auto;
-  padding: 2rem 2.5rem;
-  background: #fff;
-  border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(9, 30, 66, 0.08);
-}
-
-.header {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  margin-bottom: 1.5rem;
-  h1 {
-    font-size: 2rem;
-    font-weight: 600;
-    margin: 0;
-  }
-}
-
-.status-chip {
-  margin-left: auto;
-}
-
-.project-details, .task-details {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 1.5rem 2rem;
-  margin-bottom: 2rem;
-}
-
-.detail-item h3 {
-  font-size: 1rem;
-  font-weight: 500;
-  color: #42526e;
-  margin-bottom: 0.25rem;
-}
-
-.detail-item p, .detail-item mat-chip {
-  font-size: 1rem;
-  color: #172b4d;
-}
-
-.description {
-  grid-column: 1 / -1;
-  margin-top: 1.5rem;
+// Jira-style Project Details Layout
+.project-details-container {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 24px;
   background: #f4f5f7;
-  border-radius: 4px;
-  padding: 1rem 1.5rem;
+  min-height: 100vh;
 }
 
-.tasks-section {
-  margin-top: 2.5rem;
-  background: #f4f5f7;
-  border-radius: 4px;
-  padding: 1.5rem;
-}
-
-.tasks-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 1rem;
-}
-
-.mat-table {
-  background: #fff;
-  border-radius: 4px;
-  box-shadow: 0 1px 3px rgba(9, 30, 66, 0.04);
-}
-
+// Breadcrumb Navigation
 .breadcrumb-nav {
   display: flex;
   align-items: center;
-  margin-bottom: 1.5rem;
-  font-size: 1rem;
+  margin-bottom: 16px;
+  font-size: 14px;
+  padding: 8px 0;
+
   .breadcrumb-link {
-    color: #1976d2;
+    color: #0052cc;
     text-decoration: none;
+    cursor: pointer;
+    
     &:hover {
       text-decoration: underline;
     }
   }
+
   .breadcrumb-separator {
-    margin: 0 0.5rem;
-    color: #888;
+    margin: 0 8px;
+    color: #6b778c;
   }
+
   .breadcrumb-current {
-    font-weight: bold;
-    color: #333;
+    font-weight: 500;
+    color: #172b4d;
+  }
+}
+
+// Main Content Layout: Left Panel + Right Sidebar
+.content-layout {
+  display: flex;
+  gap: 24px;
+  align-items: flex-start;
+}
+
+// Left Panel: Main Content
+.left-panel {
+  flex: 1;
+  min-width: 0; // Prevents flex item overflow
+  background: #ffffff;
+  border-radius: 3px;
+  padding: 24px;
+}
+
+// Title Section
+.title-section {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 24px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid #dfe1e6;
+
+  .project-title {
+    font-size: 24px;
+    font-weight: 500;
+    color: #172b4d;
+    margin: 0;
+    flex: 1;
+    line-height: 1.5;
+  }
+
+  .action-buttons {
+    margin-left: 16px;
+  }
+}
+
+// Section Titles
+.section-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: #172b4d;
+  margin: 0 0 12px 0;
+}
+
+// Description Section
+.description-section {
+  margin-bottom: 32px;
+
+  .description-content {
+    background: #f4f5f7;
+    border-radius: 3px;
+    padding: 16px;
+    min-height: 60px;
+
+    p {
+      margin: 0;
+      color: #172b4d;
+      line-height: 1.6;
+      white-space: pre-wrap;
+    }
+
+    .empty-state {
+      color: #6b778c;
+      font-style: italic;
+    }
+  }
+}
+
+// Tasks Section
+.tasks-section {
+  .tasks-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 16px;
+
+    .add-task-btn {
+      mat-icon {
+        margin-right: 4px;
+      }
+    }
+  }
+
+  .tasks-table-container {
+    .tasks-table {
+      width: 100%;
+      background: #ffffff;
+
+      .clickable {
+        cursor: pointer;
+        color: #0052cc;
+
+        &:hover {
+          text-decoration: underline;
+        }
+      }
+
+      .task-name {
+        font-weight: 500;
+      }
+
+      .status-chip,
+      .priority-chip {
+        font-size: 12px;
+        height: 24px;
+      }
+    }
+  }
+
+  .empty-tasks {
+    background: #f4f5f7;
+    border-radius: 3px;
+    padding: 32px;
+    text-align: center;
+    color: #6b778c;
+  }
+}
+
+// Right Sidebar: Metadata
+.right-sidebar {
+  width: 300px;
+  flex-shrink: 0;
+  background: #ffffff;
+  border-radius: 3px;
+  padding: 16px;
+  position: sticky;
+  top: 24px;
+  max-height: calc(100vh - 48px);
+  overflow-y: auto;
+}
+
+.sidebar-section {
+  .sidebar-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: #172b4d;
+    margin: 0 0 16px 0;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+}
+
+.sidebar-item {
+  margin-bottom: 16px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid #dfe1e6;
+
+  &:last-child {
+    border-bottom: none;
+    margin-bottom: 0;
+    padding-bottom: 0;
+  }
+
+  .sidebar-label {
+    display: block;
+    font-size: 12px;
+    font-weight: 600;
+    color: #6b778c;
+    text-transform: uppercase;
+    margin-bottom: 6px;
+    letter-spacing: 0.5px;
+  }
+
+  .sidebar-value {
+    font-size: 14px;
+    color: #172b4d;
+    word-break: break-word;
+
+    mat-chip {
+      font-size: 12px;
+      height: 24px;
+    }
+  }
+}
+
+// Responsive Design
+@media (max-width: 1200px) {
+  .content-layout {
+    flex-direction: column;
+  }
+
+  .right-sidebar {
+    width: 100%;
+    position: static;
+    max-height: none;
   }
 }

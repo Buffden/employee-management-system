@@ -1,4 +1,4 @@
-<div class="container" *ngIf="type === 'project' && project">
+<div class="project-details-container" *ngIf="type === 'project' && project">
   <!-- Breadcrumb Navigation -->
   <nav class="breadcrumb-nav">
     <a routerLink="/projects" class="breadcrumb-link">Projects</a>
@@ -6,179 +6,306 @@
     <span class="breadcrumb-current">{{ project.name }}</span>
   </nav>
 
-  <!-- Project Overview -->
-  <div class="project-overview">
-    <div class="header">
-      <h1>{{project.name}}</h1>
-    </div>
-
-    <div class="project-details">
-      <div class="detail-row">
-        <div class="detail-item">
-          <h3>Department</h3>
-          <p>{{project.departmentId}}</p>
-        </div>
-        <div class="detail-item">
-          <h3>Project Manager</h3>
-          <p>{{project.projectManagerId}}</p>
-        </div>
-        <div class="detail-item">
-          <h3>Status</h3>
-          <mat-chip [color]="getStatusColor(project.status)" selected>
-            {{project.status}}
-          </mat-chip>
-        </div>
-      </div>
-
-      <div class="detail-row">
-        <div class="detail-item">
-          <h3>Start Date</h3>
-          <p>{{project.startDate | date}}</p>
-        </div>
-        <div class="detail-item">
-          <h3>End Date</h3>
-          <p>{{project.endDate | date}}</p>
-        </div>
-        <div class="detail-item">
-          <h3>Budget</h3>
-          <p>{{project.budget | currency}}</p>
-        </div>
-      </div>
-
-      <div class="description">
-        <h3>Description</h3>
-        <p>{{project.description}}</p>
-      </div>
-    </div>
-  </div>
-
-  <!-- Tasks List -->
-  <div class="tasks-section">
-    <div class="tasks-header" style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px;">
-      <h2 style="margin: 0;">Tasks</h2>
-      <button mat-raised-button color="primary" (click)="onAddTask()">
-        <mat-icon>add</mat-icon>
-        New Task
-      </button>
-    </div>
-    <table mat-table [dataSource]="tasks" class="mat-elevation-z8">
-      <!-- Name Column -->
-      <ng-container matColumnDef="name">
-        <th mat-header-cell *matHeaderCellDef>Task Name</th>
-        <td mat-cell *matCellDef="let task" (click)="onTaskClick(task)" class="clickable">
-          {{task.name}}
-        </td>
-      </ng-container>
-
-      <!-- Status Column -->
-      <ng-container matColumnDef="status">
-        <th mat-header-cell *matHeaderCellDef>Status</th>
-        <td mat-cell *matCellDef="let task">
-          <mat-chip [color]="getStatusColor(task.status)" selected>
-            {{task.status}}
-          </mat-chip>
-        </td>
-      </ng-container>
-
-      <!-- Priority Column -->
-      <ng-container matColumnDef="priority">
-        <th mat-header-cell *matHeaderCellDef>Priority</th>
-        <td mat-cell *matCellDef="let task">
-          <mat-chip [color]="getPriorityColor(task.priority)" selected>
-            {{task.priority}}
-          </mat-chip>
-        </td>
-      </ng-container>
-
-      <!-- Assigned To Column -->
-      <ng-container matColumnDef="assignedTo">
-        <th mat-header-cell *matHeaderCellDef>Assigned To</th>
-        <td mat-cell *matCellDef="let task">
-          {{task.assignedTo?.firstName}} {{task.assignedTo?.lastName}}
-        </td>
-      </ng-container>
-
-      <!-- Due Date Column -->
-      <ng-container matColumnDef="dueDate">
-        <th mat-header-cell *matHeaderCellDef>Due Date</th>
-        <td mat-cell *matCellDef="let task">{{task.dueDate | date}}</td>
-      </ng-container>
-
-      <!-- Actions Column -->
-      <ng-container matColumnDef="actions">
-        <th mat-header-cell *matHeaderCellDef>Actions</th>
-        <td mat-cell *matCellDef="let task">
-          <button mat-icon-button [matMenuTriggerFor]="menu">
+  <!-- Main Content Area: Left Panel + Right Sidebar -->
+  <div class="content-layout">
+    <!-- Left Panel: Main Content -->
+    <div class="left-panel">
+      <!-- Title and Actions -->
+      <div class="title-section">
+        <h1 class="project-title">{{ project.name }}</h1>
+        <div class="action-buttons">
+          <button mat-icon-button [matMenuTriggerFor]="actionsMenu" title="More actions">
             <mat-icon>more_vert</mat-icon>
           </button>
-          <mat-menu #menu="matMenu">
-            <button mat-menu-item (click)="onEditTask(task)">
+          <mat-menu #actionsMenu="matMenu">
+            <button mat-menu-item (click)="onEditProject()">
               <mat-icon>edit</mat-icon>
               <span>Edit</span>
             </button>
-            <button mat-menu-item (click)="onDeleteTask(task)">
+            <button mat-menu-item (click)="onDeleteProject()">
               <mat-icon>delete</mat-icon>
               <span>Delete</span>
             </button>
           </mat-menu>
-        </td>
-      </ng-container>
+        </div>
+      </div>
 
-      <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
-      <tr mat-row *matRowDef="let row; columns: displayedColumns;"></tr>
-    </table>
+      <!-- Description Section -->
+      <div class="description-section">
+        <h3 class="section-title">Description</h3>
+        <div class="description-content">
+          <p *ngIf="project.description; else noDescription">{{ project.description }}</p>
+          <ng-template #noDescription>
+            <p class="empty-state">No description provided</p>
+          </ng-template>
+        </div>
+      </div>
+
+      <!-- Tasks Section -->
+      <div class="tasks-section">
+        <div class="tasks-header">
+          <h3 class="section-title">Tasks</h3>
+          <button mat-raised-button color="primary" (click)="onAddTask()" class="add-task-btn">
+            <mat-icon>add</mat-icon>
+            Create Task
+          </button>
+        </div>
+        <div class="tasks-table-container" *ngIf="tasks.length > 0; else noTasks">
+          <table mat-table [dataSource]="tasks" class="tasks-table">
+            <!-- Name Column -->
+            <ng-container matColumnDef="name">
+              <th mat-header-cell *matHeaderCellDef>Task Name</th>
+              <td mat-cell *matCellDef="let task" (click)="onTaskClick(task)" class="clickable task-name">
+                {{ task.name }}
+              </td>
+            </ng-container>
+
+            <!-- Status Column -->
+            <ng-container matColumnDef="status">
+              <th mat-header-cell *matHeaderCellDef>Status</th>
+              <td mat-cell *matCellDef="let task">
+                <mat-chip [color]="getStatusColor(task.status)" selected class="status-chip">
+                  {{ task.status }}
+                </mat-chip>
+              </td>
+            </ng-container>
+
+            <!-- Priority Column -->
+            <ng-container matColumnDef="priority">
+              <th mat-header-cell *matHeaderCellDef>Priority</th>
+              <td mat-cell *matCellDef="let task">
+                <mat-chip [color]="getPriorityColor(task.priority)" selected class="priority-chip">
+                  {{ task.priority }}
+                </mat-chip>
+              </td>
+            </ng-container>
+
+            <!-- Assigned To Column -->
+            <ng-container matColumnDef="assignedTo">
+              <th mat-header-cell *matHeaderCellDef>Assigned To</th>
+              <td mat-cell *matCellDef="let task">
+                {{ task.assignedTo?.firstName }} {{ task.assignedTo?.lastName || 'Unassigned' }}
+              </td>
+            </ng-container>
+
+            <!-- Due Date Column -->
+            <ng-container matColumnDef="dueDate">
+              <th mat-header-cell *matHeaderCellDef>Due Date</th>
+              <td mat-cell *matCellDef="let task">
+                {{ task.dueDate ? (task.dueDate | date) : '-' }}
+              </td>
+            </ng-container>
+
+            <!-- Actions Column -->
+            <ng-container matColumnDef="actions">
+              <th mat-header-cell *matHeaderCellDef></th>
+              <td mat-cell *matCellDef="let task">
+                <button mat-icon-button [matMenuTriggerFor]="taskMenu" (click)="$event.stopPropagation()">
+                  <mat-icon>more_vert</mat-icon>
+                </button>
+                <mat-menu #taskMenu="matMenu">
+                  <button mat-menu-item (click)="onEditTask(task)">
+                    <mat-icon>edit</mat-icon>
+                    <span>Edit</span>
+                  </button>
+                  <button mat-menu-item (click)="onDeleteTask(task)">
+                    <mat-icon>delete</mat-icon>
+                    <span>Delete</span>
+                  </button>
+                </mat-menu>
+              </td>
+            </ng-container>
+
+            <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+            <tr mat-row *matRowDef="let row; columns: displayedColumns;"></tr>
+          </table>
+        </div>
+        <ng-template #noTasks>
+          <div class="empty-tasks">
+            <p>No tasks yet. Create your first task to get started.</p>
+          </div>
+        </ng-template>
+      </div>
+    </div>
+
+    <!-- Right Sidebar: Metadata -->
+    <div class="right-sidebar">
+      <div class="sidebar-section">
+        <h4 class="sidebar-title">Details</h4>
+        
+        <!-- Status -->
+        <div class="sidebar-item">
+          <span class="sidebar-label">Status</span>
+          <div class="sidebar-value">
+            <mat-chip [color]="getStatusColor(project.status)" selected>
+              {{ project.status }}
+            </mat-chip>
+          </div>
+        </div>
+
+        <!-- Department -->
+        <div class="sidebar-item">
+          <span class="sidebar-label">Department</span>
+          <div class="sidebar-value">
+            {{ project.department?.name || project.departmentId || 'Not specified' }}
+          </div>
+        </div>
+
+        <!-- Project Manager -->
+        <div class="sidebar-item">
+          <span class="sidebar-label">Project Manager</span>
+          <div class="sidebar-value">
+            <span *ngIf="project.projectManager">
+              {{ project.projectManager.firstName }} {{ project.projectManager.lastName }}
+            </span>
+            <span *ngIf="!project.projectManager">
+              {{ project.projectManagerId || 'Not assigned' }}
+            </span>
+          </div>
+        </div>
+
+        <!-- Start Date -->
+        <div class="sidebar-item">
+          <span class="sidebar-label">Start Date</span>
+          <div class="sidebar-value">{{ project.startDate | date }}</div>
+        </div>
+
+        <!-- End Date -->
+        <div class="sidebar-item">
+          <span class="sidebar-label">End Date</span>
+          <div class="sidebar-value">
+            {{ project.endDate ? (project.endDate | date) : 'Not set' }}
+          </div>
+        </div>
+
+        <!-- Budget -->
+        <div class="sidebar-item">
+          <span class="sidebar-label">Budget</span>
+          <div class="sidebar-value">{{ project.budget | currency }}</div>
+        </div>
+      </div>
+    </div>
   </div>
 </div>
 
 <!-- Task Details View -->
-<div class="container" *ngIf="type === 'task' && isTask(item) && project">
+<div class="project-details-container" *ngIf="type === 'task' && isTask(item)">
+  <!-- Breadcrumb Navigation -->
   <nav class="breadcrumb-nav">
     <a routerLink="/projects" class="breadcrumb-link">Projects</a>
     <span class="breadcrumb-separator">/</span>
-    <a [routerLink]="['/projects', project.id]" class="breadcrumb-link">{{ project.name }}</a>
-    <span class="breadcrumb-separator">/</span>
+    <a [routerLink]="['/projects', item.projectId]" class="breadcrumb-link" *ngIf="item.projectId">
+      {{ item.projectName || 'Project' }}
+    </a>
+    <span class="breadcrumb-separator" *ngIf="item.projectId">/</span>
     <span class="breadcrumb-current">{{ item.name }}</span>
   </nav>
-  <div class="task-overview">
-    <div class="header">
-      <h1>{{item.name}}</h1>
+
+  <!-- Main Content Area: Left Panel + Right Sidebar -->
+  <div class="content-layout">
+    <!-- Left Panel: Main Content -->
+    <div class="left-panel">
+      <!-- Title and Actions -->
+      <div class="title-section">
+        <h1 class="project-title">{{ item.name }}</h1>
+        <div class="action-buttons">
+          <button mat-icon-button [matMenuTriggerFor]="taskActionsMenu" title="More actions">
+            <mat-icon>more_vert</mat-icon>
+          </button>
+          <mat-menu #taskActionsMenu="matMenu">
+            <button mat-menu-item (click)="onEditTask(item)">
+              <mat-icon>edit</mat-icon>
+              <span>Edit</span>
+            </button>
+            <button mat-menu-item (click)="onDeleteTask(item)">
+              <mat-icon>delete</mat-icon>
+              <span>Delete</span>
+            </button>
+          </mat-menu>
+        </div>
+      </div>
+
+      <!-- Description Section -->
+      <div class="description-section">
+        <h3 class="section-title">Description</h3>
+        <div class="description-content">
+          <p *ngIf="item.description; else noTaskDescription">{{ item.description }}</p>
+          <ng-template #noTaskDescription>
+            <p class="empty-state">No description provided</p>
+          </ng-template>
+        </div>
+      </div>
     </div>
-    <div class="task-details">
-      <div class="detail-row">
-        <div class="detail-item">
-          <h3>Status</h3>
-          <mat-chip [color]="getStatusColor(item.status)" selected>
-            {{item.status}}
-          </mat-chip>
+
+    <!-- Right Sidebar: Metadata -->
+    <div class="right-sidebar">
+      <div class="sidebar-section">
+        <h4 class="sidebar-title">Details</h4>
+        
+        <!-- Status -->
+        <div class="sidebar-item">
+          <span class="sidebar-label">Status</span>
+          <div class="sidebar-value">
+            <mat-chip [color]="getStatusColor(item.status)" selected>
+              {{ item.status }}
+            </mat-chip>
+          </div>
         </div>
-        <div class="detail-item">
-          <h3>Priority</h3>
-          <mat-chip [color]="getPriorityColor(item.priority)" selected>
-            {{item.priority}}
-          </mat-chip>
+
+        <!-- Priority -->
+        <div class="sidebar-item">
+          <span class="sidebar-label">Priority</span>
+          <div class="sidebar-value">
+            <mat-chip [color]="getPriorityColor(item.priority)" selected>
+              {{ item.priority }}
+            </mat-chip>
+          </div>
         </div>
-        <div class="detail-item">
-          <h3>Assigned To</h3>
-          <p>{{item.assignedTo?.firstName}} {{item.assignedTo?.lastName}}</p>
+
+        <!-- Assigned To -->
+        <div class="sidebar-item">
+          <span class="sidebar-label">Assigned To</span>
+          <div class="sidebar-value">
+            <span *ngIf="item.assignedTo">
+              {{ item.assignedTo.firstName }} {{ item.assignedTo.lastName }}
+            </span>
+            <span *ngIf="!item.assignedTo">
+              {{ item.assignedToId || 'Unassigned' }}
+            </span>
+          </div>
         </div>
-      </div>
-      <div class="detail-row">
-        <div class="detail-item">
-          <h3>Start Date</h3>
-          <p>{{item.startDate | date}}</p>
+
+        <!-- Project -->
+        <div class="sidebar-item" *ngIf="item.projectId">
+          <span class="sidebar-label">Project</span>
+          <div class="sidebar-value">
+            <a [routerLink]="['/projects', item.projectId]" class="breadcrumb-link" style="text-decoration: none;">
+              {{ item.projectName || 'Project' }}
+            </a>
+          </div>
         </div>
-        <div class="detail-item">
-          <h3>Due Date</h3>
-          <p>{{item.dueDate | date}}</p>
+
+        <!-- Start Date -->
+        <div class="sidebar-item">
+          <span class="sidebar-label">Start Date</span>
+          <div class="sidebar-value">{{ item.startDate | date }}</div>
         </div>
-        <div class="detail-item">
-          <h3>Completed Date</h3>
-          <p>{{ item.completedDate ? (item.completedDate | date) : 'Not completed' }}</p>
+
+        <!-- Due Date -->
+        <div class="sidebar-item">
+          <span class="sidebar-label">Due Date</span>
+          <div class="sidebar-value">
+            {{ item.dueDate ? (item.dueDate | date) : 'Not set' }}
+          </div>
         </div>
-      </div>
-      <div class="description">
-        <h3>Description</h3>
-        <p>{{item.description}}</p>
+
+        <!-- Completed Date -->
+        <div class="sidebar-item">
+          <span class="sidebar-label">Completed Date</span>
+          <div class="sidebar-value">
+            {{ item.completedDate ? (item.completedDate | date) : 'Not completed' }}
+          </div>
+        </div>
       </div>
     </div>
   </div>
