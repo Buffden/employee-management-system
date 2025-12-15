@@ -12,7 +12,9 @@ public class TaskResponseDTO {
     private LocalDate startDate;
     private LocalDate dueDate;
     private LocalDate completedDate;
+    private UUID projectId; // Project ID for filtering/relationships
     private String projectName; // Denormalized
+    private UUID assignedToId; // Assigned employee ID
     private String assignedToName; // Denormalized (firstName + lastName)
 
     // Getters and setters
@@ -94,6 +96,22 @@ public class TaskResponseDTO {
 
     public void setAssignedToName(String assignedToName) {
         this.assignedToName = assignedToName;
+    }
+
+    public UUID getProjectId() {
+        return projectId;
+    }
+
+    public void setProjectId(UUID projectId) {
+        this.projectId = projectId;
+    }
+
+    public UUID getAssignedToId() {
+        return assignedToId;
+    }
+
+    public void setAssignedToId(UUID assignedToId) {
+        this.assignedToId = assignedToId;
     }
 }
 

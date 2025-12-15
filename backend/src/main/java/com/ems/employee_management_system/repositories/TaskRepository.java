@@ -1,5 +1,6 @@
 package com.ems.employee_management_system.repositories;
 
+import java.util.List;
 import java.util.UUID;
 
 import org.springframework.data.domain.Page;
@@ -38,4 +39,11 @@ public interface TaskRepository extends JpaRepository<Task, UUID> {
     @org.springframework.data.jpa.repository.Modifying
     @org.springframework.data.jpa.repository.Query("DELETE FROM Task t WHERE t.project.id = :projectId")
     void deleteByProjectId(@Param("projectId") UUID projectId);
+
+    /**
+     * Find all tasks for a project
+     * Used when fetching project details to include associated tasks
+     */
+    @Query("SELECT t FROM Task t WHERE t.project.id = :projectId ORDER BY t.startDate DESC, t.name ASC")
+    List<Task> findByProjectId(@Param("projectId") UUID projectId);
 }
