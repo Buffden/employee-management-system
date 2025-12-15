@@ -214,6 +214,16 @@
             </div>
         </div>
         <div class="td-content"
+             *ngSwitchCase="overlayType.ADDTASK">
+            <app-task-form [task]="dialogData"
+                          (taskResponse)="taskFormResponse($event)"></app-task-form>
+        </div>
+        <div class="td-content"
+             *ngSwitchCase="overlayType.EDITTASK">
+            <app-task-form [task]="dialogData"
+                          (taskResponse)="taskFormResponse($event)"></app-task-form>
+        </div>
+        <div class="td-content"
              *ngSwitchCase="overlayType.NODATA">NO-DATA-AVAILABLE-PLACEHOLDER</div>
 
     </div>
