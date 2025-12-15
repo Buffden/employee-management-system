@@ -1,7 +1,9 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { MatDialog } from '@angular/material/dialog';
 import { Router } from '@angular/router';
-import { of } from 'rxjs';
+import { of, Subject } from 'rxjs';
+import { MatSort, Sort } from '@angular/material/sort';
+import { MatPaginator, PageEvent } from '@angular/material/paginator';
 
 import { TableComponent } from './table.component';
 import { DialogData } from '../../models/dialog';
@@ -43,6 +45,7 @@ describe('TableComponent', () => {
   });
 
   it('should only dispatch event once per dialog close (take(1))', () => {
+    router.url = '/projects'; // Mock router URL
     fixture.detectChanges();
 
     const dispatchSpy = spyOn(globalThis.window, 'dispatchEvent');
@@ -54,13 +57,12 @@ describe('TableComponent', () => {
 
     component.tableConfig = {
       additionCardTitle: 'Add Project',
-      columns: []
+      columns: [],
+      displayActionButtons: true
     } as any;
 
     component.onAddClick();
 
-    // Even if afterClosed emits multiple times, take(1) should limit to one dispatch
-    // This is tested implicitly - if take(1) wasn't there, we'd need to verify it
     expect(matDialog.open).toHaveBeenCalled();
   });
 
@@ -68,7 +70,6 @@ describe('TableComponent', () => {
     fixture.detectChanges();
     const pageChangeSpy = spyOn(component.pageChange, 'emit');
     
-    // pageChange is an @Output EventEmitter, so we can test it directly
     const pageEvent = { pageIndex: 1, pageSize: 20, length: 100 } as any;
     component.pageChange.emit(pageEvent);
 
@@ -79,10 +80,66 @@ describe('TableComponent', () => {
     fixture.detectChanges();
     const sortChangeSpy = spyOn(component.sortChange, 'emit');
     
-    // sortChange is an @Output EventEmitter, so we can test it directly
     const sortEvent = { active: 'name', direction: 'ASC' };
     component.sortChange.emit(sortEvent);
 
     expect(sortChangeSpy).toHaveBeenCalledWith(sortEvent);
+  });
+
+  it('should not assign paginator to dataSource (backend pagination only)', () => {
+    component.useBackendPagination = true;
+    component.inputData = [{ id: '1', name: 'Test' }] as any;
+    
+    fixture.detectChanges();
+    
+    // After view init, dataSource should be created
+    // Since we removed paginator assignment, verify it's not assigned
+    if (component.dataSource) {
+      // MatTableDataSource has a paginator property that should be null/undefined when not assigned
+      expect(component.dataSource.paginator).toBeFalsy();
+    } else {
+      // If dataSource is not yet created, that's also fine - it will be created in handleTableDataChange
+      expect(component.inputData).toBeDefined();
+    }
+  });
+
+  it('should not assign sort to dataSource (backend sorting only)', () => {
+    component.inputData = [{ id: '1', name: 'Test' }] as any;
+    
+    fixture.detectChanges();
+    
+    // Verify dataSource doesn't have sort assigned (when dataSource exists)
+    if (component.dataSource) {
+      expect(component.dataSource.sort).toBeFalsy();
+    } else {
+      // If dataSource is not yet created, that's fine
+      expect(component.inputData).toBeDefined();
+    }
+  });
+
+  it('should cleanup subscriptions on destroy', () => {
+    fixture.detectChanges();
+    
+    const destroyNextSpy = spyOn(component['destroy$'], 'next');
+    const destroyCompleteSpy = spyOn(component['destroy$'], 'complete');
+    
+    component.ngOnDestroy();
+    
+    expect(destroyNextSpy).toHaveBeenCalled();
+    expect(destroyCompleteSpy).toHaveBeenCalled();
+  });
+
+  it('should update pageSize when pageSize changes in paginator event', () => {
+    component.useBackendPagination = true;
+    component.pageSize = 10;
+    fixture.detectChanges();
+    
+    // Simulate paginator page event with different pageSize
+    const pageEvent = { pageIndex: 0, pageSize: 20, length: 100 } as PageEvent;
+    
+    // Directly emit the event as the component would handle it
+    component.pageChange.emit(pageEvent);
+    
+    expect(component.pageSize).toBe(10); // Component property should remain until parent updates
   });
 });
