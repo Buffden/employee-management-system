@@ -5,6 +5,9 @@
     [totalElements]="totalElements"
     [useBackendPagination]="true"
     [currentPageIndex]="currentPage"
+    [pageSize]="pageSize"
+    [hasNext]="hasNext"
+    [hasPrevious]="hasPrevious"
     [linkClickHandler]="onLocationNameClick"
     (sortChange)="onSortChange($event)"
     (pageChange)="onPageChange($event)">
