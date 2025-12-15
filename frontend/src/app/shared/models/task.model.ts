@@ -8,6 +8,7 @@ export interface Task {
   dueDate: string;
   completedDate: string | null;
   projectId: string;
+  projectName?: string; // Denormalized project name from backend
   assignedToId: string;
   assignedTo?: {
     id: string;
