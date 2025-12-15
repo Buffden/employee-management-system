@@ -63,7 +63,7 @@ export class EmployeeListComponent implements OnInit, OnDestroy {
     // Load with default sort from config
     if (this.tableConfig.defaultSortColumn) {
       this.currentSortColumn = this.tableConfig.defaultSortColumn;
-      this.currentSortDirection = this.tableConfig.defaultSortDirection || 'ASC';
+      this.currentSortDirection = this.tableConfig.defaultSortDirection === 'desc' ? 'DESC' : 'ASC';
     }
     this.loadEmployees(this.currentPage, this.pageSize, this.currentSortColumn, this.currentSortDirection);
     
@@ -179,14 +179,16 @@ export class EmployeeListComponent implements OnInit, OnDestroy {
   }
 
   onPageChange(pageEvent: PageEvent): void {
-    this.currentPage = pageEvent.pageIndex;
+    // Reset to first page if page size changed
+    const pageSizeChanged = this.pageSize !== pageEvent.pageSize;
+    this.currentPage = pageSizeChanged ? 0 : pageEvent.pageIndex;
     this.pageSize = pageEvent.pageSize;
     this.loadEmployees(this.currentPage, this.pageSize, this.currentSortColumn, this.currentSortDirection);
   }
 
   onSortChange(sortEvent: { active: string; direction: string }): void {
     this.currentSortColumn = sortEvent.active;
-    this.currentSortDirection = sortEvent.direction;
+    this.currentSortDirection = sortEvent.direction === 'ASC' || sortEvent.direction === 'asc' ? 'ASC' : 'DESC';
     // Reset to first page when sorting changes
     this.currentPage = 0;
     this.loadEmployees(this.currentPage, this.pageSize, this.currentSortColumn, this.currentSortDirection);

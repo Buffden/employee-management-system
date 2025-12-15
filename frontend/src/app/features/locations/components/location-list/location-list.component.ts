@@ -32,6 +32,10 @@ export class LocationListComponent implements OnInit, OnDestroy {
   pageSize = 10;
   totalElements = 0;
   totalPages = 0;
+  hasNext = false;
+  hasPrevious = false;
+  currentSortColumn = '';
+  currentSortDirection = 'ASC';
   private isRefreshing = false; // Guard to prevent duplicate refresh calls
   private locationAddedHandler?: () => void; // Store handler reference for cleanup
 
@@ -109,14 +113,16 @@ export class LocationListComponent implements OnInit, OnDestroy {
 
   ngOnInit(): void {
     // Load with default sort from config
-    const defaultSortColumn = this.tableConfig.defaultSortColumn;
-    const defaultSortDir = this.tableConfig.defaultSortDirection === 'desc' ? 'DESC' : 'ASC';
-    this.loadLocations(0, this.pageSize, defaultSortColumn, defaultSortDir);
+    if (this.tableConfig.defaultSortColumn) {
+      this.currentSortColumn = this.tableConfig.defaultSortColumn;
+      this.currentSortDirection = this.tableConfig.defaultSortDirection === 'desc' ? 'DESC' : 'ASC';
+    }
+    this.loadLocations(0, this.pageSize, this.currentSortColumn, this.currentSortDirection);
     
     // Listen only for add operations from table component (edit/delete handled by afterClosed())
     // Store handler reference so we can remove it later
     this.locationAddedHandler = () => {
-      this.loadLocations(this.currentPage, this.pageSize);
+      this.loadLocations(this.currentPage, this.pageSize, this.currentSortColumn, this.currentSortDirection);
     };
     
     globalThis.window.addEventListener('locationAdded', this.locationAddedHandler);
@@ -138,6 +144,8 @@ export class LocationListComponent implements OnInit, OnDestroy {
         this.pageSize = response.size || 10;
         this.totalElements = response.totalElements || 0;
         this.totalPages = response.totalPages || 0;
+        this.hasNext = response.hasNext ?? false;
+        this.hasPrevious = response.hasPrevious ?? false;
         
         this.tableData = this.locations?.map(loc => ({
           ...loc,
@@ -156,14 +164,20 @@ export class LocationListComponent implements OnInit, OnDestroy {
   }
 
   onSortChange(event: { active: string; direction: string }): void {
-    const sortDir = event.direction === 'ASC' || event.direction === 'asc' ? 'ASC' : 'DESC';
-    this.loadLocations(this.currentPage, this.pageSize, event.active, sortDir);
+    this.currentSortColumn = event.active;
+    this.currentSortDirection = event.direction === 'ASC' || event.direction === 'asc' ? 'ASC' : 'DESC';
+    // Reset to first page when sorting changes
+    this.currentPage = 0;
+    this.loadLocations(this.currentPage, this.pageSize, this.currentSortColumn, this.currentSortDirection);
   }
 
   onPageChange(event: { pageIndex: number; pageSize: number }): void {
-    this.currentPage = event.pageIndex;
+    // Reset to first page if page size changed
+    const pageSizeChanged = this.pageSize !== event.pageSize;
+    this.currentPage = pageSizeChanged ? 0 : event.pageIndex;
     this.pageSize = event.pageSize;
-    this.loadLocations(this.currentPage, this.pageSize);
+    // Use current sort settings when loading
+    this.loadLocations(this.currentPage, this.pageSize, this.currentSortColumn, this.currentSortDirection);
   }
 }
 

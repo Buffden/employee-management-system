@@ -32,6 +32,8 @@ export class ProjectListComponent implements OnInit, OnDestroy {
   pageSize = 10;
   totalElements = 0;
   totalPages = 0;
+  currentSortColumn = '';
+  currentSortDirection = 'ASC';
   filters: Record<string, FilterOption[]> = {}; // Store filters from paginated response
   private isRefreshing = false; // Guard to prevent duplicate refresh calls
   private projectAddedHandler?: () => void; // Store handler reference for cleanup
@@ -87,7 +89,7 @@ export class ProjectListComponent implements OnInit, OnDestroy {
       this.isRefreshing = true;
       
       // Refresh the project list after update or delete
-      this.loadProjects(this.currentPage, this.pageSize);
+      this.loadProjects(this.currentPage, this.pageSize, this.currentSortColumn, this.currentSortDirection);
       
       // Reset flag after a short delay to allow the refresh to complete
       setTimeout(() => {
@@ -110,9 +112,11 @@ export class ProjectListComponent implements OnInit, OnDestroy {
 
   ngOnInit(): void {
     // Load with default sort from config
-    const defaultSortColumn = this.tableConfig.defaultSortColumn;
-    const defaultSortDir = this.tableConfig.defaultSortDirection === 'desc' ? 'DESC' : 'ASC';
-    this.loadProjects(0, this.pageSize, defaultSortColumn, defaultSortDir);
+    if (this.tableConfig.defaultSortColumn) {
+      this.currentSortColumn = this.tableConfig.defaultSortColumn;
+      this.currentSortDirection = this.tableConfig.defaultSortDirection === 'desc' ? 'DESC' : 'ASC';
+    }
+    this.loadProjects(0, this.pageSize, this.currentSortColumn, this.currentSortDirection);
     
     // Listen only for add operations from table component (edit/delete handled by afterClosed())
     // Store handler reference so we can remove it later
@@ -124,10 +128,8 @@ export class ProjectListComponent implements OnInit, OnDestroy {
       this.isRefreshing = true;
       
       // Refresh the project list after create operation
-      // Use current sort settings if available
-      const defaultSortColumn = this.tableConfig.defaultSortColumn;
-      const defaultSortDir = this.tableConfig.defaultSortDirection === 'desc' ? 'DESC' : 'ASC';
-      this.loadProjects(this.currentPage, this.pageSize, defaultSortColumn, defaultSortDir);
+      // Use current sort settings
+      this.loadProjects(this.currentPage, this.pageSize, this.currentSortColumn, this.currentSortDirection);
       
       // Reset flag after a short delay to allow the refresh to complete
       setTimeout(() => {
@@ -195,13 +197,19 @@ export class ProjectListComponent implements OnInit, OnDestroy {
   }
 
   onSortChange(event: { active: string; direction: string }): void {
-    const sortDir = event.direction === 'ASC' || event.direction === 'asc' ? 'ASC' : 'DESC';
-    this.loadProjects(this.currentPage, this.pageSize, event.active, sortDir);
+    this.currentSortColumn = event.active;
+    this.currentSortDirection = event.direction === 'ASC' || event.direction === 'asc' ? 'ASC' : 'DESC';
+    // Reset to first page when sorting changes
+    this.currentPage = 0;
+    this.loadProjects(this.currentPage, this.pageSize, this.currentSortColumn, this.currentSortDirection);
   }
 
   onPageChange(event: { pageIndex: number; pageSize: number }): void {
-    this.currentPage = event.pageIndex;
+    // Reset to first page if page size changed
+    const pageSizeChanged = this.pageSize !== event.pageSize;
+    this.currentPage = pageSizeChanged ? 0 : event.pageIndex;
     this.pageSize = event.pageSize;
-    this.loadProjects(this.currentPage, this.pageSize);
+    // Use current sort settings when loading
+    this.loadProjects(this.currentPage, this.pageSize, this.currentSortColumn, this.currentSortDirection);
   }
 }
