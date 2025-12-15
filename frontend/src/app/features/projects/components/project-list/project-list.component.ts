@@ -36,15 +36,13 @@ export class ProjectListComponent implements OnInit, OnDestroy {
   private isRefreshing = false; // Guard to prevent duplicate refresh calls
   private projectAddedHandler?: () => void; // Store handler reference for cleanup
 
-  // Custom handler for project name click - opens edit dialog
+  // Custom handler for project name click - navigates to project details page
   onProjectNameClick = (row: TableCellData, colKey: string) => {
     if (colKey === 'name') {
-      // Check if user has permission to edit (Admin or Department Manager)
-      if (this.canEditProject()) {
-        this.openEditDialog(row as unknown as Project);
-      } else {
-        // If no edit permission, just show details view
-        this.openViewDialog(row as unknown as Project);
+      const project = row as unknown as Project;
+      if (project?.id) {
+        // Navigate to project details page
+        this.router.navigate(['/projects', project.id]);
       }
     }
   };

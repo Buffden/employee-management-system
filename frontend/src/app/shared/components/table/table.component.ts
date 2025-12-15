@@ -293,7 +293,11 @@ export class TableComponent implements OnChanges, AfterViewInit {
     return !this.dataSource?.data?.length;
   }
 
-  handleLinkClick(row: TableCellData, colKey: string): void {
+  handleLinkClick(row: TableCellData, colKey: string, event?: Event): void {
+    if (event) {
+      event.preventDefault();
+      event.stopPropagation();
+    }
     if (this.linkClickHandler) {
       this.linkClickHandler(row, colKey);
     } else {
