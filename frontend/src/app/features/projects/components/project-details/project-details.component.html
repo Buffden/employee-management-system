@@ -42,83 +42,83 @@
       </div>
 
       <!-- Tasks Section -->
-      <div class="tasks-section">
+  <div class="tasks-section">
         <div class="tasks-header">
           <h3 class="section-title">Tasks</h3>
           <button mat-raised-button color="primary" (click)="onAddTask()" class="add-task-btn">
-            <mat-icon>add</mat-icon>
+        <mat-icon>add</mat-icon>
             Create Task
-          </button>
-        </div>
+      </button>
+    </div>
         <div class="tasks-table-container" *ngIf="tasks.length > 0; else noTasks">
           <table mat-table [dataSource]="tasks" class="tasks-table">
-            <!-- Name Column -->
-            <ng-container matColumnDef="name">
-              <th mat-header-cell *matHeaderCellDef>Task Name</th>
+      <!-- Name Column -->
+      <ng-container matColumnDef="name">
+        <th mat-header-cell *matHeaderCellDef>Task Name</th>
               <td mat-cell *matCellDef="let task" (click)="onTaskClick(task)" class="clickable task-name">
                 {{ task.name }}
-              </td>
-            </ng-container>
+        </td>
+      </ng-container>
 
-            <!-- Status Column -->
-            <ng-container matColumnDef="status">
-              <th mat-header-cell *matHeaderCellDef>Status</th>
-              <td mat-cell *matCellDef="let task">
+      <!-- Status Column -->
+      <ng-container matColumnDef="status">
+        <th mat-header-cell *matHeaderCellDef>Status</th>
+        <td mat-cell *matCellDef="let task">
                 <mat-chip [color]="getStatusColor(task.status)" selected class="status-chip">
                   {{ task.status }}
-                </mat-chip>
-              </td>
-            </ng-container>
+          </mat-chip>
+        </td>
+      </ng-container>
 
-            <!-- Priority Column -->
-            <ng-container matColumnDef="priority">
-              <th mat-header-cell *matHeaderCellDef>Priority</th>
-              <td mat-cell *matCellDef="let task">
+      <!-- Priority Column -->
+      <ng-container matColumnDef="priority">
+        <th mat-header-cell *matHeaderCellDef>Priority</th>
+        <td mat-cell *matCellDef="let task">
                 <mat-chip [color]="getPriorityColor(task.priority)" selected class="priority-chip">
                   {{ task.priority }}
-                </mat-chip>
-              </td>
-            </ng-container>
+          </mat-chip>
+        </td>
+      </ng-container>
 
-            <!-- Assigned To Column -->
-            <ng-container matColumnDef="assignedTo">
-              <th mat-header-cell *matHeaderCellDef>Assigned To</th>
-              <td mat-cell *matCellDef="let task">
+      <!-- Assigned To Column -->
+      <ng-container matColumnDef="assignedTo">
+        <th mat-header-cell *matHeaderCellDef>Assigned To</th>
+        <td mat-cell *matCellDef="let task">
                 {{ task.assignedTo?.firstName }} {{ task.assignedTo?.lastName || 'Unassigned' }}
-              </td>
-            </ng-container>
+        </td>
+      </ng-container>
 
-            <!-- Due Date Column -->
-            <ng-container matColumnDef="dueDate">
-              <th mat-header-cell *matHeaderCellDef>Due Date</th>
+      <!-- Due Date Column -->
+      <ng-container matColumnDef="dueDate">
+        <th mat-header-cell *matHeaderCellDef>Due Date</th>
               <td mat-cell *matCellDef="let task">
                 {{ task.dueDate ? (task.dueDate | date) : '-' }}
               </td>
-            </ng-container>
+      </ng-container>
 
-            <!-- Actions Column -->
-            <ng-container matColumnDef="actions">
+      <!-- Actions Column -->
+      <ng-container matColumnDef="actions">
               <th mat-header-cell *matHeaderCellDef></th>
-              <td mat-cell *matCellDef="let task">
+        <td mat-cell *matCellDef="let task">
                 <button mat-icon-button [matMenuTriggerFor]="taskMenu" (click)="$event.stopPropagation()">
-                  <mat-icon>more_vert</mat-icon>
-                </button>
+            <mat-icon>more_vert</mat-icon>
+          </button>
                 <mat-menu #taskMenu="matMenu">
-                  <button mat-menu-item (click)="onEditTask(task)">
-                    <mat-icon>edit</mat-icon>
-                    <span>Edit</span>
-                  </button>
-                  <button mat-menu-item (click)="onDeleteTask(task)">
-                    <mat-icon>delete</mat-icon>
-                    <span>Delete</span>
-                  </button>
-                </mat-menu>
-              </td>
-            </ng-container>
+            <button mat-menu-item (click)="onEditTask(task)">
+              <mat-icon>edit</mat-icon>
+              <span>Edit</span>
+            </button>
+            <button mat-menu-item (click)="onDeleteTask(task)">
+              <mat-icon>delete</mat-icon>
+              <span>Delete</span>
+            </button>
+          </mat-menu>
+        </td>
+      </ng-container>
 
-            <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
-            <tr mat-row *matRowDef="let row; columns: displayedColumns;"></tr>
-          </table>
+      <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+      <tr mat-row *matRowDef="let row; columns: displayedColumns;"></tr>
+    </table>
         </div>
         <ng-template #noTasks>
           <div class="empty-tasks">
@@ -246,9 +246,9 @@
         <div class="sidebar-item">
           <span class="sidebar-label">Status</span>
           <div class="sidebar-value">
-            <mat-chip [color]="getStatusColor(item.status)" selected>
+          <mat-chip [color]="getStatusColor(item.status)" selected>
               {{ item.status }}
-            </mat-chip>
+          </mat-chip>
           </div>
         </div>
 
@@ -256,9 +256,9 @@
         <div class="sidebar-item">
           <span class="sidebar-label">Priority</span>
           <div class="sidebar-value">
-            <mat-chip [color]="getPriorityColor(item.priority)" selected>
+          <mat-chip [color]="getPriorityColor(item.priority)" selected>
               {{ item.priority }}
-            </mat-chip>
+          </mat-chip>
           </div>
         </div>
 
@@ -282,8 +282,8 @@
             <a [routerLink]="['/projects', item.projectId]" class="breadcrumb-link" style="text-decoration: none;">
               {{ item.projectName || 'Project' }}
             </a>
-          </div>
         </div>
+      </div>
 
         <!-- Start Date -->
         <div class="sidebar-item">

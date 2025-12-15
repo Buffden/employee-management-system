@@ -186,7 +186,7 @@ export class ProjectDetailsComponent implements OnInit {
           error: (error) => {
             console.error('Error deleting task:', error);
             alert('Failed to delete task. Please try again.');
-          }
+    }
         });
       }
     });
