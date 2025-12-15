@@ -10,6 +10,8 @@ export enum overlayType {
     EDITDEPARTMENT = 'editDepartment',
     ADDPROJECT = 'addProject',
     EDITPROJECT = 'editProject',
+    ADDTASK = 'addTask',
+    EDITTASK = 'editTask',
     ADDLOCATION = 'addLocation',
     EDITLOCATION = 'editLocation',
     DISPLAYEMPLOYEE = 'displayEmployee',

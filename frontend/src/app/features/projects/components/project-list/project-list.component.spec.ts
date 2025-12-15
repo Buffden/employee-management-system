@@ -82,13 +82,30 @@ describe('ProjectListComponent', () => {
     expect(component.totalElements).toBe(1);
   });
 
-  it('should handle sort change', () => {
+  it('should initialize with default sort from config', () => {
     fixture.detectChanges();
+
+    expect(component.currentSortColumn).toBe('name');
+    expect(component.currentSortDirection).toBe('ASC');
+    expect(projectService.queryProjects).toHaveBeenCalledWith(
+      0,
+      10,
+      'name',
+      'ASC'
+    );
+  });
+
+  it('should handle sort change and reset to page 0', () => {
+    fixture.detectChanges();
+    component.currentPage = 2; // Simulate being on page 2
     projectService.queryProjects.calls.reset();
     projectService.queryProjects.and.returnValue(of(mockPaginatedResponse));
 
     component.onSortChange({ active: 'name', direction: 'DESC' });
 
+    expect(component.currentSortColumn).toBe('name');
+    expect(component.currentSortDirection).toBe('DESC');
+    expect(component.currentPage).toBe(0); // Should reset to page 0
     expect(projectService.queryProjects).toHaveBeenCalledWith(
       0,
       10,
@@ -97,8 +114,26 @@ describe('ProjectListComponent', () => {
     );
   });
 
-  it('should handle page change', () => {
+  it('should normalize sort direction to uppercase', () => {
     fixture.detectChanges();
+    projectService.queryProjects.calls.reset();
+    projectService.queryProjects.and.returnValue(of(mockPaginatedResponse));
+
+    component.onSortChange({ active: 'name', direction: 'asc' }); // lowercase
+
+    expect(component.currentSortDirection).toBe('ASC');
+    expect(projectService.queryProjects).toHaveBeenCalledWith(
+      0,
+      10,
+      'name',
+      'ASC'
+    );
+  });
+
+  it('should handle page change and preserve sort state', () => {
+    fixture.detectChanges();
+    component.currentSortColumn = 'name';
+    component.currentSortDirection = 'DESC';
     projectService.queryProjects.calls.reset();
     projectService.queryProjects.and.returnValue(of(mockPaginatedResponse));
 
@@ -106,7 +141,33 @@ describe('ProjectListComponent', () => {
 
     expect(component.currentPage).toBe(1);
     expect(component.pageSize).toBe(20);
-    expect(projectService.queryProjects).toHaveBeenCalled();
+    expect(projectService.queryProjects).toHaveBeenCalledWith(
+      1,
+      20,
+      'name',
+      'DESC' // Should preserve sort state
+    );
+  });
+
+  it('should reset to page 0 when page size changes', () => {
+    fixture.detectChanges();
+    component.currentPage = 2;
+    component.pageSize = 10;
+    component.currentSortColumn = 'name';
+    component.currentSortDirection = 'ASC';
+    projectService.queryProjects.calls.reset();
+    projectService.queryProjects.and.returnValue(of(mockPaginatedResponse));
+
+    component.onPageChange({ pageIndex: 2, pageSize: 25 }); // pageSize changed
+
+    expect(component.currentPage).toBe(0); // Should reset to page 0
+    expect(component.pageSize).toBe(25);
+    expect(projectService.queryProjects).toHaveBeenCalledWith(
+      0,
+      25,
+      'name',
+      'ASC' // Should preserve sort state
+    );
   });
 
   it('should cleanup event listener on destroy', () => {

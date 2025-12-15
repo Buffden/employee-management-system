@@ -1,0 +1,113 @@
+<div class="form-container">
+    <form [formGroup]="taskForm"
+          (ngSubmit)="onSubmit()">
+        
+        <!-- Task Name -->
+        <mat-form-field appearance="outline">
+            <mat-label>Task Name</mat-label>
+            <input matInput
+                   formControlName="name"
+                   placeholder="Enter task name"
+                   required />
+            <mat-error *ngIf="isFieldInvalid('name')">
+                Task name is required
+            </mat-error>
+        </mat-form-field>
+
+        <!-- Description -->
+        <mat-form-field appearance="outline">
+            <mat-label>Description</mat-label>
+            <textarea matInput
+                      formControlName="description"
+                      placeholder="Enter task description"
+                      rows="4"></textarea>
+        </mat-form-field>
+
+        <!-- Status -->
+        <mat-form-field appearance="outline">
+            <mat-label>Status</mat-label>
+            <mat-select formControlName="status" required>
+                <mat-option *ngFor="let status of taskStatuses" [value]="status">
+                    {{ status }}
+                </mat-option>
+            </mat-select>
+            <mat-error *ngIf="isFieldInvalid('status')">
+                Status is required
+            </mat-error>
+        </mat-form-field>
+
+        <!-- Priority -->
+        <mat-form-field appearance="outline">
+            <mat-label>Priority</mat-label>
+            <mat-select formControlName="priority" required>
+                <mat-option *ngFor="let priority of taskPriorities" [value]="priority">
+                    {{ priority }}
+                </mat-option>
+            </mat-select>
+            <mat-error *ngIf="isFieldInvalid('priority')">
+                Priority is required
+            </mat-error>
+        </mat-form-field>
+
+        <!-- Start Date -->
+        <mat-form-field appearance="outline">
+            <mat-label>Start Date</mat-label>
+            <input matInput
+                   type="date"
+                   formControlName="startDate"
+                   required />
+            <mat-error *ngIf="isFieldInvalid('startDate')">
+                Start date is required
+            </mat-error>
+        </mat-form-field>
+
+        <!-- Due Date -->
+        <mat-form-field appearance="outline">
+            <mat-label>Due Date (Optional)</mat-label>
+            <input matInput
+                   type="date"
+                   formControlName="dueDate" />
+        </mat-form-field>
+
+        <!-- Assigned To (Employee Typeahead) -->
+        <app-typeahead
+            [formControl]="$any(taskForm.get('assignedToId'))"
+            [config]="employeeTypeaheadConfig"
+            label="Assigned To"
+            placeholder="Search employees..."
+            [required]="false"
+            [disabled]="isSubmitting">
+        </app-typeahead>
+
+        <!-- Project ID (hidden field, pre-filled) -->
+        <input type="hidden" formControlName="projectId" />
+
+        <div *ngIf="errorMessage" class="error-message">
+            <mat-error>{{ errorMessage }}</mat-error>
+        </div>
+
+        <div class="form-actions">
+            <div class="left-actions">
+                <button mat-raised-button
+                        color="warn"
+                        type="button"
+                        *ngIf="canDeleteTask() && mode === 'edit'"
+                        (click)="onDeleteClick()"
+                        [disabled]="isSubmitting">Delete Task</button>
+            </div>
+            <div class="right-actions">
+                <button mat-raised-button
+                        color="primary"
+                        type="submit"
+                        [disabled]="isSubmitDisabled()">
+                    <span *ngIf="!isSubmitting">{{ submitButtonText() }}</span>
+                    <span *ngIf="isSubmitting">Submitting...</span>
+                </button>
+                <button mat-raised-button
+                        color="basic"
+                        type="button"
+                        (click)="dialogClose()">Cancel</button>
+            </div>
+        </div>
+    </form>
+</div>

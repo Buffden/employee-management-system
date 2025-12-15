@@ -1,3 +1,5 @@
+import { Task } from './task.model';
+
 export interface Project {
   id: string;
   name: string;
@@ -8,6 +10,7 @@ export interface Project {
   budget: number;
   departmentId: string;
   projectManagerId: string;
+  tasks?: Task[]; // Tasks associated with the project
   taskCounts?: {
     open: number;
     inProgress: number;

@@ -73,8 +73,8 @@
                                 <!-- Link -->
                                 <span class="td-content td-link"
                                       *ngSwitchCase="'link'">
-                                    <a (click)="handleLinkClick(row, col.key)"
-                                       href="javascript:void(0)">
+                                    <a (click)="handleLinkClick(row, col.key, $event)"
+                                       style="cursor: pointer; color: #0052cc; text-decoration: none;">
                                         {{ row[col.key] }}
                                     </a>
                                 </span>

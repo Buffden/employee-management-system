@@ -1,4 +1,4 @@
-import { Component, Input, OnChanges, SimpleChanges, ViewChild, Output, EventEmitter, AfterViewInit, ChangeDetectorRef } from '@angular/core';
+import { Component, Input, OnChanges, SimpleChanges, ViewChild, Output, EventEmitter, AfterViewInit, ChangeDetectorRef, OnDestroy } from '@angular/core';
 import { MatTableDataSource, MatTableModule } from '@angular/material/table';
 import { CommonModule } from '@angular/common';
 import { MatPaginator, PageEvent } from '@angular/material/paginator';
@@ -12,7 +12,7 @@ import { OverlayDialogComponent } from '../overlay-dialog/overlay-dialog.compone
 import { SharedModule } from '../../shared.module';
 import { NoDataComponent } from '../no-data/no-data.component';
 import { Router } from '@angular/router';
-import { filter, take } from 'rxjs/operators';
+import { filter, take, takeUntil, Subject, Subscription } from 'rxjs';
 import { EmployeeService } from '../../../features/employees/services/employee.service';
 import { DialogData } from '../../models/dialog';
 import { DepartmentService } from '../../../features/departments/services/department.service';
@@ -35,20 +35,25 @@ export class TableComponent implements OnChanges, AfterViewInit {
   @Input() totalElements = 0; // Total number of elements from backend
   @Input() useBackendPagination = false; // Whether to use backend pagination
   @Input() currentPageIndex = 0; // Current page index from parent
+  @Input() pageSize = 10; // Page size from parent (for backend pagination)
   @Input() filters?: Record<string, FilterOption[]>; // Optional: generic filters from paginated response (e.g., locations, departments, etc.)
+  @Input() hasNext = false; // Whether there's a next page
+  @Input() hasPrevious = false; // Whether there's a previous page
   
   @Output() sortChange = new EventEmitter<{ active: string; direction: string }>();
   @Output() pageChange = new EventEmitter<PageEvent>();
 
   displayedColumns: string[] = [];
   dataSource!: MatTableDataSource<TableCellData>;
-  pageSize = 10;
   pageSizeOptions: number[] = [5, 10, 25, 50];
   dialogRef: MatDialogRef<OverlayDialogComponent> | undefined;
-  useFrontendSorting = false; // Whether to use frontend sorting
 
   @ViewChild(MatPaginator) paginator!: MatPaginator;
   @ViewChild(MatSort, { static: false }) sort!: MatSort;
+
+  private destroy$ = new Subject<void>();
+  private paginatorSubscription?: Subscription;
+  private sortSubscription?: Subscription;
 
   constructor(
     public matDialog: MatDialog,
@@ -67,11 +72,9 @@ export class TableComponent implements OnChanges, AfterViewInit {
       this.handleTableDataChange(changes['inputData'].currentValue);
     }
 
-    if (changes['totalElements'] || changes['pageSize']) {
-      this.updateSortingMode();
-    }
-
-    // currentPageIndex is handled via @Input binding
+    // Note: We rely on template bindings for paginator properties
+    // MatPaginator will automatically calculate button states from [length], [pageIndex], and [pageSize]
+    // All sorting and pagination is handled by backend
   }
 
   ngAfterViewInit(): void {
@@ -81,10 +84,8 @@ export class TableComponent implements OnChanges, AfterViewInit {
     // Use setTimeout to ensure ViewChild is fully initialized after change detection
     setTimeout(() => {
       this.setupSortAndPagination();
-      // Update sorting mode after view init to ensure paginator is available
-      this.updateSortingMode();
       
-      // Initialize default sorting from config if available
+      // Initialize default sorting from config if available (for visual indicators only)
       if (this.tableConfig.defaultSortColumn && this.sort) {
         const sortDirection = this.tableConfig.defaultSortDirection === SortDirection.DESC ? 'desc' : 'asc';
         this.sort.sort({ id: this.tableConfig.defaultSortColumn, start: sortDirection, disableClear: true });
@@ -97,41 +98,31 @@ export class TableComponent implements OnChanges, AfterViewInit {
     }, 0);
   }
 
-  updateSortingMode(): void {
-    // Use frontend sorting if totalElements <= pageSize (all data fits in one page)
-    // Otherwise use backend sorting
-    // Use paginator's pageSize if available, otherwise fall back to config pageSize
-    const currentPageSize = this.paginator?.pageSize || this.pageSize;
-    this.useFrontendSorting = this.totalElements <= currentPageSize;
-    
-    if (this.dataSource && this.sort) {
-      // Always set sort for UI indicators (sort arrows, etc.)
-      // The actual sorting logic is handled differently for frontend vs backend
-      this.dataSource.sort = this.sort;
-    } else if (!this.dataSource || !this.sort) {
-      console.warn('[TableComponent] Cannot set sort - dataSource or sort not available');
-    }
-  }
-
   setupSortAndPagination(): void {
-    if (this.dataSource && this.paginator) {
-      this.dataSource.paginator = this.paginator;
+    // Note: We don't assign paginator/sort to dataSource - all pagination/sorting is handled by backend
+    // MatPaginator and MatSort are only used for UI controls and event emission
+
+    // Unsubscribe from previous subscriptions to prevent duplicates
+    if (this.sortSubscription) {
+      this.sortSubscription.unsubscribe();
+    }
+    if (this.paginatorSubscription) {
+      this.paginatorSubscription.unsubscribe();
     }
 
-    // Only setup sort if it's available - if not, it will be set up when data arrives
+    // Setup sort change listener for backend sorting
     if (this.sort) {
-      // Subscribe to sort changes for backend sorting
-      this.sort.sortChange.subscribe((sort: Sort) => {
+      this.sortSubscription = this.sort.sortChange.pipe(
+        takeUntil(this.destroy$)
+      ).subscribe((sort: Sort) => {
         // Ignore empty string or null sort.active (non-sortable columns)
         if (!sort.active || sort.active.trim() === '') {
           return;
         }
         
-        // Only emit if column is sortable and we're using backend sorting
+        // Emit sort event to parent for backend sorting
         const column = this.tableConfig.columns?.find(col => col.key === sort.active);
-        
-        if (column && column.sortable !== false && !this.useFrontendSorting) {
-          // Emit sort event to parent for backend sorting
+        if (column && column.sortable !== false) {
           this.sortChange.emit({
             active: sort.active,
             direction: sort.direction.toUpperCase()
@@ -140,20 +131,37 @@ export class TableComponent implements OnChanges, AfterViewInit {
       });
     }
 
+    // Setup pagination change listener for backend pagination
     if (this.paginator && this.useBackendPagination) {
-      // Subscribe to pagination changes for backend pagination
-      this.paginator.page.subscribe((pageEvent: PageEvent) => {
-        // Update sorting mode when page size changes (user might change page size)
-        this.updateSortingMode();
+      this.paginatorSubscription = this.paginator.page.pipe(
+        takeUntil(this.destroy$)
+      ).subscribe((pageEvent: PageEvent) => {
+        // Update pageSize in component when it changes
+        if (pageEvent.pageSize !== this.pageSize) {
+          this.pageSize = pageEvent.pageSize;
+        }
+        // Emit page change event to parent (includes both pageIndex and pageSize)
         this.pageChange.emit(pageEvent);
       });
+    }
+  }
+
+  ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
+    
+    if (this.paginatorSubscription) {
+      this.paginatorSubscription.unsubscribe();
+    }
+    if (this.sortSubscription) {
+      this.sortSubscription.unsubscribe();
     }
   }
 
   handleTableConfig(config: TableConfig): void {
     this.addActionColumn();
     this.displayedColumns = config.columns?.map((column: Column) => column.key) || [];
-    this.pageSize = config.pageSize || 10;
+    // pageSize is controlled by @Input from parent (backend pagination)
     this.pageSizeOptions = config.pageSizeOptions ?? defaultTableConfig.pageSizeOptions ?? [];
   }
 
@@ -189,7 +197,6 @@ export class TableComponent implements OnChanges, AfterViewInit {
     // Trigger change detection and use setTimeout to ensure ViewChild is available after data change
     this.cdr.detectChanges();
     setTimeout(() => {
-      this.updateSortingMode();
       this.setupSortAndPagination();
     }, 0);
   }
@@ -293,7 +300,11 @@ export class TableComponent implements OnChanges, AfterViewInit {
     return !this.dataSource?.data?.length;
   }
 
-  handleLinkClick(row: TableCellData, colKey: string): void {
+  handleLinkClick(row: TableCellData, colKey: string, event?: Event): void {
+    if (event) {
+      event.preventDefault();
+      event.stopPropagation();
+    }
     if (this.linkClickHandler) {
       this.linkClickHandler(row, colKey);
     } else {

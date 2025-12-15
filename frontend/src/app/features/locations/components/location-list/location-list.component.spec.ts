@@ -4,28 +4,31 @@ import { RouterTestingModule } from '@angular/router/testing';
 import { MatDialog } from '@angular/material/dialog';
 import { of } from 'rxjs';
 
-import { DepartmentListComponent } from './department-list.component';
-import { DepartmentService } from '../../services/department.service';
+import { LocationListComponent } from './location-list.component';
+import { LocationService } from '../../services/location.service';
 import { PaginatedResponse } from '../../../../shared/models/paginated-response.model';
-import { Department } from '../../../../shared/models/department.model';
+import { Location } from '../../../../shared/models/location.model';
 
-describe('DepartmentListComponent', () => {
-  let component: DepartmentListComponent;
-  let fixture: ComponentFixture<DepartmentListComponent>;
-  let departmentService: jasmine.SpyObj<DepartmentService>;
+describe('LocationListComponent', () => {
+  let component: LocationListComponent;
+  let fixture: ComponentFixture<LocationListComponent>;
+  let locationService: jasmine.SpyObj<LocationService>;
   let matDialog: jasmine.SpyObj<MatDialog>;
 
-  const mockDepartments: Department[] = [
+  const mockLocations: Location[] = [
     {
       id: '1',
-      name: 'Department 1',
-      description: 'Description 1',
-      locationId: 'loc1'
-    } as Department
+      name: 'Location 1',
+      address: '123 Main St',
+      city: 'City',
+      state: 'State',
+      country: 'Country',
+      zipCode: '12345'
+    } as Location
   ];
 
-  const mockPaginatedResponse: PaginatedResponse<Department> = {
-    content: mockDepartments,
+  const mockPaginatedResponse: PaginatedResponse<Location> = {
+    content: mockLocations,
     totalElements: 1,
     totalPages: 1,
     page: 0,
@@ -37,23 +40,23 @@ describe('DepartmentListComponent', () => {
   };
 
   beforeEach(async () => {
-    const departmentServiceSpy = jasmine.createSpyObj('DepartmentService', ['queryDepartments']);
+    const locationServiceSpy = jasmine.createSpyObj('LocationService', ['queryLocations']);
     const matDialogSpy = jasmine.createSpyObj('MatDialog', ['open']);
 
     await TestBed.configureTestingModule({
-      imports: [DepartmentListComponent, HttpClientTestingModule, RouterTestingModule],
+      imports: [LocationListComponent, HttpClientTestingModule, RouterTestingModule],
       providers: [
-        { provide: DepartmentService, useValue: departmentServiceSpy },
+        { provide: LocationService, useValue: locationServiceSpy },
         { provide: MatDialog, useValue: matDialogSpy }
       ]
     }).compileComponents();
 
-    fixture = TestBed.createComponent(DepartmentListComponent);
+    fixture = TestBed.createComponent(LocationListComponent);
     component = fixture.componentInstance;
-    departmentService = TestBed.inject(DepartmentService) as jasmine.SpyObj<DepartmentService>;
+    locationService = TestBed.inject(LocationService) as jasmine.SpyObj<LocationService>;
     matDialog = TestBed.inject(MatDialog) as jasmine.SpyObj<MatDialog>;
 
-    departmentService.queryDepartments.and.returnValue(of(mockPaginatedResponse));
+    locationService.queryLocations.and.returnValue(of(mockPaginatedResponse));
 
     // Mock dialog ref
     const mockDialogRef = {
@@ -72,7 +75,7 @@ describe('DepartmentListComponent', () => {
 
     expect(component.currentSortColumn).toBe('name');
     expect(component.currentSortDirection).toBe('ASC');
-    expect(departmentService.queryDepartments).toHaveBeenCalledWith(
+    expect(locationService.queryLocations).toHaveBeenCalledWith(
       0,
       10,
       'name',
@@ -80,26 +83,26 @@ describe('DepartmentListComponent', () => {
     );
   });
 
-  it('should load departments on init', () => {
+  it('should load locations on init', () => {
     fixture.detectChanges();
 
-    expect(departmentService.queryDepartments).toHaveBeenCalled();
-    expect(component.departments.length).toBe(1);
+    expect(locationService.queryLocations).toHaveBeenCalled();
+    expect(component.locations.length).toBe(1);
     expect(component.totalElements).toBe(1);
   });
 
   it('should handle sort change and reset to page 0', () => {
     fixture.detectChanges();
     component.currentPage = 2; // Simulate being on page 2
-    departmentService.queryDepartments.calls.reset();
-    departmentService.queryDepartments.and.returnValue(of(mockPaginatedResponse));
+    locationService.queryLocations.calls.reset();
+    locationService.queryLocations.and.returnValue(of(mockPaginatedResponse));
 
     component.onSortChange({ active: 'name', direction: 'DESC' });
 
     expect(component.currentSortColumn).toBe('name');
     expect(component.currentSortDirection).toBe('DESC');
     expect(component.currentPage).toBe(0); // Should reset to page 0
-    expect(departmentService.queryDepartments).toHaveBeenCalledWith(
+    expect(locationService.queryLocations).toHaveBeenCalledWith(
       0,
       10,
       'name',
@@ -109,13 +112,13 @@ describe('DepartmentListComponent', () => {
 
   it('should normalize sort direction to uppercase', () => {
     fixture.detectChanges();
-    departmentService.queryDepartments.calls.reset();
-    departmentService.queryDepartments.and.returnValue(of(mockPaginatedResponse));
+    locationService.queryLocations.calls.reset();
+    locationService.queryLocations.and.returnValue(of(mockPaginatedResponse));
 
     component.onSortChange({ active: 'name', direction: 'asc' }); // lowercase
 
     expect(component.currentSortDirection).toBe('ASC');
-    expect(departmentService.queryDepartments).toHaveBeenCalledWith(
+    expect(locationService.queryLocations).toHaveBeenCalledWith(
       0,
       10,
       'name',
@@ -127,14 +130,15 @@ describe('DepartmentListComponent', () => {
     fixture.detectChanges();
     component.currentSortColumn = 'name';
     component.currentSortDirection = 'DESC';
-    departmentService.queryDepartments.calls.reset();
-    departmentService.queryDepartments.and.returnValue(of(mockPaginatedResponse));
+    locationService.queryLocations.calls.reset();
+    locationService.queryLocations.and.returnValue(of(mockPaginatedResponse));
 
     component.onPageChange({ pageIndex: 1, pageSize: 20 });
 
     expect(component.currentPage).toBe(1);
     expect(component.pageSize).toBe(20);
-    expect(departmentService.queryDepartments).toHaveBeenCalledWith(
+    // Verify service was called with correct sort parameters
+    expect(locationService.queryLocations).toHaveBeenCalledWith(
       1,
       20,
       'name',
@@ -148,14 +152,15 @@ describe('DepartmentListComponent', () => {
     component.pageSize = 10;
     component.currentSortColumn = 'name';
     component.currentSortDirection = 'ASC';
-    departmentService.queryDepartments.calls.reset();
-    departmentService.queryDepartments.and.returnValue(of(mockPaginatedResponse));
+    locationService.queryLocations.calls.reset();
+    locationService.queryLocations.and.returnValue(of(mockPaginatedResponse));
 
     component.onPageChange({ pageIndex: 2, pageSize: 25 }); // pageSize changed
 
     expect(component.currentPage).toBe(0); // Should reset to page 0
     expect(component.pageSize).toBe(25);
-    expect(departmentService.queryDepartments).toHaveBeenCalledWith(
+    // Verify service was called with correct sort parameters
+    expect(locationService.queryLocations).toHaveBeenCalledWith(
       0,
       25,
       'name',
@@ -170,6 +175,6 @@ describe('DepartmentListComponent', () => {
 
     component.ngOnDestroy();
 
-    expect(removeEventListenerSpy).toHaveBeenCalledWith('departmentAdded', jasmine.any(Function));
+    expect(removeEventListenerSpy).toHaveBeenCalledWith('locationAdded', jasmine.any(Function));
   });
 });
