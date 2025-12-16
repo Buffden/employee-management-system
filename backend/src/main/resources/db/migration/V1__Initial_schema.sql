@@ -1,0 +1,3 @@
+-- This file is a placeholder for initial schema
+-- If you have existing tables, Flyway will baseline from current state
+-- New migrations should be numbered sequentially: V2__, V3__, etc.
