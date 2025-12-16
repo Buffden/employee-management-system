@@ -33,3 +33,8 @@ export interface RefreshTokenRequest {
   refreshToken: string;
 }
 
+export interface ActivateAccountRequest {
+  token: string;
+  password: string; // will be hashed before sending
+}
+

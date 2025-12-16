@@ -5,7 +5,7 @@ import { Observable, BehaviorSubject, tap, catchError, throwError, from } from '
 import { switchMap } from 'rxjs/operators';
 import { Router } from '@angular/router';
 import { environment } from '../../../environments/environment';
-import { LoginRequest, RegisterRequest, AuthResponse, RefreshTokenRequest, User } from '../../shared/models/auth.model';
+import { LoginRequest, RegisterRequest, AuthResponse, RefreshTokenRequest, User, ActivateAccountRequest } from '../../shared/models/auth.model';
 import { hashPassword } from '../utils/hash.util';
 import { UserRole } from '../../shared/models/user-role.enum';
 
@@ -93,6 +93,27 @@ export class AuthService {
           }),
           catchError(error => {
             console.error('Login error:', error);
+            return throwError(() => error);
+          })
+        );
+      })
+    );
+  }
+
+  /**
+   * Activate user account using invite token
+   * Hashes password before sending to backend
+   */
+  activateAccount(token: string, password: string): Observable<void> {
+    return from(hashPassword(password)).pipe(
+      switchMap(hashedPassword => {
+        const request: ActivateAccountRequest = {
+          token: token,
+          password: hashedPassword
+        };
+        return this.http.post<void>(`${this.API_URL}/activate`, request).pipe(
+          catchError(error => {
+            console.error('Activation error:', error);
             return throwError(() => error);
           })
         );
