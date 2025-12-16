@@ -123,8 +123,7 @@ public class ProjectController {
     }
 
     @GetMapping("/{id}")
-    @PreAuthorize("hasAnyRole('" + RoleConstants.SYSTEM_ADMIN + "', '" + RoleConstants.HR_MANAGER + "', '" + RoleConstants.DEPARTMENT_MANAGER + "') or " +
-                  "(hasRole('" + RoleConstants.EMPLOYEE + "') and @securityService.isProjectAssignedToUser(#id))")
+    @PreAuthorize("hasAnyRole('" + RoleConstants.SYSTEM_ADMIN + "', '" + RoleConstants.HR_MANAGER + "', '" + RoleConstants.DEPARTMENT_MANAGER + "', '" + RoleConstants.EMPLOYEE + "')")
     public ResponseEntity<ProjectResponseDTO> getById(@PathVariable UUID id) {
         logger.debug("Fetching project with id: {}", id);
         Project project = projectService.getById(id);

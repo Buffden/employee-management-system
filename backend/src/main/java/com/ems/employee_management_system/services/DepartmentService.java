@@ -35,6 +35,16 @@ public class DepartmentService {
         logger.debug("Fetching departments with pagination: page={}, size={}", pageable.getPageNumber(), pageable.getPageSize());
         String role = securityService.getCurrentUserRole();
         UUID departmentId = securityService.getCurrentUserDepartmentId();
+        
+        // For SYSTEM_ADMIN, HR_MANAGER, and EMPLOYEE, we can use findAll() for simplicity
+        // This avoids potential query issues and is more performant
+        // Employees can view all departments (view-only access, edit/delete still restricted)
+        if ("SYSTEM_ADMIN".equals(role) || "HR_MANAGER".equals(role) || "EMPLOYEE".equals(role)) {
+            logger.debug("Using findAll() for {} role", role);
+            return departmentRepository.findAll(pageable);
+        }
+        
+        // For other roles (e.g., DEPARTMENT_MANAGER), use role-based filtering
         return departmentRepository.findAllFilteredByRole(role, departmentId, pageable);
     }
 

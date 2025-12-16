@@ -88,11 +88,20 @@ docker-compose ps
 
 ## Environment Variables
 
-All credentials must be set in `../db/.env`:
-- `DB_HOST` - Database host
-- `DB_PORT` - Database port
+All credentials and configuration must be set in `../db/.env`:
+
+### Required (Database)
+- `DB_HOST` - Database host (default: postgres for Docker)
+- `DB_PORT` - Database port (default: 5432 for Docker)
 - `DB_NAME` - Database name
 - `DB_USER` - Database username
 - `DB_PWD` - Database password
 
-No hardcoded credentials are used.
+### Optional (Application)
+- `FRONTEND_BASE_URL` - Frontend base URL for email links (default: http://localhost)
+- `EMAIL_SERVICE_PROVIDER` - Email service: 'sendgrid' or 'demo' (default: demo)
+- `EMAIL_SENDGRID_API_KEY` - SendGrid API key (required if using SendGrid)
+- `EMAIL_SENDGRID_FROM_EMAIL` - Verified sender email (required if using SendGrid)
+- `EMAIL_SENDGRID_FROM_NAME` - Sender display name (default: Employee Management System)
+
+See `../db/.env.example` for a complete template. All values use environment variables with sensible defaults - no hardcoded credentials are used.

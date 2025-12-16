@@ -87,7 +87,7 @@ public class DepartmentController {
     }
 
     @PostMapping
-    @PreAuthorize("hasAnyRole('" + RoleConstants.SYSTEM_ADMIN + "', '" + RoleConstants.HR_MANAGER + "', '" + RoleConstants.DEPARTMENT_MANAGER + "')")
+    @PreAuthorize("hasAnyRole('" + RoleConstants.SYSTEM_ADMIN + "', '" + RoleConstants.HR_MANAGER + "', '" + RoleConstants.DEPARTMENT_MANAGER + "', '" + RoleConstants.EMPLOYEE + "')")
     public ResponseEntity<PaginatedResponseDTO<DepartmentResponseDTO>> query(@RequestBody DepartmentQueryRequestDTO queryRequest) {
         logger.debug("Querying departments with pagination: page={}, size={}, sortBy={}, sortDir={}", 
                 queryRequest.getPage(), queryRequest.getSize(), queryRequest.getSortBy(), queryRequest.getSortDir());

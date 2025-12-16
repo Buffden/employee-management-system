@@ -29,8 +29,19 @@ services:
     env_file:
       - ../db/.env
     environment:
+      # Override DB_HOST and DB_PORT for Docker (use service name, not localhost)
       - DB_HOST=postgres
       - DB_PORT=5432
+      # Use DB credentials from .env file
+      - DB_NAME=${DB_NAME}
+      - DB_USER=${DB_USER}
+      - DB_PWD=${DB_PWD}
+      # Application configuration from .env with defaults
+      - FRONTEND_BASE_URL=${FRONTEND_BASE_URL:-http://localhost}
+      - EMAIL_SERVICE_PROVIDER=${EMAIL_SERVICE_PROVIDER:-demo}
+      - EMAIL_SENDGRID_API_KEY=${EMAIL_SENDGRID_API_KEY:-}
+      - EMAIL_SENDGRID_FROM_EMAIL=${EMAIL_SENDGRID_FROM_EMAIL:-}
+      - EMAIL_SENDGRID_FROM_NAME=${EMAIL_SENDGRID_FROM_NAME:-Employee Management System}
     # No port exposure - only accessible via nginx/gateway
     depends_on:
       postgres:

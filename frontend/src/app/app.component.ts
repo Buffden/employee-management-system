@@ -1,7 +1,8 @@
-import { Component, OnInit } from '@angular/core';
-import { RouterOutlet } from '@angular/router';
+import { Component, OnInit, Inject, PLATFORM_ID } from '@angular/core';
+import { RouterOutlet, Router } from '@angular/router';
 import { HeaderComponent } from "./features/header/header.component";
 import { AuthService } from './core/services/auth.service';
+import { isPlatformBrowser } from '@angular/common';
 
 @Component({
   selector: 'app-root',
@@ -11,12 +12,23 @@ import { AuthService } from './core/services/auth.service';
   styleUrls: ['./app.component.css'],
 })
 export class AppComponent implements OnInit {
-  title: string = 'Employee Management System GUI';
 
-  constructor(private readonly authService: AuthService) {}
+  constructor(
+    private readonly authService: AuthService,
+    private readonly router: Router,
+    @Inject(PLATFORM_ID) private readonly platformId: object
+  ) {}
 
   ngOnInit(): void {
-    // Initialize auth service - this will check token expiration and refresh if needed
-    // The service handles initialization in its constructor
+    // Fix for router URL mismatch on initial load (e.g., /activate not recognized)
+    // This handles cases where the browser URL doesn't match the router's initial state
+    if (isPlatformBrowser(this.platformId)) {
+      const browserPath = globalThis.location.pathname;
+      const browserSearch = globalThis.location.search;
+      if (browserPath === '/activate' && this.router.url === '/') {
+        // Router didn't recognize the /activate route on initial load, manually navigate
+        this.router.navigateByUrl(browserPath + browserSearch);
+      }
+    }
   }
 }

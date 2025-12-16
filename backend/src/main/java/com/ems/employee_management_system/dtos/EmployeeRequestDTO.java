@@ -57,6 +57,9 @@ public class EmployeeRequestDTO {
     @PositiveOrZero(message = "Experience years must be positive or zero")
     private Integer experienceYears;
 
+    // Optional: provision user account and send invite
+    private boolean grantAccess = false;
+
     // Getters and setters
     public String getFirstName() {
         return firstName;
@@ -168,6 +171,14 @@ public class EmployeeRequestDTO {
 
     public void setExperienceYears(Integer experienceYears) {
         this.experienceYears = experienceYears;
+    }
+
+    public boolean isGrantAccess() {
+        return grantAccess;
+    }
+
+    public void setGrantAccess(boolean grantAccess) {
+        this.grantAccess = grantAccess;
     }
 }
 

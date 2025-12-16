@@ -51,6 +51,15 @@ public class ProjectService {
             return org.springframework.data.domain.Page.empty(pageable);
         }
         
+        // For SYSTEM_ADMIN, HR_MANAGER, and EMPLOYEE, we can use findAll() for simplicity
+        // This avoids potential query issues and is more performant
+        // Employees can view all projects (view-only access, edit/delete still restricted)
+        if ("SYSTEM_ADMIN".equals(role) || "HR_MANAGER".equals(role) || "EMPLOYEE".equals(role)) {
+            logger.debug("Using findAll() for {} role", role);
+            return projectRepository.findAll(pageable);
+        }
+        
+        // For other roles (e.g., DEPARTMENT_MANAGER), use role-based filtering
         Page<Project> result = projectRepository.findAllFilteredByRole(role, departmentId, userId, pageable);
         logger.debug("Found {} projects for role: {}", result.getTotalElements(), role);
         return result;

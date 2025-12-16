@@ -19,6 +19,7 @@ import com.ems.employee_management_system.models.User;
 import com.ems.employee_management_system.repositories.UserRepository;
 import com.ems.employee_management_system.utils.HashUtil;
 import com.ems.employee_management_system.enums.UserRole;
+import com.ems.employee_management_system.enums.UserStatus;
 
 @Service
 public class AuthService {
@@ -133,9 +134,13 @@ public class AuthService {
         
         // Password from frontend is already hashed (SHA-256), but stored password is double-hashed (frontend hash + BCrypt)
         // Verify password: stored password = BCrypt(frontend_hash), provided password = frontend_hash
-        // So we check: BCrypt.matches(frontend_hash, BCrypt(frontend_hash))
         if (!passwordEncoder.matches(hashedPassword, user.getPassword())) {
             throw new RuntimeException("Invalid credentials");
+        }
+
+        // Only ACTIVE users can log in
+        if (user.getStatus() != null && user.getStatus() != UserStatus.ACTIVE) {
+            throw new RuntimeException("User not active");
         }
         
         // Update last login

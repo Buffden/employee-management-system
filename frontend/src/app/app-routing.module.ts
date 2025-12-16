@@ -21,6 +21,14 @@ export const routes: Routes = [
         (m) => m.LoginComponent
       ),
   },
+  // Activate account route (public)
+  {
+    path: 'activate',
+    loadComponent: () =>
+      import('./features/auth/components/activate/activate.component').then(
+        (m) => m.ActivateComponent
+      ),
+  },
   // Register route (System Admin only)
   {
     path: 'register',

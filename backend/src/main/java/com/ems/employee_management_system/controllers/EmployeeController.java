@@ -9,6 +9,7 @@ import java.util.stream.Collectors;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -32,6 +33,7 @@ import com.ems.employee_management_system.models.Location;
 import com.ems.employee_management_system.services.DepartmentService;
 import com.ems.employee_management_system.services.EmployeeService;
 import com.ems.employee_management_system.services.LocationService;
+import com.ems.employee_management_system.services.AccountProvisioningService;
 import com.ems.employee_management_system.utils.PaginationUtils;
 import com.ems.employee_management_system.constants.RoleConstants;
 
@@ -46,11 +48,16 @@ public class EmployeeController {
     private final EmployeeService employeeService;
     private final DepartmentService departmentService;
     private final LocationService locationService;
+    private final AccountProvisioningService accountProvisioningService;
 
-    public EmployeeController(EmployeeService employeeService, DepartmentService departmentService, LocationService locationService) {
+    public EmployeeController(EmployeeService employeeService,
+                              DepartmentService departmentService,
+                              LocationService locationService,
+                              AccountProvisioningService accountProvisioningService) {
         this.employeeService = employeeService;
         this.departmentService = departmentService;
         this.locationService = locationService;
+        this.accountProvisioningService = accountProvisioningService;
     }
 
     @PostMapping
@@ -175,7 +182,24 @@ public class EmployeeController {
         Employee employee = EmployeeMapper.toEntity(requestDTO, department, location, manager);
         Employee savedEmployee = employeeService.save(employee);
         logger.info("Employee created successfully with id: {}", savedEmployee.getId());
-        return ResponseEntity.status(HttpStatus.CREATED).body(EmployeeMapper.toResponseDTO(savedEmployee));
+
+        HttpHeaders headers = new HttpHeaders();
+        if (requestDTO.isGrantAccess()) {
+            try {
+                String inviteToken = accountProvisioningService.provisionUserForEmployee(savedEmployee);
+                if (inviteToken != null && !inviteToken.isEmpty()) {
+                    headers.add("X-Invite-Token", inviteToken); // Returned for demo mode consumers
+                }
+            } catch (Exception ex) {
+                logger.error("Failed to provision access for employee {}: {}", savedEmployee.getEmail(), ex.getMessage());
+                // Do not fail employee creation; optionally expose error
+                headers.add("X-Invite-Error", "Failed to provision access");
+            }
+        }
+
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .headers(headers)
+                .body(EmployeeMapper.toResponseDTO(savedEmployee));
     }
 
     @PutMapping("/{id}")

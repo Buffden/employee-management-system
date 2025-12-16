@@ -55,6 +55,11 @@ export class EmployeeFormComponent implements OnInit {
   ) { }
 
   ngOnInit() {
+    // Set mode from dialog data
+    if (this.employee?.config?.mode) {
+      this.mode = this.employee.config.mode;
+    }
+    
     this.initForm();
     this.initManagerTypeaheadConfig();
     
@@ -218,6 +223,7 @@ export class EmployeeFormComponent implements OnInit {
       joiningDate: ['', Validators.required],
       locationId: ['', Validators.required],
       departmentId: ['', Validators.required],
+      grantAccess: [false],
       managerId: [''],
       performanceRating: [null as number | null, Validators.min(0)],
       workLocation: ['', Validators.maxLength(200)],
@@ -273,6 +279,7 @@ export class EmployeeFormComponent implements OnInit {
       joiningDate: (formValue['joiningDate'] || '').trim(),
       locationId: (formValue['locationId'] || '').trim() || null,
       departmentId: (formValue['departmentId'] || '').trim() || null,
+      grantAccess: formValue['grantAccess'] || false,
     };
 
     // Optional fields
@@ -348,6 +355,7 @@ export class EmployeeFormComponent implements OnInit {
       joiningDate: (formValue['joiningDate'] || '').trim(),
       locationId: (formValue['locationId'] || '').trim() || null,
       departmentId: (formValue['departmentId'] || '').trim() || null,
+      grantAccess: formValue['grantAccess'] || false,
     };
 
     // Optional fields
