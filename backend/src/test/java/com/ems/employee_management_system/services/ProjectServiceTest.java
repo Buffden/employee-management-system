@@ -227,7 +227,8 @@ class ProjectServiceTest {
         when(securityService.getCurrentUserRole()).thenReturn("SYSTEM_ADMIN");
         when(securityService.getCurrentUserDepartmentId()).thenReturn(null);
         when(securityService.getCurrentUserEmployeeId()).thenReturn(null);
-        when(projectRepository.findAllFilteredByRole(anyString(), any(), any(), eq(pageable)))
+        // SYSTEM_ADMIN role now uses findAll() instead of findAllFilteredByRole
+        when(projectRepository.findAll(pageable))
             .thenReturn(expectedPage);
 
         // Act
