@@ -59,9 +59,10 @@ public class EmployeeService {
         }
         
         try {
-            // For SYSTEM_ADMIN and HR_MANAGER, we can use findAll() for simplicity
+            // For SYSTEM_ADMIN, HR_MANAGER, and EMPLOYEE, we can use findAll() for simplicity
             // This avoids potential query issues and is more performant
-            if ("SYSTEM_ADMIN".equals(role) || "HR_MANAGER".equals(role)) {
+            // Employees can view all employees (view-only access, edit/delete still restricted)
+            if ("SYSTEM_ADMIN".equals(role) || "HR_MANAGER".equals(role) || "EMPLOYEE".equals(role)) {
                 logger.debug("Using findAll() for {} role", role);
                 return employeeRepository.findAll(pageable);
             }
