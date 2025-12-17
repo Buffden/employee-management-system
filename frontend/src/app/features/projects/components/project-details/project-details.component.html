@@ -147,7 +147,7 @@
         <div class="sidebar-item">
           <span class="sidebar-label">Department</span>
           <div class="sidebar-value">
-            {{ project.department?.name || project.departmentId || 'Not specified' }}
+            {{ project.department?.name || 'Not specified' }}
           </div>
         </div>
 
@@ -159,7 +159,7 @@
               {{ project.projectManager.firstName }} {{ project.projectManager.lastName }}
             </span>
             <span *ngIf="!project.projectManager">
-              {{ project.projectManagerId || 'Not assigned' }}
+              Not assigned
             </span>
           </div>
         </div>

@@ -148,7 +148,7 @@ class ProjectServiceTest {
     @Test
     void testGetById_ProjectExists_ReturnsProject() {
         // Arrange
-        when(projectRepository.findById(projectId)).thenReturn(Optional.of(testProject));
+        when(projectRepository.findByIdWithRelationships(projectId)).thenReturn(Optional.of(testProject));
 
         // Act
         Project result = projectService.getById(projectId);
@@ -162,7 +162,7 @@ class ProjectServiceTest {
     @Test
     void testGetById_ProjectNotFound_ReturnsNull() {
         // Arrange
-        when(projectRepository.findById(projectId)).thenReturn(Optional.empty());
+        when(projectRepository.findByIdWithRelationships(projectId)).thenReturn(Optional.empty());
 
         // Act
         Project result = projectService.getById(projectId);
@@ -227,8 +227,8 @@ class ProjectServiceTest {
         when(securityService.getCurrentUserRole()).thenReturn("SYSTEM_ADMIN");
         when(securityService.getCurrentUserDepartmentId()).thenReturn(null);
         when(securityService.getCurrentUserEmployeeId()).thenReturn(null);
-        // SYSTEM_ADMIN role now uses findAll() instead of findAllFilteredByRole
-        when(projectRepository.findAll(pageable))
+        // SYSTEM_ADMIN role now uses findAllWithRelationships() to eagerly load relationships
+        when(projectRepository.findAllWithRelationships(pageable))
             .thenReturn(expectedPage);
 
         // Act

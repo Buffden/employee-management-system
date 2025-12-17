@@ -35,7 +35,7 @@ pipeline {
             steps {
                 echo 'Building the application...'
                 dir('backend') {
-                    sh 'mvn clean package -DskipTests'
+                    sh 'mvn clean package'
                 }
             }
         }

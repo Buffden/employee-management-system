@@ -14,6 +14,10 @@
                 <div class="right-generic-buttons">
                     <button class="buttons"
                             *ngIf="tableConfig.allowAddButton"
+                            [disabled]="!canAddItem()"
+                            [matTooltip]="getAddButtonTooltip()"
+                            [matTooltipDisabled]="canAddItem()"
+                            [ngClass]="{'buttons--disabled': !canAddItem()}"
                             (click)="onAddClick()">{{tableConfig.additionCardTitle}} + </button>
                     <button class="buttons"
                             [ngClass]="{'generic-buttons--no-data': noData()}"

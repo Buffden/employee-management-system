@@ -46,7 +46,7 @@ jobs:
       - name: Build application
         working-directory: ./backend
         run: |
-          mvn clean package -DskipTests
+          mvn clean package
 
   frontend-test:
     name: Frontend Tests

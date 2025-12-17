@@ -51,6 +51,16 @@
     border-radius: 8px;
     font-weight: 500;
   }
+
+  .buttons--disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  .buttons:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
   /* Table Header */
   .table-header {
     display: flex;

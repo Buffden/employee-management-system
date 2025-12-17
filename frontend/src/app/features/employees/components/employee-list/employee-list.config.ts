@@ -27,6 +27,8 @@ export const employeeListConfig: TableConfig = {
     allowGenericButtons: true,
     allowExport: true,
     allowAddButton: true,
+    allowedRolesForAdd: ['SYSTEM_ADMIN', 'HR_MANAGER'],
+    addButtonTooltip: 'This feature is only available for System Admins and HR Managers',
     allowCustomize: true,
     allowFiltering: true,
     defaultSortColumn: 'firstName',

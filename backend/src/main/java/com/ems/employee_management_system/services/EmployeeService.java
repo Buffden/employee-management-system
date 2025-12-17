@@ -59,25 +59,25 @@ public class EmployeeService {
         }
         
         try {
-            // For SYSTEM_ADMIN, HR_MANAGER, and EMPLOYEE, we can use findAll() for simplicity
-            // This avoids potential query issues and is more performant
+            // For SYSTEM_ADMIN, HR_MANAGER, and EMPLOYEE, use findAllWithRelationships to eagerly load relationships
+            // This ensures department, location, and manager are available for mapping to DTOs
             // Employees can view all employees (view-only access, edit/delete still restricted)
             if ("SYSTEM_ADMIN".equals(role) || "HR_MANAGER".equals(role) || "EMPLOYEE".equals(role)) {
-                logger.debug("Using findAll() for {} role", role);
-                return employeeRepository.findAll(pageable);
+                logger.debug("Using findAllWithRelationships() for {} role", role);
+                return employeeRepository.findAllWithRelationships(pageable);
             }
             
-            // For other roles, use role-based filtering
+            // For other roles, use role-based filtering with relationships
             return employeeRepository.findAllFilteredByRole(role, departmentId, userId, pageable);
         } catch (Exception e) {
             logger.error("Error fetching employees with role-based filtering: {}", e.getMessage(), e);
             logger.error("Stack trace: ", e);
-            // Fallback to findAll() if role-based query fails (for debugging)
-            logger.warn("Falling back to findAll() due to error");
+            // Fallback to findAllWithRelationships if role-based query fails (for debugging)
+            logger.warn("Falling back to findAllWithRelationships() due to error");
             try {
-                return employeeRepository.findAll(pageable);
+                return employeeRepository.findAllWithRelationships(pageable);
             } catch (Exception fallbackError) {
-                logger.error("Fallback findAll() also failed: {}", fallbackError.getMessage(), fallbackError);
+                logger.error("Fallback findAllWithRelationships() also failed: {}", fallbackError.getMessage(), fallbackError);
                 throw new RuntimeException("Failed to fetch employees: " + e.getMessage(), e);
             }
         }
@@ -90,7 +90,7 @@ public class EmployeeService {
 
     public Employee getById(UUID id) {
         logger.debug("Fetching employee with id: {}", id);
-        return employeeRepository.findById(id).orElse(null);
+        return employeeRepository.findByIdWithRelationships(id).orElse(null);
     }
 
     /**
