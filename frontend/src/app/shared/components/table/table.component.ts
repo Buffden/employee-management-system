@@ -36,6 +36,7 @@ export class TableComponent implements OnChanges, AfterViewInit, OnDestroy {
   @Input() editActionHandler?: (row: TableCellData) => void; // Optional: handler for edit action from parent
   @Input() deleteActionHandler?: (row: TableCellData) => void; // Optional: handler for delete action from parent
   @Input() returnToPage?: string; // Optional: return page for dialogs (e.g., 'employees', 'departments')
+  @Input() loading = false; // Loading state for showing spinner
   
   @Output() sortChange = new EventEmitter<{ active: string; direction: string }>();
   @Output() pageChange = new EventEmitter<PageEvent>();

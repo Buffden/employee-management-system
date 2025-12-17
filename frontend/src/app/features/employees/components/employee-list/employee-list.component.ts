@@ -37,6 +37,7 @@ export class EmployeeListComponent implements OnInit, OnDestroy {
   currentSortColumn = '';
   currentSortDirection = 'ASC';
   filters: Record<string, FilterOption[]> = {}; // Store filters from paginated response
+  loading = false; // Loading state for table spinner
   private isRefreshing = false; // Guard to prevent duplicate refresh calls
   private employeeAddedHandler?: () => void; // Store handler reference for cleanup
 
@@ -180,6 +181,7 @@ export class EmployeeListComponent implements OnInit, OnDestroy {
   }
 
   loadEmployees(page = 0, size = 10, sortBy?: string, sortDir = 'ASC'): void {
+    this.loading = true;
     this.employeeService.queryEmployees(page, size, sortBy, sortDir).subscribe({
       next: (response: PaginatedResponse<Employee>) => {
         this.employees = response.content || [];
@@ -210,9 +212,11 @@ export class EmployeeListComponent implements OnInit, OnDestroy {
           workLocation: emp.workLocation || '',
           experienceYears: emp.experienceYears || 0
         }));
+        this.loading = false;
       },
       error: () => {
         // Error handling - error details are already logged by the service
+        this.loading = false;
       }
     });
   }

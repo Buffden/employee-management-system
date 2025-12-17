@@ -36,6 +36,7 @@ export class ProjectListComponent implements OnInit, OnDestroy {
   currentSortColumn = '';
   currentSortDirection = 'ASC';
   filters: Record<string, FilterOption[]> = {}; // Store filters from paginated response
+  loading = false; // Loading state for table spinner
   private isRefreshing = false; // Guard to prevent duplicate refresh calls
   private projectAddedHandler?: () => void; // Store handler reference for cleanup
 
@@ -142,6 +143,7 @@ export class ProjectListComponent implements OnInit, OnDestroy {
   }
 
   loadProjects(page = 0, size = 10, sortBy?: string, sortDir = 'ASC'): void {
+    this.loading = true;
     this.projectService.queryProjects(page, size, sortBy, sortDir).subscribe({
       next: (response: PaginatedResponse<Project>) => {
         console.log('Project query response:', response);
@@ -180,9 +182,11 @@ export class ProjectListComponent implements OnInit, OnDestroy {
           departmentHeadId: '',
           totalEmployees: 0
         }));
+        this.loading = false;
       },
       error: () => {
         // Error handled by global error handler or service
+        this.loading = false;
       }
     });
   }

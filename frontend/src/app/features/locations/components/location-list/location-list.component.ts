@@ -37,6 +37,7 @@ export class LocationListComponent implements OnInit, OnDestroy {
   hasPrevious = false;
   currentSortColumn = '';
   currentSortDirection = 'ASC';
+  loading = false; // Loading state for table spinner
   private isRefreshing = false; // Guard to prevent duplicate refresh calls
   private locationAddedHandler?: () => void; // Store handler reference for cleanup
 
@@ -136,6 +137,7 @@ export class LocationListComponent implements OnInit, OnDestroy {
   }
 
   loadLocations(page = 0, size = 10, sortBy?: string, sortDir = 'ASC'): void {
+    this.loading = true;
     this.locationService.queryLocations(page, size, sortBy, sortDir).subscribe({
       next: (response: PaginatedResponse<Location>) => {
         this.locations = response.content || [];
@@ -155,9 +157,11 @@ export class LocationListComponent implements OnInit, OnDestroy {
           address: loc.address || '',
           postalCode: loc.postalCode || '',
         }));
+        this.loading = false;
       },
       error: () => {
         // Error handled by global error handler or service
+        this.loading = false;
       }
     });
   }

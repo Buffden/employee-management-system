@@ -24,7 +24,13 @@
                             *ngIf="tableConfig.allowExport">Export Table</button>
                 </div>
             </div>
-            <div *ngIf="!noData(); else noDataTemplate"
+            <!-- Loading Spinner -->
+            <div *ngIf="loading" class="table-loading-overlay">
+                <mat-spinner diameter="50"></mat-spinner>
+                <p class="loading-text">Loading...</p>
+            </div>
+
+            <div *ngIf="!loading && !noData(); else noDataTemplate"
                  class="table-wrapper">
                 <table mat-table
                        [dataSource]="dataSource"
@@ -120,11 +126,11 @@
             </div>
             <!--Enhancement: Shift to a dedicated component-->
             <mat-paginator [pageSize]="pageSize"
-                           *ngIf="!noData()"
+                           *ngIf="!loading && !noData()"
                            [pageSizeOptions]="pageSizeOptions"
                            [length]="useBackendPagination ? totalElements : (dataSource.data.length || 0)"
                            [pageIndex]="useBackendPagination ? currentPageIndex : undefined"
-                           [disabled]="false"
+                           [disabled]="loading"
                            aria-label="Select page">
             </mat-paginator>
         </div>

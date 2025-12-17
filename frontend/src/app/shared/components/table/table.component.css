@@ -221,11 +221,11 @@
 }
 
 .td-actions .action-btn--delete {
-    color: #d32f2f;
+    color: #666666;
 }
 
 .td-actions .action-btn--delete:hover {
-    background-color: rgba(211, 47, 47, 0.1);
+    background-color: rgba(102, 102, 102, 0.1);
 }
 
 /* Default styling */
@@ -239,6 +239,23 @@
   display: flex;
   justify-content: center;
   align-items: center;
+}
+
+/* Loading Spinner Overlay */
+.table-loading-overlay {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  min-height: 400px;
+  padding: 40px;
+  position: relative;
+}
+
+.loading-text {
+  margin-top: 16px;
+  color: #666;
+  font-size: 14px;
 }
 
 /* Optional: Responsive tweaks */

@@ -35,6 +35,7 @@ export class DepartmentListComponent implements OnInit, OnDestroy {
   currentSortColumn = '';
   currentSortDirection = 'ASC';
   filters: Record<string, FilterOption[]> = {}; // Store filters from paginated response
+  loading = false; // Loading state for table spinner
   private isRefreshing = false; // Guard to prevent duplicate refresh calls
   private departmentAddedHandler?: () => void; // Store handler reference for cleanup
 
@@ -123,6 +124,7 @@ export class DepartmentListComponent implements OnInit, OnDestroy {
   }
 
   loadDepartments(page = 0, size = 10, sortBy?: string, sortDir = 'ASC'): void {
+    this.loading = true;
     this.departmentService.queryDepartments(page, size, sortBy, sortDir).subscribe({
       next: (response: PaginatedResponse<Department>) => {
         console.log('Department query response:', response);
@@ -149,9 +151,11 @@ export class DepartmentListComponent implements OnInit, OnDestroy {
           performanceMetric: dept.performanceMetric || 0,
           departmentHeadName: dept.departmentHeadName || 'Not assigned'
         }));
+        this.loading = false;
       },
       error: () => {
         // Error handled by global error handler or service
+        this.loading = false;
       }
     });
   }
