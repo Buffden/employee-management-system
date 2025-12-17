@@ -35,8 +35,8 @@ public interface DepartmentRepository extends JpaRepository<Department, UUID> {
     // Simplified query: return all departments for authorized roles
     // Role-based filtering is handled at the controller level via @PreAuthorize
     // This matches the location repository pattern for consistency
-    // Uses JOIN FETCH to eagerly load location and departmentHead relationships
-    @Query("SELECT DISTINCT d FROM Department d LEFT JOIN FETCH d.location LEFT JOIN FETCH d.departmentHead")
+    // Note: Cannot use JOIN FETCH with Pageable and parameters, so relationships are loaded separately if needed
+    @Query("SELECT d FROM Department d")
     Page<Department> findAllFilteredByRole(@Param("role") String role,
                                            @Param("departmentId") UUID departmentId,
                                            Pageable pageable);

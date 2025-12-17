@@ -22,9 +22,7 @@ public interface ProjectRepository extends JpaRepository<Project, UUID> {
     Optional<Project> findByIdWithRelationships(@Param("id") UUID id);
 
     @Query("""
-        SELECT DISTINCT p FROM Project p
-        LEFT JOIN FETCH p.department
-        LEFT JOIN FETCH p.projectManager
+        SELECT p FROM Project p
         WHERE (:role = 'SYSTEM_ADMIN' OR :role = 'HR_MANAGER')
            OR (:role = 'DEPARTMENT_MANAGER' AND :departmentId IS NOT NULL AND p.department IS NOT NULL AND p.department.id = :departmentId)
            OR (:role = 'EMPLOYEE' AND :userId IS NOT NULL AND EXISTS (

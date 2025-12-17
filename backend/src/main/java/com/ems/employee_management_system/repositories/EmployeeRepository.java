@@ -23,10 +23,7 @@ public interface EmployeeRepository extends JpaRepository<Employee, UUID> {
     Optional<Employee> findByIdWithRelationships(@Param("id") UUID id);
 
     @Query("""
-        SELECT DISTINCT e FROM Employee e
-        LEFT JOIN FETCH e.department
-        LEFT JOIN FETCH e.location
-        LEFT JOIN FETCH e.manager
+        SELECT e FROM Employee e
         WHERE (:role = 'SYSTEM_ADMIN' OR :role = 'HR_MANAGER')
            OR (:role = 'DEPARTMENT_MANAGER' AND :departmentId IS NOT NULL AND e.department IS NOT NULL AND e.department.id = :departmentId)
            OR (:role = 'EMPLOYEE' AND :userId IS NOT NULL AND e.id = :userId)
