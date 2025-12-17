@@ -173,13 +173,11 @@ export class ProjectListComponent implements OnInit, OnDestroy {
           endDate: project.endDate || '',
           status: project.status || '',
           budget: project.budget || 0,
-          departmentId: project.departmentId || '',
-          projectManagerId: project.projectManagerId || '',
           // Map additional fields for table display
-          department: project.department?.name || project.departmentId || '',
+          department: project.department?.name || 'Not specified',
           projectManager: project.projectManager 
             ? `${project.projectManager.firstName} ${project.projectManager.lastName}`.trim()
-            : project.projectManagerId || '',
+            : 'Not assigned',
           // Fill in required TableCellData fields
           locationName: '',
           locationId: '',

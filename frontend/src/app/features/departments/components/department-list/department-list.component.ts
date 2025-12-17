@@ -156,12 +156,11 @@ export class DepartmentListComponent implements OnInit, OnDestroy {
           name: dept.name,
           description: dept.description || '',
           locationName: dept.locationName || '',
-          locationId: dept.locationId || '',
           createdAt: dept.createdAt || '',
           budget: dept.budget || 0,
           budgetUtilization: dept.budgetUtilization || 0,
           performanceMetric: dept.performanceMetric || 0,
-          departmentHeadId: dept.departmentHeadId || ''
+          departmentHeadName: dept.departmentHeadName || 'Not assigned'
         }));
       },
       error: () => {
