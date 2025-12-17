@@ -13,7 +13,6 @@ export const locationListConfig: TableConfig = {
         { key: 'country', header: 'Country', sortable: true, type: ColumnType.TEXT },
         { key: 'address', header: 'Address', sortable: false, type: ColumnType.TEXT },
         { key: 'postalCode', header: 'Postal Code', sortable: true, type: ColumnType.TEXT },
-        { key: 'id', header: 'ID', sortable: true, type: ColumnType.TEXT },
     ],
     pageSize: 10,
     pageSizeOptions: [5, 10, 25, 50, 100],
@@ -22,6 +21,8 @@ export const locationListConfig: TableConfig = {
     editController: overlayType.EDITLOCATION,
     allowGenericButtons: true,
     allowAddButton: true,
+    allowedRolesForAdd: ['SYSTEM_ADMIN', 'HR_MANAGER'],
+    addButtonTooltip: 'This feature is only available for System Admins and HR Managers',
     allowCustomize: true,
     allowExport: true,
     allowFiltering: true, // Allow filtering on location table
