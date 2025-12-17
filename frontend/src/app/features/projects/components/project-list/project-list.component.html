@@ -7,6 +7,9 @@
     [currentPageIndex]="currentPage"
     [pageSize]="pageSize"
     [linkClickHandler]="onProjectNameClick"
+    [editActionHandler]="onEditAction"
+    [deleteActionHandler]="onDeleteAction"
+    [returnToPage]="'projects'"
     [filters]="filters"
     (sortChange)="onSortChange($event)"
     (pageChange)="onPageChange($event)">
