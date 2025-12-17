@@ -1,5 +1,5 @@
-// Jira-style Project Details Layout
-.project-details-container {
+// Jira-style Department Details Layout
+.department-details-container {
   max-width: 1400px;
   margin: 0 auto;
   padding: 24px;
@@ -22,13 +22,13 @@
     
     &:hover {
       text-decoration: underline;
+    }
   }
-}
 
   .breadcrumb-separator {
     margin: 0 8px;
     color: #6b778c;
-}
+  }
 
   .breadcrumb-current {
     font-weight: 500;
@@ -61,14 +61,14 @@
   padding-bottom: 16px;
   border-bottom: 1px solid #dfe1e6;
 
-  .project-title {
+  .department-title {
     font-size: 24px;
-  font-weight: 500;
+    font-weight: 500;
     color: #172b4d;
     margin: 0;
     flex: 1;
     line-height: 1.5;
-}
+  }
 
   .action-buttons {
     margin-left: 16px;
@@ -88,7 +88,7 @@
   margin-bottom: 32px;
 
   .description-content {
-  background: #f4f5f7;
+    background: #f4f5f7;
     border-radius: 3px;
     padding: 16px;
     min-height: 60px;
@@ -98,7 +98,7 @@
       color: #172b4d;
       line-height: 1.6;
       white-space: pre-wrap;
-}
+    }
 
     .empty-state {
       color: #6b778c;
@@ -107,33 +107,22 @@
   }
 }
 
-// Tasks Section
-.tasks-section {
-.tasks-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
+// Employees Section
+.employees-section {
+  .employees-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
     margin-bottom: 16px;
 
-    .add-task-btn {
-      mat-icon {
-        margin-right: 4px;
-      }
-
-      &--disabled {
-        opacity: 0.5;
-        cursor: not-allowed;
-      }
-
-      &:disabled {
-        opacity: 0.5;
-        cursor: not-allowed;
-      }
+    .employee-count {
+      font-size: 14px;
+      color: #6b778c;
     }
-}
+  }
 
-  .tasks-table-container {
-    .tasks-table {
+  .employees-table-container {
+    .employees-table {
       width: 100%;
       background: #ffffff;
 
@@ -141,24 +130,18 @@
         cursor: pointer;
         color: #0052cc;
 
-    &:hover {
-      text-decoration: underline;
-    }
-  }
+        &:hover {
+          text-decoration: underline;
+        }
+      }
 
-      .task-name {
+      .employee-name {
         font-weight: 500;
       }
-
-      .status-chip,
-      .priority-chip {
-        font-size: 12px;
-        height: 24px;
-      }
     }
   }
 
-  .empty-tasks {
+  .empty-employees {
     background: #f4f5f7;
     border-radius: 3px;
     padding: 32px;
@@ -236,3 +219,4 @@
     max-height: none;
   }
 }
+

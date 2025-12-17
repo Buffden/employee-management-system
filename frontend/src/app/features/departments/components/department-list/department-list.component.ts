@@ -14,6 +14,7 @@ import { OverlayDialogComponent } from '../../../../shared/components/overlay-di
 import { DialogData, overlayType } from '../../../../shared/models/dialog';
 import { AuthService } from '../../../../core/services/auth.service';
 import { filter, take } from 'rxjs/operators';
+import { ConfirmationDialogComponent } from '../../../../shared/components/confirmation-dialog/confirmation-dialog.component';
 
 @Component({
   selector: 'app-department-list',
@@ -34,19 +35,14 @@ export class DepartmentListComponent implements OnInit, OnDestroy {
   currentSortColumn = '';
   currentSortDirection = 'ASC';
   filters: Record<string, FilterOption[]> = {}; // Store filters from paginated response
+  loading = false; // Loading state for table spinner
   private isRefreshing = false; // Guard to prevent duplicate refresh calls
   private departmentAddedHandler?: () => void; // Store handler reference for cleanup
 
-  // Custom handler for department name click - opens edit dialog
+  // Custom handler for department name click - navigates to department details page
   onDepartmentNameClick = (row: TableCellData, colKey: string) => {
-    if (colKey === 'name') {
-      // Check if user has permission to edit (HR Manager or Admin)
-      if (this.canEditDepartment()) {
-        this.openEditDialog(row as Department);
-      } else {
-        // If no edit permission, just show details view
-        this.openViewDialog(row as Department);
-      }
+    if (colKey === 'name' && row.id) {
+      this.router.navigate(['/departments', row.id]);
     }
   };
 
@@ -59,6 +55,26 @@ export class DepartmentListComponent implements OnInit, OnDestroy {
 
   canEditDepartment(): boolean {
     return this.authService.isAdmin() || this.authService.isHRManager();
+  }
+
+  ngOnInit(): void {
+    // Enable action buttons for admins and HR managers
+    this.tableConfig.displayActionButtons = this.canEditDepartment();
+    
+    // Load with default sort from config
+    if (this.tableConfig.defaultSortColumn) {
+      this.currentSortColumn = this.tableConfig.defaultSortColumn;
+      this.currentSortDirection = this.tableConfig.defaultSortDirection === 'desc' ? 'DESC' : 'ASC';
+    }
+    this.loadDepartments(this.currentPage, this.pageSize, this.currentSortColumn, this.currentSortDirection);
+    
+    // Listen only for add operations from table component (edit/delete handled by afterClosed())
+    // Store handler reference so we can remove it later
+    this.departmentAddedHandler = () => {
+      this.loadDepartments(this.currentPage, this.pageSize, this.currentSortColumn, this.currentSortDirection);
+    };
+    
+    globalThis.window.addEventListener('departmentAdded', this.departmentAddedHandler);
   }
 
   openEditDialog(department: Department): void {
@@ -98,34 +114,6 @@ export class DepartmentListComponent implements OnInit, OnDestroy {
     });
   }
 
-  openViewDialog(department: Department): void {
-    this.matDialog.open(OverlayDialogComponent, {
-      width: '850px',
-      data: {
-        title: this.tableConfig.detailsCardTitle,
-        content: department,
-        viewController: overlayType.DISPLAYDEPARTMENT,
-        config: this.tableConfig
-      } as DialogData
-    });
-  }
-
-  ngOnInit(): void {
-    // Load with default sort from config
-    if (this.tableConfig.defaultSortColumn) {
-      this.currentSortColumn = this.tableConfig.defaultSortColumn;
-      this.currentSortDirection = this.tableConfig.defaultSortDirection === 'desc' ? 'DESC' : 'ASC';
-    }
-    this.loadDepartments(0, this.pageSize, this.currentSortColumn, this.currentSortDirection);
-    
-    // Listen only for add operations from table component (edit/delete handled by afterClosed())
-    // Store handler reference so we can remove it later
-    this.departmentAddedHandler = () => {
-      this.loadDepartments(this.currentPage, this.pageSize, this.currentSortColumn, this.currentSortDirection);
-    };
-    
-    globalThis.window.addEventListener('departmentAdded', this.departmentAddedHandler);
-  }
 
   ngOnDestroy(): void {
     // Clean up event listener to prevent memory leaks and duplicate calls
@@ -136,6 +124,7 @@ export class DepartmentListComponent implements OnInit, OnDestroy {
   }
 
   loadDepartments(page = 0, size = 10, sortBy?: string, sortDir = 'ASC'): void {
+    this.loading = true;
     this.departmentService.queryDepartments(page, size, sortBy, sortDir).subscribe({
       next: (response: PaginatedResponse<Department>) => {
         console.log('Department query response:', response);
@@ -162,9 +151,11 @@ export class DepartmentListComponent implements OnInit, OnDestroy {
           performanceMetric: dept.performanceMetric || 0,
           departmentHeadName: dept.departmentHeadName || 'Not assigned'
         }));
+        this.loading = false;
       },
       error: () => {
         // Error handled by global error handler or service
+        this.loading = false;
       }
     });
   }
@@ -184,5 +175,44 @@ export class DepartmentListComponent implements OnInit, OnDestroy {
     this.pageSize = event.pageSize;
     // Use current sort settings when loading
     this.loadDepartments(this.currentPage, this.pageSize, this.currentSortColumn, this.currentSortDirection);
+  }
+
+  openDeleteDialog(department: Department): void {
+    const departmentName = department.name || 'this department';
+    const dialogRef = this.matDialog.open(ConfirmationDialogComponent, {
+      width: '400px',
+      data: {
+        title: 'Delete Department',
+        message: `Are you sure you want to delete "${departmentName}"?`,
+        warning: 'This action cannot be undone.',
+        confirmText: 'Delete',
+        cancelText: 'Cancel'
+      }
+    });
+
+    dialogRef.afterClosed().pipe(take(1)).subscribe(result => {
+      if (result && department.id) {
+        this.departmentService.deleteDepartment(department.id).subscribe({
+          next: () => {
+            this.loadDepartments(this.currentPage, this.pageSize, this.currentSortColumn, this.currentSortDirection);
+          },
+          error: (error: unknown) => {
+            console.error('Error deleting department:', error);
+            alert('Failed to delete department. Please try again.');
+          }
+        });
+      }
+    });
+  }
+
+  // Handler methods for table component
+  onEditAction = (row: TableCellData): void => {
+    const department = row as unknown as Department;
+    this.openEditDialog(department);
+  }
+
+  onDeleteAction = (row: TableCellData): void => {
+    const department = row as unknown as Department;
+    this.openDeleteDialog(department);
   }
 }

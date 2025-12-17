@@ -16,6 +16,7 @@ import { DialogData, overlayType } from '../../../../shared/models/dialog';
 import { AuthService } from '../../../../core/services/auth.service';
 import { filter } from 'rxjs';
 import { take } from 'rxjs/operators';
+import { ConfirmationDialogComponent } from '../../../../shared/components/confirmation-dialog/confirmation-dialog.component';
 
 @Component({
   selector: 'app-employee-list',
@@ -36,19 +37,14 @@ export class EmployeeListComponent implements OnInit, OnDestroy {
   currentSortColumn = '';
   currentSortDirection = 'ASC';
   filters: Record<string, FilterOption[]> = {}; // Store filters from paginated response
+  loading = false; // Loading state for table spinner
   private isRefreshing = false; // Guard to prevent duplicate refresh calls
   private employeeAddedHandler?: () => void; // Store handler reference for cleanup
 
-  // Custom handler for employee name click - opens edit dialog
+  // Custom handler for employee name click - navigates to employee details page
   onEmployeeNameClick = (row: TableCellData, colKey: string) => {
-    if (colKey === 'firstName' || colKey === 'lastName' || colKey === 'name') {
-      // Check if user has permission to edit (HR Manager or Admin)
-      if (this.canEditEmployee()) {
-        this.openEditDialog(row as Employee);
-      } else {
-        // If no edit permission, just show details view
-        this.openViewDialog(row as Employee);
-      }
+    if ((colKey === 'firstName' || colKey === 'lastName' || colKey === 'name') && row.id) {
+      this.router.navigate(['/employees', row.id]);
     }
   };
 
@@ -60,6 +56,9 @@ export class EmployeeListComponent implements OnInit, OnDestroy {
   ) {}
 
   ngOnInit(): void {
+    // Enable action buttons for admins and HR managers
+    this.tableConfig.displayActionButtons = this.canEditEmployee();
+    
     // Load with default sort from config
     if (this.tableConfig.defaultSortColumn) {
       this.currentSortColumn = this.tableConfig.defaultSortColumn;
@@ -140,7 +139,49 @@ export class EmployeeListComponent implements OnInit, OnDestroy {
     });
   }
 
+  openDeleteDialog(employee: Employee): void {
+    const employeeName = employee.firstName && employee.lastName 
+      ? `${employee.firstName} ${employee.lastName}` 
+      : 'this employee';
+    const dialogRef = this.matDialog.open(ConfirmationDialogComponent, {
+      width: '400px',
+      data: {
+        title: 'Delete Employee',
+        message: `Are you sure you want to delete "${employeeName}"?`,
+        warning: 'This action cannot be undone.',
+        confirmText: 'Delete',
+        cancelText: 'Cancel'
+      }
+    });
+
+    dialogRef.afterClosed().pipe(take(1)).subscribe(result => {
+      if (result && employee.id) {
+        this.employeeService.deleteEmployee(employee.id).subscribe({
+          next: () => {
+            this.loadEmployees(this.currentPage, this.pageSize, this.currentSortColumn, this.currentSortDirection);
+          },
+          error: (error: unknown) => {
+            console.error('Error deleting employee:', error);
+            alert('Failed to delete employee. Please try again.');
+          }
+        });
+      }
+    });
+  }
+
+  // Handler methods for table component
+  onEditAction = (row: TableCellData): void => {
+    const employee = row as unknown as Employee;
+    this.openEditDialog(employee);
+  }
+
+  onDeleteAction = (row: TableCellData): void => {
+    const employee = row as unknown as Employee;
+    this.openDeleteDialog(employee);
+  }
+
   loadEmployees(page = 0, size = 10, sortBy?: string, sortDir = 'ASC'): void {
+    this.loading = true;
     this.employeeService.queryEmployees(page, size, sortBy, sortDir).subscribe({
       next: (response: PaginatedResponse<Employee>) => {
         this.employees = response.content || [];
@@ -171,9 +212,11 @@ export class EmployeeListComponent implements OnInit, OnDestroy {
           workLocation: emp.workLocation || '',
           experienceYears: emp.experienceYears || 0
         }));
+        this.loading = false;
       },
       error: () => {
         // Error handling - error details are already logged by the service
+        this.loading = false;
       }
     });
   }

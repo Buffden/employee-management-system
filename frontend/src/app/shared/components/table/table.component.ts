@@ -3,9 +3,7 @@ import { MatTableDataSource, MatTableModule } from '@angular/material/table';
 import { CommonModule } from '@angular/common';
 import { MatPaginator, PageEvent } from '@angular/material/paginator';
 import { MatSort, Sort, MatSortModule } from '@angular/material/sort';
-import { Employee } from '../../models/employee.model';
-import { Department } from '../../models/department.model';
-import { ActionButtonObject, Column, FormMode, SortDirection, TableConfig, TableData } from '../../models/table';
+import { ActionButtonObject, Column, FormMode, SortDirection, TableConfig, TableCellData } from '../../models/table';
 import { defaultTableConfig } from './table.config';
 import { MatDialog, MatDialogRef } from '@angular/material/dialog';
 import { OverlayDialogComponent } from '../overlay-dialog/overlay-dialog.component';
@@ -13,15 +11,9 @@ import { SharedModule } from '../../shared.module';
 import { NoDataComponent } from '../no-data/no-data.component';
 import { Router } from '@angular/router';
 import { filter, take, takeUntil, Subject, Subscription } from 'rxjs';
-import { EmployeeService } from '../../../features/employees/services/employee.service';
 import { DialogData } from '../../models/dialog';
-import { DepartmentService } from '../../../features/departments/services/department.service';
-import { LocationService } from '../../../features/locations/services/location.service';
-import { Location } from '../../models/location.model';
 import { FilterOption } from '../../models/paginated-response.model';
 import { AuthService } from '../../../core/services/auth.service';
-
-export type TableCellData = Employee | Department | Location | TableData;
 
 @Component({
   selector: 'app-table',
@@ -41,6 +33,10 @@ export class TableComponent implements OnChanges, AfterViewInit, OnDestroy {
   @Input() enableAddButton = false; // Whether to enable add button
   @Input() hasNext = false; // Whether there's a next page
   @Input() hasPrevious = false; // Whether there's a previous page
+  @Input() editActionHandler?: (row: TableCellData) => void; // Optional: handler for edit action from parent
+  @Input() deleteActionHandler?: (row: TableCellData) => void; // Optional: handler for delete action from parent
+  @Input() returnToPage?: string; // Optional: return page for dialogs (e.g., 'employees', 'departments')
+  @Input() loading = false; // Loading state for showing spinner
   
   @Output() sortChange = new EventEmitter<{ active: string; direction: string }>();
   @Output() pageChange = new EventEmitter<PageEvent>();
@@ -60,9 +56,6 @@ export class TableComponent implements OnChanges, AfterViewInit, OnDestroy {
   constructor(
     public matDialog: MatDialog,
     private router: Router,
-    private departmentService: DepartmentService,
-    private employeeService: EmployeeService,
-    private locationService: LocationService,
     private authService: AuthService,
     private cdr: ChangeDetectorRef) { }
 
@@ -169,10 +162,18 @@ export class TableComponent implements OnChanges, AfterViewInit, OnDestroy {
   }
 
   addActionColumn() {
-    if (this.tableConfig?.displayActionButtons && this.tableConfig?.columns) {
-      if (!this.tableConfig.columns.some((col: Column) => col.type === 'actionButtons')) {
-        this.tableConfig.columns = [...(this.tableConfig.columns ?? []), ActionButtonObject];
-      }
+    if (!this.tableConfig?.columns) {
+      return;
+    }
+
+    const hasActionColumn = this.tableConfig.columns.some((col: Column) => col.type === 'actionButtons');
+    
+    if (this.tableConfig.displayActionButtons && !hasActionColumn) {
+      // Add action column if enabled and not already present
+      this.tableConfig.columns = [...this.tableConfig.columns, ActionButtonObject];
+    } else if (!this.tableConfig.displayActionButtons && hasActionColumn) {
+      // Remove action column if disabled and currently present
+      this.tableConfig.columns = this.tableConfig.columns.filter((col: Column) => col.type !== 'actionButtons');
     }
   }
 
@@ -244,6 +245,43 @@ export class TableComponent implements OnChanges, AfterViewInit, OnDestroy {
   onActionClick(action: string, data: TableCellData): void {
     // TBE: Implement action handling
     console.log('action', action, data);
+  }
+
+  onEditAction(row: TableCellData): void {
+    if (this.editActionHandler) {
+      // Use custom handler if provided
+      this.editActionHandler(row);
+      return;
+    }
+
+    // Fallback: use table config to open edit dialog
+    this.dialogClose();
+    this.dialogRef = this.matDialog.open(OverlayDialogComponent, {
+      width: '850px',
+      maxHeight: '90vh',
+      data: {
+        title: this.tableConfig.editCardTitle,
+        content: row,
+        viewController: this.tableConfig.editController,
+        config: {
+          ...this.tableConfig,
+          mode: FormMode.EDIT
+        },
+        returnToPage: this.returnToPage,
+        filters: this.filters
+      } as DialogData
+    });
+  }
+
+  onDeleteAction(row: TableCellData): void {
+    if (this.deleteActionHandler) {
+      // Use custom handler if provided
+      this.deleteActionHandler(row);
+      return;
+    }
+
+    // Fallback: table component cannot delete without a handler
+    console.warn('Delete action requested but no deleteActionHandler provided to table component');
   }
 
   onAddClick(): void {

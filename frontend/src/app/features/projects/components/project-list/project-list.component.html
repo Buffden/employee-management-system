@@ -6,7 +6,11 @@
     [useBackendPagination]="true"
     [currentPageIndex]="currentPage"
     [pageSize]="pageSize"
+    [loading]="loading"
     [linkClickHandler]="onProjectNameClick"
+    [editActionHandler]="onEditAction"
+    [deleteActionHandler]="onDeleteAction"
+    [returnToPage]="'projects'"
     [filters]="filters"
     (sortChange)="onSortChange($event)"
     (pageChange)="onPageChange($event)">

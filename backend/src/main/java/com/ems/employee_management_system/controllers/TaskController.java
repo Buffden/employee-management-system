@@ -68,8 +68,7 @@ public class TaskController {
     }
 
     @GetMapping("/{id}")
-    @PreAuthorize("hasAnyRole('" + RoleConstants.SYSTEM_ADMIN + "', '" + RoleConstants.HR_MANAGER + "', '" + RoleConstants.DEPARTMENT_MANAGER + "') or " +
-                  "(hasRole('" + RoleConstants.EMPLOYEE + "') and @securityService.isTaskAssignedToUser(#id))")
+    @PreAuthorize("hasAnyRole('" + RoleConstants.SYSTEM_ADMIN + "','" + RoleConstants.HR_MANAGER + "','" + RoleConstants.DEPARTMENT_MANAGER + "','" + RoleConstants.EMPLOYEE + "')")
     public ResponseEntity<TaskResponseDTO> getById(@PathVariable UUID id) {
         logger.debug("Fetching task with id: {}", id);
         Task task = taskService.getById(id);

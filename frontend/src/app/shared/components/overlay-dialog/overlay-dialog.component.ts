@@ -1,7 +1,7 @@
 import { Component, Inject } from '@angular/core';
 import { MatDialogRef, MAT_DIALOG_DATA, MatDialog } from '@angular/material/dialog';
 import { DialogData, EmployeeDisplayData, overlayType } from '../../models/dialog';
-import { TableCellData } from '../table/table.component';
+import { TableCellData } from '../../models/table';
 import { SharedModule } from '../../shared.module';
 import { DepartmentFormComponent } from '../../../features/departments/components/department-form/department-form.component';
 import { EmployeeFormComponent } from '../../../features/employees/components/employee-form/employee-form.component';

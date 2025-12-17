@@ -18,11 +18,19 @@
             <mat-icon>more_vert</mat-icon>
           </button>
           <mat-menu #actionsMenu="matMenu">
-            <button mat-menu-item (click)="onEditProject()">
+            <button mat-menu-item 
+                    (click)="onEditProject()"
+                    [disabled]="!canEditProject"
+                    [matTooltip]="getEditProjectTooltip()"
+                    [matTooltipDisabled]="canEditProject">
               <mat-icon>edit</mat-icon>
               <span>Edit</span>
             </button>
-            <button mat-menu-item (click)="onDeleteProject()">
+            <button mat-menu-item 
+                    (click)="onDeleteProject()"
+                    [disabled]="!canDeleteProject"
+                    [matTooltip]="getDeleteProjectTooltip()"
+                    [matTooltipDisabled]="canDeleteProject">
               <mat-icon>delete</mat-icon>
               <span>Delete</span>
             </button>
@@ -45,7 +53,14 @@
   <div class="tasks-section">
         <div class="tasks-header">
           <h3 class="section-title">Tasks</h3>
-          <button mat-raised-button color="primary" (click)="onAddTask()" class="add-task-btn">
+          <button mat-raised-button 
+                  color="primary" 
+                  (click)="onAddTask()" 
+                  [disabled]="!canCreateTask"
+                  [matTooltip]="getCreateTaskTooltip()"
+                  [matTooltipDisabled]="canCreateTask"
+                  [ngClass]="{'add-task-btn--disabled': !canCreateTask}"
+                  class="add-task-btn">
         <mat-icon>add</mat-icon>
             Create Task
       </button>
@@ -104,11 +119,19 @@
             <mat-icon>more_vert</mat-icon>
           </button>
                 <mat-menu #taskMenu="matMenu">
-            <button mat-menu-item (click)="onEditTask(task)">
+            <button mat-menu-item 
+                    (click)="onEditTask(task)"
+                    [disabled]="!canEditTask(task)"
+                    [matTooltip]="getEditTaskTooltip(task)"
+                    [matTooltipDisabled]="canEditTask(task)">
               <mat-icon>edit</mat-icon>
               <span>Edit</span>
             </button>
-            <button mat-menu-item (click)="onDeleteTask(task)">
+            <button mat-menu-item 
+                    (click)="onDeleteTask(task)"
+                    [disabled]="!canDeleteTask(task)"
+                    [matTooltip]="getDeleteTaskTooltip(task)"
+                    [matTooltipDisabled]="canDeleteTask(task)">
               <mat-icon>delete</mat-icon>
               <span>Delete</span>
             </button>
@@ -213,11 +236,19 @@
             <mat-icon>more_vert</mat-icon>
           </button>
           <mat-menu #taskActionsMenu="matMenu">
-            <button mat-menu-item (click)="onEditTask(item)">
+            <button mat-menu-item 
+                    (click)="onEditTask(item)"
+                    [disabled]="!canEditTask(item)"
+                    [matTooltip]="getEditTaskTooltip(item)"
+                    [matTooltipDisabled]="canEditTask(item)">
               <mat-icon>edit</mat-icon>
               <span>Edit</span>
             </button>
-            <button mat-menu-item (click)="onDeleteTask(item)">
+            <button mat-menu-item 
+                    (click)="onDeleteTask(item)"
+                    [disabled]="!canDeleteTask(item)"
+                    [matTooltip]="getDeleteTaskTooltip(item)"
+                    [matTooltipDisabled]="canDeleteTask(item)">
               <mat-icon>delete</mat-icon>
               <span>Delete</span>
             </button>

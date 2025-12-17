@@ -24,7 +24,13 @@
                             *ngIf="tableConfig.allowExport">Export Table</button>
                 </div>
             </div>
-            <div *ngIf="!noData(); else noDataTemplate"
+            <!-- Loading Spinner -->
+            <div *ngIf="loading" class="table-loading-overlay">
+                <mat-spinner diameter="50"></mat-spinner>
+                <p class="loading-text">Loading...</p>
+            </div>
+
+            <div *ngIf="!loading && !noData(); else noDataTemplate"
                  class="table-wrapper">
                 <table mat-table
                        [dataSource]="dataSource"
@@ -86,9 +92,20 @@
                                 <!-- Action Buttons -->
                                 <div class="td-content td-actions"
                                      *ngSwitchCase="'actionButtons'">
-                                    <button (click)="onActionClick('Open Employee Details', row)">1</button>
-                                    <button (click)="onActionClick('Edit Employee', row)">2</button>
-                                    <button (click)="onActionClick('Delete Employee', row)">3</button>
+                                    <button mat-icon-button 
+                                            (click)="onEditAction(row)"
+                                            title="Edit"
+                                            aria-label="Edit"
+                                            class="action-btn action-btn--edit">
+                                        <mat-icon>edit</mat-icon>
+                                    </button>
+                                    <button mat-icon-button 
+                                            (click)="onDeleteAction(row)"
+                                            title="Delete"
+                                            aria-label="Delete"
+                                            class="action-btn action-btn--delete">
+                                        <mat-icon>delete</mat-icon>
+                                    </button>
                                 </div>
 
                                 <!-- Default -->
@@ -109,11 +126,11 @@
             </div>
             <!--Enhancement: Shift to a dedicated component-->
             <mat-paginator [pageSize]="pageSize"
-                           *ngIf="!noData()"
+                           *ngIf="!loading && !noData()"
                            [pageSizeOptions]="pageSizeOptions"
                            [length]="useBackendPagination ? totalElements : (dataSource.data.length || 0)"
                            [pageIndex]="useBackendPagination ? currentPageIndex : undefined"
-                           [disabled]="false"
+                           [disabled]="loading"
                            aria-label="Select page">
             </mat-paginator>
         </div>
