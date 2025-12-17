@@ -19,6 +19,7 @@ import { DepartmentService } from '../../../features/departments/services/depart
 import { LocationService } from '../../../features/locations/services/location.service';
 import { Location } from '../../models/location.model';
 import { FilterOption } from '../../models/paginated-response.model';
+import { AuthService } from '../../../core/services/auth.service';
 
 export type TableCellData = Employee | Department | Location | TableData;
 
@@ -28,7 +29,7 @@ export type TableCellData = Employee | Department | Location | TableData;
   templateUrl: './table.component.html',
   styleUrl: './table.component.css'
 })
-export class TableComponent implements OnChanges, AfterViewInit {
+export class TableComponent implements OnChanges, AfterViewInit, OnDestroy {
   @Input() inputData: TableCellData[] = [];
   @Input() tableConfig: TableConfig = defaultTableConfig;
   @Input() linkClickHandler?: (row: TableCellData, colKey: string) => void;
@@ -37,6 +38,7 @@ export class TableComponent implements OnChanges, AfterViewInit {
   @Input() currentPageIndex = 0; // Current page index from parent
   @Input() pageSize = 10; // Page size from parent (for backend pagination)
   @Input() filters?: Record<string, FilterOption[]>; // Optional: generic filters from paginated response (e.g., locations, departments, etc.)
+  @Input() enableAddButton = false; // Whether to enable add button
   @Input() hasNext = false; // Whether there's a next page
   @Input() hasPrevious = false; // Whether there's a previous page
   
@@ -61,6 +63,7 @@ export class TableComponent implements OnChanges, AfterViewInit {
     private departmentService: DepartmentService,
     private employeeService: EmployeeService,
     private locationService: LocationService,
+    private authService: AuthService,
     private cdr: ChangeDetectorRef) { }
 
   ngOnChanges(changes: SimpleChanges): void {
@@ -244,6 +247,10 @@ export class TableComponent implements OnChanges, AfterViewInit {
   }
 
   onAddClick(): void {
+    // Prevent action if user doesn't have permission
+    if (!this.canAddItem()) {
+      return;
+    }
     this.dialogClose();
     this.tableConfig.mode = FormMode.ADD;
     // Determine current page from router
@@ -298,6 +305,32 @@ export class TableComponent implements OnChanges, AfterViewInit {
 
   noData(): boolean {
     return !this.dataSource?.data?.length;
+  }
+
+  /**
+   * Check if current user has permission to add items
+   */
+  canAddItem(): boolean {
+    if (!this.tableConfig.allowedRolesForAdd || this.tableConfig.allowedRolesForAdd.length === 0) {
+      // If no roles specified, default to allowing if allowAddButton is true
+      return this.tableConfig.allowAddButton ?? false;
+    }
+    return this.authService.hasAnyRole(this.tableConfig.allowedRolesForAdd);
+  }
+
+  /**
+   * Get tooltip text for add button
+   */
+  getAddButtonTooltip(): string {
+    if (this.canAddItem()) {
+      return '';
+    }
+    if (this.tableConfig.addButtonTooltip) {
+      return this.tableConfig.addButtonTooltip;
+    }
+    // Default tooltip if not specified
+    const roles = this.tableConfig.allowedRolesForAdd?.join(', ') || 'admins';
+    return `This feature is only available for ${roles}`;
   }
 
   handleLinkClick(row: TableCellData, colKey: string, event?: Event): void {

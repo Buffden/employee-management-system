@@ -43,6 +43,8 @@ export interface TableConfig {
     allowFiltering?: boolean; // Whether to allow filtering on the table
     defaultSortColumn?: string; // Default column to sort by
     defaultSortDirection?: SortDirection; // Default sort direction (ASC or DESC)
+    allowedRolesForAdd?: string[]; // Roles that can access the add button (e.g., ['SYSTEM_ADMIN', 'HR_MANAGER'])
+    addButtonTooltip?: string; // Tooltip message shown when user doesn't have permission to add
     noDataInfo: NoDataInfo;
     mode: FormMode;
 };
