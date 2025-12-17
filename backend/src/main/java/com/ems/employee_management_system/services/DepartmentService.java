@@ -36,15 +36,15 @@ public class DepartmentService {
         String role = securityService.getCurrentUserRole();
         UUID departmentId = securityService.getCurrentUserDepartmentId();
         
-        // For SYSTEM_ADMIN, HR_MANAGER, and EMPLOYEE, we can use findAll() for simplicity
-        // This avoids potential query issues and is more performant
+        // For SYSTEM_ADMIN, HR_MANAGER, and EMPLOYEE, use findAllWithRelationships to eagerly load relationships
+        // This ensures location and departmentHead are available for mapping to DTOs
         // Employees can view all departments (view-only access, edit/delete still restricted)
         if ("SYSTEM_ADMIN".equals(role) || "HR_MANAGER".equals(role) || "EMPLOYEE".equals(role)) {
-            logger.debug("Using findAll() for {} role", role);
-            return departmentRepository.findAll(pageable);
+            logger.debug("Using findAllWithRelationships() for {} role", role);
+            return departmentRepository.findAllWithRelationships(pageable);
         }
         
-        // For other roles (e.g., DEPARTMENT_MANAGER), use role-based filtering
+        // For other roles (e.g., DEPARTMENT_MANAGER), use role-based filtering with relationships
         return departmentRepository.findAllFilteredByRole(role, departmentId, pageable);
     }
 
@@ -55,7 +55,7 @@ public class DepartmentService {
 
     public Department getById(UUID id) {
         logger.debug("Fetching department with id: {}", id);
-        return departmentRepository.findById(id).orElse(null);
+        return departmentRepository.findByIdWithRelationships(id).orElse(null);
     }
 
     /**
