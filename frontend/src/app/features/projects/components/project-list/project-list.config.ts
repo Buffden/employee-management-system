@@ -17,7 +17,7 @@ export const projectListConfig: TableConfig = {
   ],
   pageSize: 10,
   pageSizeOptions: [5, 10, 25, 50, 100],
-  displayActionButtons: true,
+  displayActionButtons: false, // Will be set dynamically based on user role in ngOnInit
   viewController: overlayType.DISPLAYPROJECT,
   additionController: overlayType.ADDPROJECT,
   editController: overlayType.EDITPROJECT,
