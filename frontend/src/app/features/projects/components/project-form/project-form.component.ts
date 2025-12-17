@@ -14,6 +14,7 @@ import { defaultTableConfig } from '../../../../shared/components/table/table.co
 import { Department } from '../../../../shared/models/department.model';
 import { finalize } from 'rxjs/operators';
 import { TypeaheadComponent, TypeaheadConfig } from '../../../../shared/components/typeahead/typeahead.component';
+import { projectFormFields as projectFormFieldsConfig, projectStatuses as projectStatusesConfig } from './project-form.config';
 import { EmployeeService } from '../../../employees/services/employee.service';
 import { Employee } from '../../../../shared/models/employee.model';
 
@@ -50,8 +51,8 @@ export class ProjectFormComponent implements OnInit, AfterViewInit {
     projectManagerId: new FormControl(''),
   });
 
-  // Valid project statuses
-  projectStatuses = ['Planning', 'Active', 'On Hold', 'Completed', 'Cancelled'];
+  // Valid project statuses (from config)
+  projectStatuses = projectStatusesConfig;
 
   constructor(
     private readonly fb: FormBuilder,
@@ -489,7 +490,7 @@ export class ProjectFormComponent implements OnInit, AfterViewInit {
   // Watch for department changes to update project manager filter
   ngAfterViewInit(): void {
     // Subscribe to department changes to clear project manager when department changes
-    this.projectForm.get('departmentId')?.valueChanges.subscribe((newDepartmentId) => {
+    this.projectForm.get('departmentId')?.valueChanges.subscribe(() => {
       // Clear project manager when department changes
       if (this.projectForm.get('projectManagerId')?.value) {
         this.projectForm.get('projectManagerId')?.setValue('');
@@ -498,68 +499,13 @@ export class ProjectFormComponent implements OnInit, AfterViewInit {
   }
 
   createFormFields(): ProjectFormField[] {
-    return [
-      {
-        label: 'Project Name',
-        formControlName: 'name',
-        placeholder: 'Enter project name',
-        errorMessage: 'Project name is required (max 100 characters)',
-        required: true
-      },
-      {
-        label: 'Description',
-        formControlName: 'description',
-        placeholder: 'Enter description',
-        errorMessage: 'Description must not exceed 1000 characters',
-      },
-      {
-        label: 'Department',
-        formControlName: 'departmentId',
-        placeholder: 'Search for department',
-        errorMessage: 'Department is required',
-        type: 'typeahead',
-        required: true
-      },
-      {
-        label: 'Project Manager',
-        formControlName: 'projectManagerId',
-        placeholder: 'Search for project manager',
-        errorMessage: 'Project manager is required',
-        type: 'typeahead',
-        required: true
-      },
-      {
-        label: 'Start Date',
-        formControlName: 'startDate',
-        placeholder: 'Select start date',
-        errorMessage: 'Start date is required',
-        type: 'date',
-        required: true
-      },
-      {
-        label: 'End Date',
-        formControlName: 'endDate',
-        placeholder: 'Select end date (optional)',
-        errorMessage: 'End date must be after start date',
-        type: 'date'
-      },
-      {
-        label: 'Status',
-        formControlName: 'status',
-        placeholder: 'Select status',
-        errorMessage: 'Status is required',
-        type: 'select',
-        options: this.projectStatuses,
-        required: true
-      },
-      {
-        label: 'Budget',
-        formControlName: 'budget',
-        placeholder: 'Enter budget (optional)',
-        errorMessage: 'Budget must be a positive number',
-        type: 'number'
-      },
-    ];
+    // Use config fields and inject projectStatuses into status field
+    return projectFormFieldsConfig.map(field => {
+      if (field.formControlName === 'status') {
+        return { ...field, options: this.projectStatuses };
+      }
+      return field;
+    });
   }
 }
 

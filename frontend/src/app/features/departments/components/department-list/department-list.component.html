@@ -7,6 +7,9 @@
     [currentPageIndex]="currentPage"
     [pageSize]="pageSize"
     [linkClickHandler]="onDepartmentNameClick"
+    [editActionHandler]="onEditAction"
+    [deleteActionHandler]="onDeleteAction"
+    [returnToPage]="'departments'"
     [filters]="filters"
     (sortChange)="onSortChange($event)"
     (pageChange)="onPageChange($event)">

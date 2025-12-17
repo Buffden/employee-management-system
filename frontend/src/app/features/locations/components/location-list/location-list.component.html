@@ -9,6 +9,9 @@
     [hasNext]="hasNext"
     [hasPrevious]="hasPrevious"
     [linkClickHandler]="onLocationNameClick"
+    [editActionHandler]="onEditAction"
+    [deleteActionHandler]="onDeleteAction"
+    [returnToPage]="'locations'"
     (sortChange)="onSortChange($event)"
     (pageChange)="onPageChange($event)">
   </app-table>
