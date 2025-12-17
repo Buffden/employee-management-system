@@ -193,19 +193,39 @@
     text-decoration: underline;
 }
 
-.td-actions button {
-    margin: 0 4px;
-    padding: 4px 8px;
-    font-size: 12px;
-    background-color: #007bff;
-    color: white;
-    border: none;
-    border-radius: 3px;
-    cursor: pointer;
+.td-actions {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    justify-content: flex-end;
 }
 
-.td-actions button:hover {
-    background-color: #0056b3;
+.td-actions .action-btn {
+    margin: 0;
+    padding: 4px;
+    width: 32px;
+    height: 32px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 4px;
+    transition: background-color 0.2s ease;
+}
+
+.td-actions .action-btn--edit {
+    color: #1976d2;
+}
+
+.td-actions .action-btn--edit:hover {
+    background-color: rgba(25, 118, 210, 0.1);
+}
+
+.td-actions .action-btn--delete {
+    color: #d32f2f;
+}
+
+.td-actions .action-btn--delete:hover {
+    background-color: rgba(211, 47, 47, 0.1);
 }
 
 /* Default styling */
@@ -228,7 +248,13 @@
         padding: 4px 8px;
     }
 
-    .td-actions button {
-        font-size: 10px;
+    .td-actions .action-btn {
+        width: 28px;
+        height: 28px;
+        padding: 2px;
+    }
+    
+    .td-actions {
+        gap: 4px;
     }
 }

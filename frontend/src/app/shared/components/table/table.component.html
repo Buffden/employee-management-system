@@ -86,9 +86,20 @@
                                 <!-- Action Buttons -->
                                 <div class="td-content td-actions"
                                      *ngSwitchCase="'actionButtons'">
-                                    <button (click)="onActionClick('Open Employee Details', row)">1</button>
-                                    <button (click)="onActionClick('Edit Employee', row)">2</button>
-                                    <button (click)="onActionClick('Delete Employee', row)">3</button>
+                                    <button mat-icon-button 
+                                            (click)="onEditAction(row)"
+                                            title="Edit"
+                                            aria-label="Edit"
+                                            class="action-btn action-btn--edit">
+                                        <mat-icon>edit</mat-icon>
+                                    </button>
+                                    <button mat-icon-button 
+                                            (click)="onDeleteAction(row)"
+                                            title="Delete"
+                                            aria-label="Delete"
+                                            class="action-btn action-btn--delete">
+                                        <mat-icon>delete</mat-icon>
+                                    </button>
                                 </div>
 
                                 <!-- Default -->
