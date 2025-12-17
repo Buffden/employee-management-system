@@ -14,9 +14,19 @@ import com.ems.employee_management_system.models.Employee;
 
 public interface EmployeeRepository extends JpaRepository<Employee, UUID> {
     Optional<Employee> findByEmail(String email);
+    
+    /**
+     * Find employee by ID with relationships eagerly loaded
+     * Used when we need department, location, and manager to be available for mapping
+     */
+    @Query("SELECT e FROM Employee e LEFT JOIN FETCH e.department LEFT JOIN FETCH e.location LEFT JOIN FETCH e.manager WHERE e.id = :id")
+    Optional<Employee> findByIdWithRelationships(@Param("id") UUID id);
 
     @Query("""
-        SELECT e FROM Employee e
+        SELECT DISTINCT e FROM Employee e
+        LEFT JOIN FETCH e.department
+        LEFT JOIN FETCH e.location
+        LEFT JOIN FETCH e.manager
         WHERE (:role = 'SYSTEM_ADMIN' OR :role = 'HR_MANAGER')
            OR (:role = 'DEPARTMENT_MANAGER' AND :departmentId IS NOT NULL AND e.department IS NOT NULL AND e.department.id = :departmentId)
            OR (:role = 'EMPLOYEE' AND :userId IS NOT NULL AND e.id = :userId)
@@ -25,6 +35,14 @@ public interface EmployeeRepository extends JpaRepository<Employee, UUID> {
                                          @Param("departmentId") UUID departmentId,
                                          @Param("userId") UUID userId,
                                          Pageable pageable);
+    
+    /**
+     * Find all employees with relationships eagerly loaded
+     * Used when we need department, location, and manager to be available for mapping
+     */
+    @Query(value = "SELECT DISTINCT e FROM Employee e LEFT JOIN FETCH e.department LEFT JOIN FETCH e.location LEFT JOIN FETCH e.manager",
+           countQuery = "SELECT COUNT(DISTINCT e) FROM Employee e")
+    Page<Employee> findAllWithRelationships(Pageable pageable);
 
     /**
      * Find all employees by department ID (for manager dropdown filtering)
