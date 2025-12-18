@@ -20,10 +20,10 @@ RUN if [ -f /usr/share/nginx/html/index.csr.html ]; then \
         cp /usr/share/nginx/html/index.csr.html /usr/share/nginx/html/index.html; \
     fi
 
-# Copy nginx configuration template
+# Copy nginx configuration to templates directory
 # nginx:alpine automatically processes .template files in /etc/nginx/templates/
-# Environment variables will be substituted at container startup using envsubst
-COPY gateway/nginx.conf.template /etc/nginx/templates/default.conf.template
+# We copy nginx.conf and rename it to .template so nginx processes it at startup
+COPY gateway/nginx.conf /etc/nginx/templates/default.conf.template
 
 # Environment variables (must be set in docker-compose or db/.env):
 # - NGINX_PORT
