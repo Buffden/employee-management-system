@@ -170,7 +170,14 @@
         <div class="sidebar-item">
           <span class="sidebar-label">Department</span>
           <div class="sidebar-value">
-            {{ project.department?.name || 'Not specified' }}
+            <a *ngIf="project.departmentId" 
+               [routerLink]="['/departments', project.departmentId]"
+               class="clickable-link">
+              {{ project.departmentName || project.department?.name || 'Not specified' }}
+            </a>
+            <span *ngIf="!project.departmentId">
+              {{ project.departmentName || project.department?.name || 'Not specified' }}
+            </span>
           </div>
         </div>
 
@@ -178,11 +185,26 @@
         <div class="sidebar-item">
           <span class="sidebar-label">Project Manager</span>
           <div class="sidebar-value">
-            <span *ngIf="project.projectManager">
-              {{ project.projectManager.firstName }} {{ project.projectManager.lastName }}
-            </span>
-            <span *ngIf="!project.projectManager">
-              Not assigned
+            <a *ngIf="project.projectManagerId" 
+               [routerLink]="['/employees', project.projectManagerId]"
+               class="clickable-link">
+              <span *ngIf="project.projectManagerName">
+                {{ project.projectManagerName }}
+              </span>
+              <span *ngIf="!project.projectManagerName && project.projectManager">
+                {{ project.projectManager.firstName }} {{ project.projectManager.lastName }}
+              </span>
+            </a>
+            <span *ngIf="!project.projectManagerId">
+              <span *ngIf="project.projectManagerName">
+                {{ project.projectManagerName }}
+              </span>
+              <span *ngIf="!project.projectManagerName && project.projectManager">
+                {{ project.projectManager.firstName }} {{ project.projectManager.lastName }}
+              </span>
+              <span *ngIf="!project.projectManagerName && !project.projectManager">
+                Not assigned
+              </span>
             </span>
           </div>
         </div>

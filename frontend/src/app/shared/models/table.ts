@@ -57,6 +57,8 @@ export interface Column {
     sortDirection?: SortDirection;
     isSticky?: boolean;
     formField?: EmployeeFormField;
+    navigationTarget?: string; // Optional: specifies navigation target (e.g., 'employee', 'department', 'location')
+    navigationIdKey?: string; // Optional: key in row data to get the ID for navigation (e.g., 'id', 'departmentId', 'locationId')
 }
 export enum ColumnType {
     TEXT = 'text',

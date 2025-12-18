@@ -7,9 +7,9 @@ export const projectListConfig: TableConfig = {
   additionCardTitle: 'Add Project',
   editCardTitle: 'Edit Project',
   columns: [
-    { key: 'name', header: 'Project Name', sortable: true, type: ColumnType.LINK, isSticky: true },
-    { key: 'department', header: 'Department', sortable: true, type: ColumnType.TEXT },
-    { key: 'projectManager', header: 'Project Manager', sortable: true, type: ColumnType.TEXT },
+    { key: 'name', header: 'Project Name', sortable: true, type: ColumnType.LINK, isSticky: true, navigationTarget: 'project', navigationIdKey: 'id' },
+    { key: 'department', header: 'Department', sortable: true, type: ColumnType.LINK, navigationTarget: 'department', navigationIdKey: 'departmentId' },
+    { key: 'projectManager', header: 'Project Manager', sortable: true, type: ColumnType.LINK, navigationTarget: 'employee', navigationIdKey: 'projectManagerId' },
     { key: 'startDate', header: 'Start Date', sortable: true, type: ColumnType.DATE },
     { key: 'endDate', header: 'End Date', sortable: true, type: ColumnType.DATE },
     { key: 'status', header: 'Status', sortable: true, type: ColumnType.TEXT },
