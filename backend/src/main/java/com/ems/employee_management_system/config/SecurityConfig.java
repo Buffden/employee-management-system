@@ -24,13 +24,17 @@ import com.ems.employee_management_system.security.JwtAuthenticationFilter;
 import com.ems.employee_management_system.constants.RoleConstants;
 
 import org.springframework.boot.actuate.autoconfigure.security.servlet.EndpointRequest;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import java.util.Arrays;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Configuration
 @EnableWebSecurity
 @EnableMethodSecurity
 public class SecurityConfig {
+    private static final Logger logger = LoggerFactory.getLogger(SecurityConfig.class);
     
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
     private final UserDetailsService userDetailsService;
@@ -85,10 +89,30 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOrigins(List.of("http://localhost:4200")); // Frontend URL
+        
+        // Get CORS allowed origins from environment variable or system property
+        // Priority: 1) Environment variable, 2) System property (from .env)
+        String allowedOriginsEnv = System.getenv("CORS_ALLOWED_ORIGINS");
+        if (allowedOriginsEnv == null || allowedOriginsEnv.isEmpty()) {
+            allowedOriginsEnv = System.getProperty("CORS_ALLOWED_ORIGINS");
+        }
+        if (allowedOriginsEnv == null || allowedOriginsEnv.isEmpty()) {
+            logger.error("CORS_ALLOWED_ORIGINS not set! Please set it in db/.env file.");
+            throw new IllegalStateException("CORS_ALLOWED_ORIGINS environment variable must be set in db/.env");
+        }
+        
+        // Split comma-separated origins and trim whitespace
+        List<String> allowedOrigins = Arrays.stream(allowedOriginsEnv.split(","))
+                .map(String::trim)
+                .filter(s -> !s.isEmpty())
+                .collect(Collectors.toList());
+        
+        configuration.setAllowedOrigins(allowedOrigins);
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(Arrays.asList("*"));
         configuration.setAllowCredentials(true);
+        
+        logger.info("CORS configured with allowed origins: {}", allowedOrigins);
         
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", configuration);

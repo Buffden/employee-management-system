@@ -19,9 +19,9 @@ RUN apt-get update && apt-get install -y wget && rm -rf /var/lib/apt/lists/*
 # Copy JAR from build stage
 COPY --from=build /app/target/employee-management-system-0.0.1-SNAPSHOT.jar app.jar
 
-# Health check
+# Health check (uses BACKEND_PORT environment variable)
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
-  CMD wget --quiet --tries=1 --spider http://localhost:8080/actuator/health || exit 1
+  CMD wget --quiet --tries=1 --spider http://localhost:${BACKEND_PORT}/actuator/health || exit 1
 
 EXPOSE 8080
 

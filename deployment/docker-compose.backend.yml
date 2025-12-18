@@ -26,10 +26,17 @@ services:
     env_file:
       - ../db/.env
     environment:
-      - DB_HOST=postgres
+      - DB_HOST=${DB_HOST:-postgres}
       - DB_NAME=${DB_NAME}
       - DB_USER=${DB_USER}
-      - DB_PORT=5432
+      - DB_PORT=${DB_PORT:-5432}
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY}
+      - CORS_ALLOWED_ORIGINS=${CORS_ALLOWED_ORIGINS}
+      - FRONTEND_BASE_URL=${FRONTEND_BASE_URL}
+      - EMAIL_SERVICE_PROVIDER=${EMAIL_SERVICE_PROVIDER:-demo}
+      - EMAIL_SENDGRID_API_KEY=${EMAIL_SENDGRID_API_KEY:-}
+      - EMAIL_SENDGRID_FROM_EMAIL=${EMAIL_SENDGRID_FROM_EMAIL:-}
+      - EMAIL_SENDGRID_FROM_NAME=${EMAIL_SENDGRID_FROM_NAME:-Employee Management System}
     ports:
       - "8080:8080"
     depends_on:
