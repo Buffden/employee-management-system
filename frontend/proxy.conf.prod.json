@@ -1,6 +1,6 @@
 {
     "/api/*": {
-        "target": "http://52.90.230.242:8080",
+        "target": "${BACKEND_URL}",
         "secure": false,
         "logLevel": "debug",
         "changeOrigin": true,

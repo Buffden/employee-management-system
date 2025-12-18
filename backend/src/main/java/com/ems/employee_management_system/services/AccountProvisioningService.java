@@ -42,7 +42,7 @@ public class AccountProvisioningService {
                                       PasswordEncoder passwordEncoder,
                                       EmailService emailService,
                                       @Value("${app.demo-mode:true}") boolean demoMode,
-                                      @Value("${app.frontend.base-url:http://localhost:4200}") String frontendBaseUrl) {
+                                      @Value("${app.frontend.base-url}") String frontendBaseUrl) {
         this.userRepository = userRepository;
         this.inviteTokenRepository = inviteTokenRepository;
         this.resetTokenRepository = resetTokenRepository;

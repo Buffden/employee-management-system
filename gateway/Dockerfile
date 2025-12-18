@@ -20,12 +20,21 @@ RUN if [ -f /usr/share/nginx/html/index.csr.html ]; then \
         cp /usr/share/nginx/html/index.csr.html /usr/share/nginx/html/index.html; \
     fi
 
-# Copy unified nginx configuration (serves Angular + routes API)
-COPY gateway/nginx.conf /etc/nginx/conf.d/default.conf
+# Copy nginx configuration to templates directory
+# nginx:alpine automatically processes .template files in /etc/nginx/templates/
+# We copy nginx.conf and rename it to .template so nginx processes it at startup
+COPY gateway/nginx.conf /etc/nginx/templates/default.conf.template
 
-# Health check
+# Environment variables (must be set in docker-compose or db/.env):
+# - NGINX_PORT
+# - NGINX_SERVER_NAME
+# - BACKEND_HOST
+# - BACKEND_PORT
+# - CORS_ALLOWED_ORIGINS
+
+# Health check (uses NGINX_PORT environment variable)
 HEALTHCHECK --interval=30s --timeout=5s --retries=3 \
-  CMD wget --quiet --tries=1 --spider http://localhost:80/health || exit 1
+  CMD wget --quiet --tries=1 --spider http://localhost:${NGINX_PORT}/health || exit 1
 
 EXPOSE 80
 

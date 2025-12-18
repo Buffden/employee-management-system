@@ -7,6 +7,7 @@ import java.util.function.Function;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
+import jakarta.annotation.PostConstruct;
 
 import com.ems.employee_management_system.models.User;
 
@@ -19,8 +20,18 @@ import javax.crypto.SecretKey;
 @Component
 public class JWTManager {
     
-    @Value("${jwt.secret.key:defaultSecretKeyForDevelopmentOnlyChangeInProduction}")
+    @Value("${jwt.secret.key:}")
     private String secretKey;
+    
+    @PostConstruct
+    public void validateSecretKey() {
+        if (secretKey == null || secretKey.isEmpty()) {
+            throw new IllegalStateException(
+                "JWT_SECRET_KEY is not set! Please set it in db/.env file. " +
+                "Generate a secure key with: openssl rand -base64 64"
+            );
+        }
+    }
     
     @Value("${jwt.access.token.expiration:86400000}") // 24 hours in milliseconds
     private Long accessTokenExpiration;
