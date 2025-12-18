@@ -46,6 +46,7 @@ export interface EmployeeRequest {
     departmentId: string;
     workLocation?: string;
     experienceYears?: number;
+    grantAccess?: boolean;
 }
 
 export interface ManagerID {

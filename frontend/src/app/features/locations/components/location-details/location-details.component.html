@@ -1,0 +1,190 @@
+<div class="location-details-container" *ngIf="location">
+  <!-- Breadcrumb Navigation -->
+  <nav class="breadcrumb-nav">
+    <a routerLink="/locations" class="breadcrumb-link">Locations</a>
+    <span class="breadcrumb-separator">/</span>
+    <span class="breadcrumb-current">{{ location.name }}</span>
+  </nav>
+
+  <!-- Main Content Area: Left Panel + Right Sidebar -->
+  <div class="content-layout">
+    <!-- Left Panel: Main Content -->
+    <div class="left-panel">
+      <!-- Title and Actions -->
+      <div class="title-section">
+        <h1 class="location-title">{{ location.name }}</h1>
+        <div class="action-buttons" *ngIf="canEditLocation() || canDeleteLocation()">
+          <button mat-icon-button [matMenuTriggerFor]="actionsMenu" title="More actions">
+            <mat-icon>more_vert</mat-icon>
+          </button>
+          <mat-menu #actionsMenu="matMenu">
+            <button mat-menu-item (click)="onEditLocation()" *ngIf="canEditLocation()">
+              <mat-icon>edit</mat-icon>
+              <span>Edit</span>
+            </button>
+            <button mat-menu-item (click)="onDeleteLocation()" *ngIf="canDeleteLocation()">
+              <mat-icon>delete</mat-icon>
+              <span>Delete</span>
+            </button>
+          </mat-menu>
+        </div>
+      </div>
+
+      <!-- Departments Section -->
+      <div class="departments-section">
+        <div class="departments-header">
+          <h3 class="section-title">Departments</h3>
+          <span class="department-count" *ngIf="departments.length > 0">{{ departments.length }} department{{ departments.length !== 1 ? 's' : '' }}</span>
+        </div>
+        <div class="departments-table-container" *ngIf="departments.length > 0; else noDepartments">
+          <table mat-table [dataSource]="departments" class="departments-table">
+            <!-- Name Column -->
+            <ng-container matColumnDef="name">
+              <th mat-header-cell *matHeaderCellDef>Department Name</th>
+              <td mat-cell *matCellDef="let department" (click)="onDepartmentClick(department)" class="clickable department-name">
+                {{ department.name }}
+              </td>
+            </ng-container>
+
+            <!-- Department Head Column -->
+            <ng-container matColumnDef="departmentHeadName">
+              <th mat-header-cell *matHeaderCellDef>Department Head</th>
+              <td mat-cell *matCellDef="let department">{{ department.departmentHeadName || 'Not assigned' }}</td>
+            </ng-container>
+
+            <!-- Budget Column -->
+            <ng-container matColumnDef="budget">
+              <th mat-header-cell *matHeaderCellDef>Budget</th>
+              <td mat-cell *matCellDef="let department">{{ formatCurrency(department.budget) }}</td>
+            </ng-container>
+
+            <!-- Actions Column -->
+            <ng-container matColumnDef="actions">
+              <th mat-header-cell *matHeaderCellDef></th>
+              <td mat-cell *matCellDef="let department">
+                <button *ngIf="canEditDepartment() || canDeleteDepartment()" mat-icon-button [matMenuTriggerFor]="departmentMenu" (click)="$event.stopPropagation()">
+                  <mat-icon>more_vert</mat-icon>
+                </button>
+                <mat-menu #departmentMenu="matMenu">
+                  <button mat-menu-item (click)="onEditDepartment(department)" *ngIf="canEditDepartment()">
+                    <mat-icon>edit</mat-icon>
+                    <span>Edit</span>
+                  </button>
+                  <button mat-menu-item (click)="onDeleteDepartment(department)" *ngIf="canDeleteDepartment()">
+                    <mat-icon>delete</mat-icon>
+                    <span>Delete</span>
+                  </button>
+                </mat-menu>
+              </td>
+            </ng-container>
+
+            <tr mat-header-row *matHeaderRowDef="displayedColumnsDepartments"></tr>
+            <tr mat-row *matRowDef="let row; columns: displayedColumnsDepartments;"></tr>
+          </table>
+        </div>
+        <ng-template #noDepartments>
+          <div class="empty-departments">
+            <p>No departments at this location yet.</p>
+          </div>
+        </ng-template>
+      </div>
+
+      <!-- Employees Section -->
+      <div class="employees-section">
+        <div class="employees-header">
+          <h3 class="section-title">Employees</h3>
+          <span class="employee-count" *ngIf="employees.length > 0">{{ employees.length }} employee{{ employees.length !== 1 ? 's' : '' }}</span>
+        </div>
+        <div class="employees-table-container" *ngIf="employees.length > 0; else noEmployees">
+          <table mat-table [dataSource]="employees" class="employees-table">
+            <!-- Name Column -->
+            <ng-container matColumnDef="name">
+              <th mat-header-cell *matHeaderCellDef>Name</th>
+              <td mat-cell *matCellDef="let employee" (click)="onEmployeeClick(employee)" class="clickable employee-name" tabindex="0" role="button">
+                {{ employee.firstName }} {{ employee.lastName }}
+              </td>
+            </ng-container>
+
+            <!-- Email Column -->
+            <ng-container matColumnDef="email">
+              <th mat-header-cell *matHeaderCellDef>Email</th>
+              <td mat-cell *matCellDef="let employee">{{ employee.email }}</td>
+            </ng-container>
+
+            <!-- Designation Column -->
+            <ng-container matColumnDef="designation">
+              <th mat-header-cell *matHeaderCellDef>Designation</th>
+              <td mat-cell *matCellDef="let employee">{{ employee.designation }}</td>
+            </ng-container>
+
+            <!-- Actions Column -->
+            <ng-container matColumnDef="actions">
+              <th mat-header-cell *matHeaderCellDef></th>
+              <td mat-cell *matCellDef="let employee">
+                <button *ngIf="canEditEmployee() || canDeleteEmployee()" mat-icon-button [matMenuTriggerFor]="employeeMenu" (click)="$event.stopPropagation()">
+                  <mat-icon>more_vert</mat-icon>
+                </button>
+                <mat-menu #employeeMenu="matMenu">
+                  <button mat-menu-item (click)="onEditEmployee(employee)" *ngIf="canEditEmployee()">
+                    <mat-icon>edit</mat-icon>
+                    <span>Edit</span>
+                  </button>
+                  <button mat-menu-item (click)="onDeleteEmployee(employee)" *ngIf="canDeleteEmployee()">
+                    <mat-icon>delete</mat-icon>
+                    <span>Delete</span>
+                  </button>
+                </mat-menu>
+              </td>
+            </ng-container>
+
+            <tr mat-header-row *matHeaderRowDef="displayedColumnsEmployees"></tr>
+            <tr mat-row *matRowDef="let row; columns: displayedColumnsEmployees;"></tr>
+          </table>
+        </div>
+        <ng-template #noEmployees>
+          <div class="empty-employees">
+            <p>No employees at this location yet.</p>
+          </div>
+        </ng-template>
+      </div>
+    </div>
+
+    <!-- Right Sidebar: Metadata -->
+    <div class="right-sidebar">
+      <div class="sidebar-section">
+        <h4 class="sidebar-title">Details</h4>
+        
+        <!-- Address -->
+        <div class="sidebar-item" *ngIf="location.address">
+          <span class="sidebar-label">Address</span>
+          <div class="sidebar-value">{{ location.address }}</div>
+        </div>
+
+        <!-- City -->
+        <div class="sidebar-item">
+          <span class="sidebar-label">City</span>
+          <div class="sidebar-value">{{ location.city }}</div>
+        </div>
+
+        <!-- State -->
+        <div class="sidebar-item">
+          <span class="sidebar-label">State</span>
+          <div class="sidebar-value">{{ location.state }}</div>
+        </div>
+
+        <!-- Country -->
+        <div class="sidebar-item">
+          <span class="sidebar-label">Country</span>
+          <div class="sidebar-value">{{ location.country }}</div>
+        </div>
+
+        <!-- Postal Code -->
+        <div class="sidebar-item" *ngIf="location.postalCode">
+          <span class="sidebar-label">Postal Code</span>
+          <div class="sidebar-value">{{ location.postalCode }}</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+

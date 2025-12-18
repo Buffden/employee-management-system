@@ -19,6 +19,10 @@ This folder contains database-related configuration files and scripts.
 
 2. **Edit `.env` with your credentials:**
    ```bash
+   # Copy from example
+   cp .env.example .env
+   
+   # Or manually create with minimum required:
    DB_HOST=localhost
    DB_PORT=5433
    DB_NAME=ems_db
@@ -45,6 +49,15 @@ Required variables in `.env`:
 - `DB_NAME` - Database name
 - `DB_USER` - Database username
 - `DB_PWD` - Database password
+
+### Optional Variables (for email service and frontend links)
+- `FRONTEND_BASE_URL` - Frontend base URL for email links (default: http://localhost)
+- `EMAIL_SERVICE_PROVIDER` - Email service provider: 'sendgrid' or 'demo' (default: demo)
+- `EMAIL_SENDGRID_API_KEY` - SendGrid API key (required if using SendGrid)
+- `EMAIL_SENDGRID_FROM_EMAIL` - Verified sender email address (required if using SendGrid)
+- `EMAIL_SENDGRID_FROM_NAME` - Sender display name (default: Employee Management System)
+
+See `.env.example` for a complete template with all available variables.
 
 ## Database Initialization
 

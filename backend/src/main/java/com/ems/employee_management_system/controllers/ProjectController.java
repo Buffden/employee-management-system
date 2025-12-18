@@ -27,6 +27,7 @@ import com.ems.employee_management_system.dtos.PaginatedResponseDTO;
 import com.ems.employee_management_system.dtos.ProjectQueryRequestDTO;
 import com.ems.employee_management_system.dtos.ProjectRequestDTO;
 import com.ems.employee_management_system.dtos.ProjectResponseDTO;
+import com.ems.employee_management_system.dtos.TaskResponseDTO;
 import com.ems.employee_management_system.mappers.ProjectMapper;
 import com.ems.employee_management_system.models.Department;
 import com.ems.employee_management_system.models.Employee;
@@ -35,8 +36,11 @@ import com.ems.employee_management_system.security.SecurityService;
 import com.ems.employee_management_system.services.DepartmentService;
 import com.ems.employee_management_system.services.EmployeeService;
 import com.ems.employee_management_system.services.ProjectService;
+import com.ems.employee_management_system.services.TaskService;
 import com.ems.employee_management_system.utils.PaginationUtils;
 import com.ems.employee_management_system.constants.RoleConstants;
+import com.ems.employee_management_system.mappers.TaskMapper;
+import com.ems.employee_management_system.models.Task;
 
 import jakarta.validation.Valid;
 
@@ -50,13 +54,16 @@ public class ProjectController {
     private final DepartmentService departmentService;
     private final EmployeeService employeeService;
     private final SecurityService securityService;
+    private final TaskService taskService;
 
     public ProjectController(ProjectService projectService, DepartmentService departmentService, 
-                             EmployeeService employeeService, SecurityService securityService) {
+                             EmployeeService employeeService, SecurityService securityService,
+                             TaskService taskService) {
         this.projectService = projectService;
         this.departmentService = departmentService;
         this.employeeService = employeeService;
         this.securityService = securityService;
+        this.taskService = taskService;
     }
 
     @GetMapping
@@ -116,8 +123,7 @@ public class ProjectController {
     }
 
     @GetMapping("/{id}")
-    @PreAuthorize("hasAnyRole('" + RoleConstants.SYSTEM_ADMIN + "', '" + RoleConstants.HR_MANAGER + "', '" + RoleConstants.DEPARTMENT_MANAGER + "') or " +
-                  "(hasRole('" + RoleConstants.EMPLOYEE + "') and @securityService.isProjectAssignedToUser(#id))")
+    @PreAuthorize("hasAnyRole('" + RoleConstants.SYSTEM_ADMIN + "', '" + RoleConstants.HR_MANAGER + "', '" + RoleConstants.DEPARTMENT_MANAGER + "', '" + RoleConstants.EMPLOYEE + "')")
     public ResponseEntity<ProjectResponseDTO> getById(@PathVariable UUID id) {
         logger.debug("Fetching project with id: {}", id);
         Project project = projectService.getById(id);
@@ -125,7 +131,17 @@ public class ProjectController {
             logger.warn("Project not found with id: {}", id);
             return ResponseEntity.notFound().build();
         }
-        return ResponseEntity.ok(ProjectMapper.toResponseDTO(project));
+        
+        ProjectResponseDTO responseDTO = ProjectMapper.toResponseDTO(project);
+        
+        // Fetch and include tasks for the project
+        List<Task> tasks = taskService.getByProjectId(id);
+        List<TaskResponseDTO> taskDTOs = tasks.stream()
+            .map(TaskMapper::toResponseDTO)
+            .collect(java.util.stream.Collectors.toList());
+        responseDTO.setTasks(taskDTOs);
+        
+        return ResponseEntity.ok(responseDTO);
     }
 
     @PostMapping("/create")

@@ -10,12 +10,20 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.PathVariable;
+
+import java.util.HashMap;
+import java.util.Map;
 
 import com.ems.employee_management_system.dtos.AuthRequestDTO;
 import com.ems.employee_management_system.dtos.AuthResponseDTO;
+import com.ems.employee_management_system.dtos.ActivateAccountRequestDTO;
+import com.ems.employee_management_system.dtos.ForgotPasswordRequestDTO;
+import com.ems.employee_management_system.dtos.ResetPasswordRequestDTO;
 import com.ems.employee_management_system.dtos.RegisterRequestDTO;
 import com.ems.employee_management_system.dtos.RefreshTokenRequestDTO;
 import com.ems.employee_management_system.services.AuthService;
+import com.ems.employee_management_system.services.AccountProvisioningService;
 import com.ems.employee_management_system.constants.RoleConstants;
 
 import jakarta.validation.Valid;
@@ -27,9 +35,12 @@ public class AuthController {
     private static final Logger logger = LoggerFactory.getLogger(AuthController.class);
     
     private final AuthService authService;
+    private final AccountProvisioningService accountProvisioningService;
     
-    public AuthController(AuthService authService) {
+    public AuthController(AuthService authService,
+                          AccountProvisioningService accountProvisioningService) {
         this.authService = authService;
+        this.accountProvisioningService = accountProvisioningService;
     }
     
     /**
@@ -106,6 +117,47 @@ public class AuthController {
             authService.logout(token);
         }
         
+        return ResponseEntity.status(HttpStatus.OK).build();
+    }
+
+    /**
+     * Activate account using invite token
+     */
+    @PostMapping("/activate")
+    public ResponseEntity<Void> activate(@Valid @RequestBody ActivateAccountRequestDTO request) {
+        accountProvisioningService.activateAccount(request.getToken(), request.getPassword());
+        return ResponseEntity.status(HttpStatus.OK).build();
+    }
+
+    /**
+     * Resend invite token
+     */
+    @PostMapping("/invites/{userId}/resend")
+    @PreAuthorize("hasAnyRole('" + RoleConstants.SYSTEM_ADMIN + "','" + RoleConstants.HR_MANAGER + "')")
+    public ResponseEntity<Map<String, String>> resendInvite(@PathVariable java.util.UUID userId) {
+        String token = accountProvisioningService.resendInvite(userId);
+        Map<String, String> body = new java.util.HashMap<>();
+        body.put("inviteToken", token); // Returned for demo mode
+        return ResponseEntity.status(HttpStatus.OK).body(body);
+    }
+
+    /**
+     * Forgot password - create reset token
+     */
+    @PostMapping("/forgot-password")
+    public ResponseEntity<Map<String, String>> forgotPassword(@Valid @RequestBody ForgotPasswordRequestDTO request) {
+        String token = accountProvisioningService.createResetToken(request.getEmail());
+        Map<String, String> body = new java.util.HashMap<>();
+        body.put("resetToken", token); // Returned for demo mode
+        return ResponseEntity.status(HttpStatus.OK).body(body);
+    }
+
+    /**
+     * Reset password using token
+     */
+    @PostMapping("/reset-password")
+    public ResponseEntity<Void> resetPassword(@Valid @RequestBody ResetPasswordRequestDTO request) {
+        accountProvisioningService.resetPassword(request.getToken(), request.getPassword());
         return ResponseEntity.status(HttpStatus.OK).build();
     }
 }

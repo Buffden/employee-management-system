@@ -69,13 +69,17 @@ public class EmployeeProjectController {
     }
 
     @GetMapping("/{employeeId}/{projectId}")
+    @PreAuthorize("hasAnyRole('" + RoleConstants.SYSTEM_ADMIN + "', '" + RoleConstants.HR_MANAGER + "', '" + RoleConstants.DEPARTMENT_MANAGER + "', '" + RoleConstants.EMPLOYEE + "') and " +
+                  "(hasAnyRole('" + RoleConstants.SYSTEM_ADMIN + "', '" + RoleConstants.HR_MANAGER + "', '" + RoleConstants.DEPARTMENT_MANAGER + "') or " +
+                  "@securityService.isOwnRecord(T(java.util.UUID).fromString(#employeeId)))")
     public ResponseEntity<EmployeeProjectResponseDTO> getById(@PathVariable("employeeId") String employeeId, @PathVariable("projectId") String projectId) {
         logger.debug("Fetching employee-project assignment: employeeId={}, projectId={}", employeeId, projectId);
         EmployeeProjectId id = new EmployeeProjectId(UUID.fromString(employeeId), UUID.fromString(projectId));
         EmployeeProject ep = employeeProjectService.getById(id);
         if (ep == null) {
-            logger.warn("Employee-project assignment not found: employeeId={}, projectId={}", employeeId, projectId);
-            return ResponseEntity.notFound().build();
+            logger.debug("Employee-project assignment not found: employeeId={}, projectId={}", employeeId, projectId);
+            // Return 200 OK with null body instead of 404, as "not found" is a valid state for existence checks
+            return ResponseEntity.ok().body(null);
         }
         return ResponseEntity.ok(EmployeeProjectMapper.toResponseDTO(ep));
     }

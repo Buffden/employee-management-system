@@ -21,6 +21,14 @@ export const routes: Routes = [
         (m) => m.LoginComponent
       ),
   },
+  // Activate account route (public)
+  {
+    path: 'activate',
+    loadComponent: () =>
+      import('./features/auth/components/activate/activate.component').then(
+        (m) => m.ActivateComponent
+      ),
+  },
   // Register route (System Admin only)
   {
     path: 'register',
@@ -42,26 +50,17 @@ export const routes: Routes = [
   },
   {
     path: 'employees',
-    loadComponent: () =>
-      import(
-        './features/employees/components/employee-list/employee-list.component'
-      ).then((m) => m.EmployeeListComponent),
+    loadChildren: () => import('./features/employees/employees-routing.module').then(m => m.EmployeesRoutingModule),
     canActivate: [AuthGuard],
   },
   {
     path: 'departments',
-    loadComponent: () =>
-      import(
-        './features/departments/components/department-list/department-list.component'
-      ).then((m) => m.DepartmentListComponent),
+    loadChildren: () => import('./features/departments/departments-routing.module').then(m => m.DepartmentsRoutingModule),
     canActivate: [AuthGuard],
   },
   {
     path: 'locations',
-    loadComponent: () =>
-      import(
-        './features/locations/components/location-list/location-list.component'
-      ).then((m) => m.LocationListComponent),
+    loadChildren: () => import('./features/locations/locations-routing.module').then(m => m.LocationsRoutingModule),
     canActivate: [AuthGuard],
   },
   {

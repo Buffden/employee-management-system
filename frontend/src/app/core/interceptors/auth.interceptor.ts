@@ -15,6 +15,15 @@ import { Router } from '@angular/router';
 export class AuthInterceptor implements HttpInterceptor {
   private isRefreshing = false;
   private readonly refreshTokenSubject: BehaviorSubject<string | null> = new BehaviorSubject<string | null>(null);
+  
+  // Public endpoints that don't require authentication
+  private readonly publicEndpoints = [
+    '/auth/login',
+    '/auth/refresh',
+    '/auth/activate',
+    '/auth/forgot-password',
+    '/auth/reset-password'
+  ];
 
   constructor(
     private readonly authService: AuthService,
@@ -22,9 +31,11 @@ export class AuthInterceptor implements HttpInterceptor {
   ) {}
 
   intercept(request: HttpRequest<unknown>, next: HttpHandler): Observable<HttpEvent<unknown>> {
-    // Skip adding token only for login and refresh (register requires authentication)
-    if (request.url.includes('/auth/login') || 
-        request.url.includes('/auth/refresh')) {
+    // Check if this is a public endpoint that doesn't require authentication
+    const isPublicEndpoint = this.publicEndpoints.some(endpoint => request.url.includes(endpoint));
+
+    // Skip adding token for public endpoints
+    if (isPublicEndpoint) {
       return next.handle(request);
     }
 
@@ -32,19 +43,13 @@ export class AuthInterceptor implements HttpInterceptor {
     const token = this.authService.getToken();
     if (token) {
       request = this.addTokenToRequest(request, token);
-      console.log('✅ Token added to request:', request.url.substring(0, 50) + '...');
-    } else {
-      console.error('❌ No token found for request:', request.url);
-      console.error('Current user:', this.authService.getCurrentUser());
-      // If no token and it's a protected endpoint, let the backend handle the 401
     }
 
     return next.handle(request).pipe(
       catchError((error: HttpErrorResponse) => {
-        // Handle 401 Unauthorized
-        if (error.status === 401) {
-          console.error('401 error for:', request.url, error);
-          return this.handle401Error(request, next);
+        // Handle 401 Unauthorized - but skip for public endpoints
+        if (error.status === 401 && !isPublicEndpoint) {
+          return this.handle401Error(request, next, error);
         }
 
         return throwError(() => error);
@@ -67,8 +72,15 @@ export class AuthInterceptor implements HttpInterceptor {
    * Handle 401 Unauthorized error
    * Attempts to refresh token and retry the request
    */
-  private handle401Error(request: HttpRequest<unknown>, next: HttpHandler): Observable<HttpEvent<unknown>> {
-    // Don't try to refresh token for register endpoint - if we get 401, it's a real auth issue
+  private handle401Error(request: HttpRequest<unknown>, next: HttpHandler, error: HttpErrorResponse): Observable<HttpEvent<unknown>> {
+    // Don't try to refresh token for public or special endpoints
+    const isPublicEndpoint = this.publicEndpoints.some(endpoint => request.url.includes(endpoint));
+    
+    if (isPublicEndpoint) {
+      // For public endpoints, just return the error without redirecting
+      return throwError(() => error);
+    }
+    
     if (request.url.includes('/auth/register')) {
       console.error('401 error on register endpoint - authentication failed');
       return throwError(() => new Error('Authentication failed. Please ensure you are logged in as System Admin.'));

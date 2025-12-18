@@ -15,6 +15,7 @@ import { Location } from '../../../../shared/models/location.model';
 import { FilterOption } from '../../../../shared/models/paginated-response.model';
 import { finalize } from 'rxjs/operators';
 import { TypeaheadComponent, TypeaheadConfig } from '../../../../shared/components/typeahead/typeahead.component';
+import { departmentFormFields } from './department-form.config';
 import { EmployeeService } from '../../../employees/services/employee.service';
 import { Employee } from '../../../../shared/models/employee.model';
 
@@ -513,57 +514,6 @@ export class DepartmentFormComponent implements OnInit {
   }
 
   createFormFields(): DepartmentFormField[] {
-    return [
-      {
-        label: 'Department Name',
-        formControlName: 'name',
-        placeholder: 'Enter department name',
-        errorMessage: 'Department name is required (max 100 characters)',
-        required: true
-      },
-      {
-        label: 'Description',
-        formControlName: 'description',
-        placeholder: 'Enter description',
-        errorMessage: 'Description is required (max 1000 characters)',
-        required: true
-      },
-      {
-        label: 'Location',
-        formControlName: 'locationId',
-        placeholder: 'Select location',
-        errorMessage: 'Location is required',
-        type: 'select',
-        required: true
-      },
-      {
-        label: 'Budget',
-        formControlName: 'budget',
-        placeholder: 'Enter budget (optional)',
-        errorMessage: 'Budget must be a positive number',
-        type: 'number'
-      },
-      {
-        label: 'Budget Utilization',
-        formControlName: 'budgetUtilization',
-        placeholder: 'Enter budget utilization (optional)',
-        errorMessage: 'Budget utilization must be a positive number',
-        type: 'number'
-      },
-      {
-        label: 'Performance Metric',
-        formControlName: 'performanceMetric',
-        placeholder: 'Enter performance metric (optional)',
-        errorMessage: 'Performance metric must be a positive number',
-        type: 'number'
-      },
-      {
-        label: 'Department Head',
-        formControlName: 'departmentHeadId',
-        placeholder: 'Search for department head (optional)',
-        errorMessage: 'Please select a valid employee',
-        type: 'typeahead',
-      },
-    ];
+    return departmentFormFields;
   }
 }

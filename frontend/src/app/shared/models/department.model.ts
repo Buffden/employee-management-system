@@ -9,6 +9,7 @@ export interface Department {
     budgetUtilization: number;
     performanceMetric: number;
     departmentHeadId: string | null;
+    departmentHeadName?: string | null; // Denormalized from backend
 }
 
 export interface DepartmentFormField {

@@ -26,6 +26,10 @@ public class TaskMapper {
         dto.setDueDate(task.getDueDate());
         dto.setCompletedDate(task.getCompletedDate());
         
+        // Include IDs for form binding and filtering
+        dto.setProjectId(task.getProject() != null ? task.getProject().getId() : null);
+        dto.setAssignedToId(task.getAssignedTo() != null ? task.getAssignedTo().getId() : null);
+        
         // Denormalized names for better API responses
         dto.setProjectName(task.getProject() != null ? task.getProject().getName() : null);
         if (task.getAssignedTo() != null) {

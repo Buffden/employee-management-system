@@ -1,26 +1,19 @@
-import { Component, Input, OnChanges, SimpleChanges, ViewChild, Output, EventEmitter, AfterViewInit, ChangeDetectorRef } from '@angular/core';
+import { Component, Input, OnChanges, SimpleChanges, ViewChild, Output, EventEmitter, AfterViewInit, ChangeDetectorRef, OnDestroy } from '@angular/core';
 import { MatTableDataSource, MatTableModule } from '@angular/material/table';
 import { CommonModule } from '@angular/common';
 import { MatPaginator, PageEvent } from '@angular/material/paginator';
 import { MatSort, Sort, MatSortModule } from '@angular/material/sort';
-import { Employee } from '../../models/employee.model';
-import { Department } from '../../models/department.model';
-import { ActionButtonObject, Column, FormMode, SortDirection, TableConfig, TableData } from '../../models/table';
+import { ActionButtonObject, Column, FormMode, SortDirection, TableConfig, TableCellData } from '../../models/table';
 import { defaultTableConfig } from './table.config';
 import { MatDialog, MatDialogRef } from '@angular/material/dialog';
 import { OverlayDialogComponent } from '../overlay-dialog/overlay-dialog.component';
 import { SharedModule } from '../../shared.module';
 import { NoDataComponent } from '../no-data/no-data.component';
 import { Router } from '@angular/router';
-import { filter, take } from 'rxjs/operators';
-import { EmployeeService } from '../../../features/employees/services/employee.service';
+import { filter, take, takeUntil, Subject, Subscription } from 'rxjs';
 import { DialogData } from '../../models/dialog';
-import { DepartmentService } from '../../../features/departments/services/department.service';
-import { LocationService } from '../../../features/locations/services/location.service';
-import { Location } from '../../models/location.model';
 import { FilterOption } from '../../models/paginated-response.model';
-
-export type TableCellData = Employee | Department | Location | TableData;
+import { AuthService } from '../../../core/services/auth.service';
 
 @Component({
   selector: 'app-table',
@@ -28,34 +21,42 @@ export type TableCellData = Employee | Department | Location | TableData;
   templateUrl: './table.component.html',
   styleUrl: './table.component.css'
 })
-export class TableComponent implements OnChanges, AfterViewInit {
+export class TableComponent implements OnChanges, AfterViewInit, OnDestroy {
   @Input() inputData: TableCellData[] = [];
   @Input() tableConfig: TableConfig = defaultTableConfig;
   @Input() linkClickHandler?: (row: TableCellData, colKey: string) => void;
   @Input() totalElements = 0; // Total number of elements from backend
   @Input() useBackendPagination = false; // Whether to use backend pagination
   @Input() currentPageIndex = 0; // Current page index from parent
+  @Input() pageSize = 10; // Page size from parent (for backend pagination)
   @Input() filters?: Record<string, FilterOption[]>; // Optional: generic filters from paginated response (e.g., locations, departments, etc.)
+  @Input() enableAddButton = false; // Whether to enable add button
+  @Input() hasNext = false; // Whether there's a next page
+  @Input() hasPrevious = false; // Whether there's a previous page
+  @Input() editActionHandler?: (row: TableCellData) => void; // Optional: handler for edit action from parent
+  @Input() deleteActionHandler?: (row: TableCellData) => void; // Optional: handler for delete action from parent
+  @Input() returnToPage?: string; // Optional: return page for dialogs (e.g., 'employees', 'departments')
+  @Input() loading = false; // Loading state for showing spinner
   
   @Output() sortChange = new EventEmitter<{ active: string; direction: string }>();
   @Output() pageChange = new EventEmitter<PageEvent>();
 
   displayedColumns: string[] = [];
   dataSource!: MatTableDataSource<TableCellData>;
-  pageSize = 10;
   pageSizeOptions: number[] = [5, 10, 25, 50];
   dialogRef: MatDialogRef<OverlayDialogComponent> | undefined;
-  useFrontendSorting = false; // Whether to use frontend sorting
 
   @ViewChild(MatPaginator) paginator!: MatPaginator;
   @ViewChild(MatSort, { static: false }) sort!: MatSort;
 
+  private destroy$ = new Subject<void>();
+  private paginatorSubscription?: Subscription;
+  private sortSubscription?: Subscription;
+
   constructor(
     public matDialog: MatDialog,
     private router: Router,
-    private departmentService: DepartmentService,
-    private employeeService: EmployeeService,
-    private locationService: LocationService,
+    private authService: AuthService,
     private cdr: ChangeDetectorRef) { }
 
   ngOnChanges(changes: SimpleChanges): void {
@@ -67,11 +68,9 @@ export class TableComponent implements OnChanges, AfterViewInit {
       this.handleTableDataChange(changes['inputData'].currentValue);
     }
 
-    if (changes['totalElements'] || changes['pageSize']) {
-      this.updateSortingMode();
-    }
-
-    // currentPageIndex is handled via @Input binding
+    // Note: We rely on template bindings for paginator properties
+    // MatPaginator will automatically calculate button states from [length], [pageIndex], and [pageSize]
+    // All sorting and pagination is handled by backend
   }
 
   ngAfterViewInit(): void {
@@ -81,10 +80,8 @@ export class TableComponent implements OnChanges, AfterViewInit {
     // Use setTimeout to ensure ViewChild is fully initialized after change detection
     setTimeout(() => {
       this.setupSortAndPagination();
-      // Update sorting mode after view init to ensure paginator is available
-      this.updateSortingMode();
       
-      // Initialize default sorting from config if available
+      // Initialize default sorting from config if available (for visual indicators only)
       if (this.tableConfig.defaultSortColumn && this.sort) {
         const sortDirection = this.tableConfig.defaultSortDirection === SortDirection.DESC ? 'desc' : 'asc';
         this.sort.sort({ id: this.tableConfig.defaultSortColumn, start: sortDirection, disableClear: true });
@@ -97,41 +94,31 @@ export class TableComponent implements OnChanges, AfterViewInit {
     }, 0);
   }
 
-  updateSortingMode(): void {
-    // Use frontend sorting if totalElements <= pageSize (all data fits in one page)
-    // Otherwise use backend sorting
-    // Use paginator's pageSize if available, otherwise fall back to config pageSize
-    const currentPageSize = this.paginator?.pageSize || this.pageSize;
-    this.useFrontendSorting = this.totalElements <= currentPageSize;
-    
-    if (this.dataSource && this.sort) {
-      // Always set sort for UI indicators (sort arrows, etc.)
-      // The actual sorting logic is handled differently for frontend vs backend
-      this.dataSource.sort = this.sort;
-    } else if (!this.dataSource || !this.sort) {
-      console.warn('[TableComponent] Cannot set sort - dataSource or sort not available');
-    }
-  }
-
   setupSortAndPagination(): void {
-    if (this.dataSource && this.paginator) {
-      this.dataSource.paginator = this.paginator;
+    // Note: We don't assign paginator/sort to dataSource - all pagination/sorting is handled by backend
+    // MatPaginator and MatSort are only used for UI controls and event emission
+
+    // Unsubscribe from previous subscriptions to prevent duplicates
+    if (this.sortSubscription) {
+      this.sortSubscription.unsubscribe();
+    }
+    if (this.paginatorSubscription) {
+      this.paginatorSubscription.unsubscribe();
     }
 
-    // Only setup sort if it's available - if not, it will be set up when data arrives
+    // Setup sort change listener for backend sorting
     if (this.sort) {
-      // Subscribe to sort changes for backend sorting
-      this.sort.sortChange.subscribe((sort: Sort) => {
+      this.sortSubscription = this.sort.sortChange.pipe(
+        takeUntil(this.destroy$)
+      ).subscribe((sort: Sort) => {
         // Ignore empty string or null sort.active (non-sortable columns)
         if (!sort.active || sort.active.trim() === '') {
           return;
         }
         
-        // Only emit if column is sortable and we're using backend sorting
+        // Emit sort event to parent for backend sorting
         const column = this.tableConfig.columns?.find(col => col.key === sort.active);
-        
-        if (column && column.sortable !== false && !this.useFrontendSorting) {
-          // Emit sort event to parent for backend sorting
+        if (column && column.sortable !== false) {
           this.sortChange.emit({
             active: sort.active,
             direction: sort.direction.toUpperCase()
@@ -140,28 +127,53 @@ export class TableComponent implements OnChanges, AfterViewInit {
       });
     }
 
+    // Setup pagination change listener for backend pagination
     if (this.paginator && this.useBackendPagination) {
-      // Subscribe to pagination changes for backend pagination
-      this.paginator.page.subscribe((pageEvent: PageEvent) => {
-        // Update sorting mode when page size changes (user might change page size)
-        this.updateSortingMode();
+      this.paginatorSubscription = this.paginator.page.pipe(
+        takeUntil(this.destroy$)
+      ).subscribe((pageEvent: PageEvent) => {
+        // Update pageSize in component when it changes
+        if (pageEvent.pageSize !== this.pageSize) {
+          this.pageSize = pageEvent.pageSize;
+        }
+        // Emit page change event to parent (includes both pageIndex and pageSize)
         this.pageChange.emit(pageEvent);
       });
+    }
+  }
+
+  ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
+    
+    if (this.paginatorSubscription) {
+      this.paginatorSubscription.unsubscribe();
+    }
+    if (this.sortSubscription) {
+      this.sortSubscription.unsubscribe();
     }
   }
 
   handleTableConfig(config: TableConfig): void {
     this.addActionColumn();
     this.displayedColumns = config.columns?.map((column: Column) => column.key) || [];
-    this.pageSize = config.pageSize || 10;
+    // pageSize is controlled by @Input from parent (backend pagination)
     this.pageSizeOptions = config.pageSizeOptions ?? defaultTableConfig.pageSizeOptions ?? [];
   }
 
   addActionColumn() {
-    if (this.tableConfig?.displayActionButtons && this.tableConfig?.columns) {
-      if (!this.tableConfig.columns.some((col: Column) => col.type === 'actionButtons')) {
-        this.tableConfig.columns = [...(this.tableConfig.columns ?? []), ActionButtonObject];
-      }
+    if (!this.tableConfig?.columns) {
+      return;
+    }
+
+    const hasActionColumn = this.tableConfig.columns.some((col: Column) => col.type === 'actionButtons');
+    
+    if (this.tableConfig.displayActionButtons && !hasActionColumn) {
+      // Add action column if enabled and not already present
+      this.tableConfig.columns = [...this.tableConfig.columns, ActionButtonObject];
+    } else if (!this.tableConfig.displayActionButtons && hasActionColumn) {
+      // Remove action column if disabled and currently present
+      this.tableConfig.columns = this.tableConfig.columns.filter((col: Column) => col.type !== 'actionButtons');
     }
   }
 
@@ -189,7 +201,6 @@ export class TableComponent implements OnChanges, AfterViewInit {
     // Trigger change detection and use setTimeout to ensure ViewChild is available after data change
     this.cdr.detectChanges();
     setTimeout(() => {
-      this.updateSortingMode();
       this.setupSortAndPagination();
     }, 0);
   }
@@ -236,7 +247,48 @@ export class TableComponent implements OnChanges, AfterViewInit {
     console.log('action', action, data);
   }
 
+  onEditAction(row: TableCellData): void {
+    if (this.editActionHandler) {
+      // Use custom handler if provided
+      this.editActionHandler(row);
+      return;
+    }
+
+    // Fallback: use table config to open edit dialog
+    this.dialogClose();
+    this.dialogRef = this.matDialog.open(OverlayDialogComponent, {
+      width: '850px',
+      maxHeight: '90vh',
+      data: {
+        title: this.tableConfig.editCardTitle,
+        content: row,
+        viewController: this.tableConfig.editController,
+        config: {
+          ...this.tableConfig,
+          mode: FormMode.EDIT
+        },
+        returnToPage: this.returnToPage,
+        filters: this.filters
+      } as DialogData
+    });
+  }
+
+  onDeleteAction(row: TableCellData): void {
+    if (this.deleteActionHandler) {
+      // Use custom handler if provided
+      this.deleteActionHandler(row);
+      return;
+    }
+
+    // Fallback: table component cannot delete without a handler
+    console.warn('Delete action requested but no deleteActionHandler provided to table component');
+  }
+
   onAddClick(): void {
+    // Prevent action if user doesn't have permission
+    if (!this.canAddItem()) {
+      return;
+    }
     this.dialogClose();
     this.tableConfig.mode = FormMode.ADD;
     // Determine current page from router
@@ -293,7 +345,37 @@ export class TableComponent implements OnChanges, AfterViewInit {
     return !this.dataSource?.data?.length;
   }
 
-  handleLinkClick(row: TableCellData, colKey: string): void {
+  /**
+   * Check if current user has permission to add items
+   */
+  canAddItem(): boolean {
+    if (!this.tableConfig.allowedRolesForAdd || this.tableConfig.allowedRolesForAdd.length === 0) {
+      // If no roles specified, default to allowing if allowAddButton is true
+      return this.tableConfig.allowAddButton ?? false;
+    }
+    return this.authService.hasAnyRole(this.tableConfig.allowedRolesForAdd);
+  }
+
+  /**
+   * Get tooltip text for add button
+   */
+  getAddButtonTooltip(): string {
+    if (this.canAddItem()) {
+      return '';
+    }
+    if (this.tableConfig.addButtonTooltip) {
+      return this.tableConfig.addButtonTooltip;
+    }
+    // Default tooltip if not specified
+    const roles = this.tableConfig.allowedRolesForAdd?.join(', ') || 'admins';
+    return `This feature is only available for ${roles}`;
+  }
+
+  handleLinkClick(row: TableCellData, colKey: string, event?: Event): void {
+    if (event) {
+      event.preventDefault();
+      event.stopPropagation();
+    }
     if (this.linkClickHandler) {
       this.linkClickHandler(row, colKey);
     } else {

@@ -5,7 +5,12 @@
     [totalElements]="totalElements"
     [useBackendPagination]="true"
     [currentPageIndex]="currentPage"
+    [pageSize]="pageSize"
+    [loading]="loading"
     [linkClickHandler]="onEmployeeNameClick"
+    [editActionHandler]="onEditAction"
+    [deleteActionHandler]="onDeleteAction"
+    [returnToPage]="'employees'"
     [filters]="filters"
     (sortChange)="onSortChange($event)"
     (pageChange)="onPageChange($event)">

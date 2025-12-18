@@ -2,7 +2,7 @@ import { Component, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { SharedModule } from '../../../../shared/shared.module';
 import { TableComponent } from '../../../../shared/components/table/table.component';
-import { TableCellData, FormMode } from '../../../../shared/models/table';
+import { TableCellData, FormMode, ColumnType } from '../../../../shared/models/table';
 import { PageEvent } from '@angular/material/paginator';
 import { EmployeeService } from '../../services/employee.service';
 import { employeeListConfig } from './employee-list.config';
@@ -16,6 +16,7 @@ import { DialogData, overlayType } from '../../../../shared/models/dialog';
 import { AuthService } from '../../../../core/services/auth.service';
 import { filter } from 'rxjs';
 import { take } from 'rxjs/operators';
+import { ConfirmationDialogComponent } from '../../../../shared/components/confirmation-dialog/confirmation-dialog.component';
 
 @Component({
   selector: 'app-employee-list',
@@ -36,18 +37,23 @@ export class EmployeeListComponent implements OnInit, OnDestroy {
   currentSortColumn = '';
   currentSortDirection = 'ASC';
   filters: Record<string, FilterOption[]> = {}; // Store filters from paginated response
+  loading = false; // Loading state for table spinner
   private isRefreshing = false; // Guard to prevent duplicate refresh calls
   private employeeAddedHandler?: () => void; // Store handler reference for cleanup
 
-  // Custom handler for employee name click - opens edit dialog
+  // Custom handler for link clicks - uses config to determine navigation target
   onEmployeeNameClick = (row: TableCellData, colKey: string) => {
-    if (colKey === 'firstName' || colKey === 'lastName' || colKey === 'name') {
-      // Check if user has permission to edit (HR Manager or Admin)
-      if (this.canEditEmployee()) {
-        this.openEditDialog(row as Employee);
-      } else {
-        // If no edit permission, just show details view
-        this.openViewDialog(row as Employee);
+    // Find the column config for this column key
+    const column = this.tableConfig.columns.find(col => col.key === colKey);
+    
+    if (column && column.type === ColumnType.LINK && column.navigationTarget && column.navigationIdKey) {
+      // Get the ID from the row using the navigationIdKey
+      const rowData = row as unknown as Record<string, unknown>;
+      const navigationId = rowData[column.navigationIdKey] as string | undefined;
+      
+      if (navigationId) {
+        // Navigate based on the navigationTarget from config
+        this.router.navigate([`/${column.navigationTarget}s`, navigationId]);
       }
     }
   };
@@ -60,10 +66,13 @@ export class EmployeeListComponent implements OnInit, OnDestroy {
   ) {}
 
   ngOnInit(): void {
+    // Enable action buttons for admins and HR managers
+    this.tableConfig.displayActionButtons = this.canEditEmployee();
+    
     // Load with default sort from config
     if (this.tableConfig.defaultSortColumn) {
       this.currentSortColumn = this.tableConfig.defaultSortColumn;
-      this.currentSortDirection = this.tableConfig.defaultSortDirection || 'ASC';
+      this.currentSortDirection = this.tableConfig.defaultSortDirection === 'desc' ? 'DESC' : 'ASC';
     }
     this.loadEmployees(this.currentPage, this.pageSize, this.currentSortColumn, this.currentSortDirection);
     
@@ -140,7 +149,49 @@ export class EmployeeListComponent implements OnInit, OnDestroy {
     });
   }
 
+  openDeleteDialog(employee: Employee): void {
+    const employeeName = employee.firstName && employee.lastName 
+      ? `${employee.firstName} ${employee.lastName}` 
+      : 'this employee';
+    const dialogRef = this.matDialog.open(ConfirmationDialogComponent, {
+      width: '400px',
+      data: {
+        title: 'Delete Employee',
+        message: `Are you sure you want to delete "${employeeName}"?`,
+        warning: 'This action cannot be undone.',
+        confirmText: 'Delete',
+        cancelText: 'Cancel'
+      }
+    });
+
+    dialogRef.afterClosed().pipe(take(1)).subscribe(result => {
+      if (result && employee.id) {
+        this.employeeService.deleteEmployee(employee.id).subscribe({
+          next: () => {
+            this.loadEmployees(this.currentPage, this.pageSize, this.currentSortColumn, this.currentSortDirection);
+          },
+          error: (error: unknown) => {
+            console.error('Error deleting employee:', error);
+            alert('Failed to delete employee. Please try again.');
+          }
+        });
+      }
+    });
+  }
+
+  // Handler methods for table component
+  onEditAction = (row: TableCellData): void => {
+    const employee = row as unknown as Employee;
+    this.openEditDialog(employee);
+  }
+
+  onDeleteAction = (row: TableCellData): void => {
+    const employee = row as unknown as Employee;
+    this.openDeleteDialog(employee);
+  }
+
   loadEmployees(page = 0, size = 10, sortBy?: string, sortDir = 'ASC'): void {
+    this.loading = true;
     this.employeeService.queryEmployees(page, size, sortBy, sortDir).subscribe({
       next: (response: PaginatedResponse<Employee>) => {
         this.employees = response.content || [];
@@ -157,6 +208,7 @@ export class EmployeeListComponent implements OnInit, OnDestroy {
         // Map employees to table data format
         this.tableData = this.employees.map(emp => ({
           ...emp,
+          id: emp.id,
           name: `${emp.firstName} ${emp.lastName}`,
           email: emp.email || '',
           phone: emp.phone || '',
@@ -164,29 +216,48 @@ export class EmployeeListComponent implements OnInit, OnDestroy {
           designation: emp.designation || '',
           salary: emp.salary || 0,
           joiningDate: emp.joiningDate || '',
+          locationId: emp.locationId || '',
           locationName: emp.locationName || '',
+          departmentId: emp.departmentId || '',
           departmentName: emp.departmentName || '',
+          managerId: emp.managerId || '',
           managerName: emp.managerName || '',
           performanceRating: emp.performanceRating || 0,
           workLocation: emp.workLocation || '',
-          experienceYears: emp.experienceYears || 0
+          experienceYears: emp.experienceYears || 0,
+          // Fill in required TableCellData fields
+          description: '',
+          createdAt: '',
+          budget: 0,
+          budgetUtilization: 0,
+          performanceMetric: 0,
+          departmentHeadId: '',
+          totalEmployees: 0,
+          startDate: '',
+          endDate: '',
+          status: '',
+          projectManager: ''
         }));
+        this.loading = false;
       },
       error: () => {
         // Error handling - error details are already logged by the service
+        this.loading = false;
       }
     });
   }
 
   onPageChange(pageEvent: PageEvent): void {
-    this.currentPage = pageEvent.pageIndex;
+    // Reset to first page if page size changed
+    const pageSizeChanged = this.pageSize !== pageEvent.pageSize;
+    this.currentPage = pageSizeChanged ? 0 : pageEvent.pageIndex;
     this.pageSize = pageEvent.pageSize;
     this.loadEmployees(this.currentPage, this.pageSize, this.currentSortColumn, this.currentSortDirection);
   }
 
   onSortChange(sortEvent: { active: string; direction: string }): void {
     this.currentSortColumn = sortEvent.active;
-    this.currentSortDirection = sortEvent.direction;
+    this.currentSortDirection = sortEvent.direction === 'ASC' || sortEvent.direction === 'asc' ? 'ASC' : 'DESC';
     // Reset to first page when sorting changes
     this.currentPage = 0;
     this.loadEmployees(this.currentPage, this.pageSize, this.currentSortColumn, this.currentSortDirection);

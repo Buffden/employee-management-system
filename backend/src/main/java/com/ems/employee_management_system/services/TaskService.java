@@ -48,6 +48,11 @@ public class TaskService {
         return taskRepository.findById(id).orElse(null);
     }
 
+    public List<Task> getByProjectId(UUID projectId) {
+        logger.debug("Fetching tasks for project with id: {}", projectId);
+        return taskRepository.findByProjectId(projectId);
+    }
+
     /**
      * Saves a task with business logic validation
      * Validates date constraints (dueDate >= startDate, completedDate >= startDate)

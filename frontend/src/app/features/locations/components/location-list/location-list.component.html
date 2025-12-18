@@ -5,7 +5,14 @@
     [totalElements]="totalElements"
     [useBackendPagination]="true"
     [currentPageIndex]="currentPage"
+    [pageSize]="pageSize"
+    [loading]="loading"
+    [hasNext]="hasNext"
+    [hasPrevious]="hasPrevious"
     [linkClickHandler]="onLocationNameClick"
+    [editActionHandler]="onEditAction"
+    [deleteActionHandler]="onDeleteAction"
+    [returnToPage]="'locations'"
     (sortChange)="onSortChange($event)"
     (pageChange)="onPageChange($event)">
   </app-table>

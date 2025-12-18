@@ -7,9 +7,9 @@ export const projectListConfig: TableConfig = {
   additionCardTitle: 'Add Project',
   editCardTitle: 'Edit Project',
   columns: [
-    { key: 'name', header: 'Project Name', sortable: true, type: ColumnType.LINK, isSticky: true },
-    { key: 'department', header: 'Department', sortable: true, type: ColumnType.TEXT },
-    { key: 'projectManager', header: 'Project Manager', sortable: true, type: ColumnType.TEXT },
+    { key: 'name', header: 'Project Name', sortable: true, type: ColumnType.LINK, isSticky: true, navigationTarget: 'project', navigationIdKey: 'id' },
+    { key: 'department', header: 'Department', sortable: true, type: ColumnType.LINK, navigationTarget: 'department', navigationIdKey: 'departmentId' },
+    { key: 'projectManager', header: 'Project Manager', sortable: true, type: ColumnType.LINK, navigationTarget: 'employee', navigationIdKey: 'projectManagerId' },
     { key: 'startDate', header: 'Start Date', sortable: true, type: ColumnType.DATE },
     { key: 'endDate', header: 'End Date', sortable: true, type: ColumnType.DATE },
     { key: 'status', header: 'Status', sortable: true, type: ColumnType.TEXT },
@@ -17,13 +17,15 @@ export const projectListConfig: TableConfig = {
   ],
   pageSize: 10,
   pageSizeOptions: [5, 10, 25, 50, 100],
-  displayActionButtons: true,
+  displayActionButtons: false, // Will be set dynamically based on user role in ngOnInit
   viewController: overlayType.DISPLAYPROJECT,
   additionController: overlayType.ADDPROJECT,
   editController: overlayType.EDITPROJECT,
   allowGenericButtons: true,
   allowExport: true,
   allowAddButton: true,
+  allowedRolesForAdd: ['SYSTEM_ADMIN', 'HR_MANAGER', 'DEPARTMENT_MANAGER'],
+  addButtonTooltip: 'This feature is only available for System Admins, HR Managers, and Department Managers',
   allowCustomize: true,
   allowFiltering: true, // Allow filtering on project table
   defaultSortColumn: 'name', // Default sort by project name

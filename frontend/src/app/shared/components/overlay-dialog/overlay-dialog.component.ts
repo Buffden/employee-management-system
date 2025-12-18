@@ -1,12 +1,13 @@
 import { Component, Inject } from '@angular/core';
 import { MatDialogRef, MAT_DIALOG_DATA, MatDialog } from '@angular/material/dialog';
 import { DialogData, EmployeeDisplayData, overlayType } from '../../models/dialog';
-import { TableCellData } from '../table/table.component';
+import { TableCellData } from '../../models/table';
 import { SharedModule } from '../../shared.module';
 import { DepartmentFormComponent } from '../../../features/departments/components/department-form/department-form.component';
 import { EmployeeFormComponent } from '../../../features/employees/components/employee-form/employee-form.component';
 import { LocationFormComponent } from '../../../features/locations/components/location-form/location-form.component';
 import { ProjectFormComponent } from '../../../features/projects/components/project-form/project-form.component';
+import { TaskFormComponent } from '../../../features/projects/components/task-form/task-form.component';
 import { defaultTableConfig } from '../table/table.config';
 import { SampleDisplayData } from '../../consts/employee.consts';
 import { FormMode } from '../../models/table';
@@ -16,7 +17,7 @@ import { Project } from '../../models/project.model';
 
 @Component({
   selector: 'app-overlay-dialog',
-  imports: [SharedModule, DepartmentFormComponent, EmployeeFormComponent, LocationFormComponent, ProjectFormComponent],
+  imports: [SharedModule, DepartmentFormComponent, EmployeeFormComponent, LocationFormComponent, ProjectFormComponent, TaskFormComponent],
   templateUrl: './overlay-dialog.component.html',
   styleUrl: './overlay-dialog.component.css'
 })
@@ -119,6 +120,17 @@ export class OverlayDialogComponent {
       console.log('Project deleted:', project.id);
     } else {
       console.log('Project form response:', response);
+    }
+    this.dialogClose(response);
+  }
+
+  taskFormResponse(response: DialogData): void {
+    // Check if task was deleted
+    const task = response.content as unknown as any & { deleted?: boolean };
+    if (task && task.deleted) {
+      console.log('Task deleted:', task.id);
+    } else {
+      console.log('Task form response:', response);
     }
     this.dialogClose(response);
   }

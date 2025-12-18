@@ -11,8 +11,12 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.ems.employee_management_system.models.Employee;
+import com.ems.employee_management_system.models.User;
 import com.ems.employee_management_system.repositories.EmployeeProjectRepository;
 import com.ems.employee_management_system.repositories.EmployeeRepository;
+import com.ems.employee_management_system.repositories.InviteTokenRepository;
+import com.ems.employee_management_system.repositories.PasswordResetTokenRepository;
+import com.ems.employee_management_system.repositories.UserRepository;
 import com.ems.employee_management_system.security.SecurityService;
 
 @Service
@@ -21,13 +25,22 @@ public class EmployeeService {
     
     private final EmployeeRepository employeeRepository;
     private final EmployeeProjectRepository employeeProjectRepository;
+    private final UserRepository userRepository;
+    private final InviteTokenRepository inviteTokenRepository;
+    private final PasswordResetTokenRepository passwordResetTokenRepository;
     private final SecurityService securityService;
 
     public EmployeeService(EmployeeRepository employeeRepository,
                            EmployeeProjectRepository employeeProjectRepository,
+                           UserRepository userRepository,
+                           InviteTokenRepository inviteTokenRepository,
+                           PasswordResetTokenRepository passwordResetTokenRepository,
                            SecurityService securityService) {
         this.employeeRepository = employeeRepository;
         this.employeeProjectRepository = employeeProjectRepository;
+        this.userRepository = userRepository;
+        this.inviteTokenRepository = inviteTokenRepository;
+        this.passwordResetTokenRepository = passwordResetTokenRepository;
         this.securityService = securityService;
     }
 
@@ -46,24 +59,25 @@ public class EmployeeService {
         }
         
         try {
-            // For SYSTEM_ADMIN and HR_MANAGER, we can use findAll() for simplicity
-            // This avoids potential query issues and is more performant
-            if ("SYSTEM_ADMIN".equals(role) || "HR_MANAGER".equals(role)) {
-                logger.debug("Using findAll() for {} role", role);
-                return employeeRepository.findAll(pageable);
+            // For SYSTEM_ADMIN, HR_MANAGER, and EMPLOYEE, use findAllWithRelationships to eagerly load relationships
+            // This ensures department, location, and manager are available for mapping to DTOs
+            // Employees can view all employees (view-only access, edit/delete still restricted)
+            if ("SYSTEM_ADMIN".equals(role) || "HR_MANAGER".equals(role) || "EMPLOYEE".equals(role)) {
+                logger.debug("Using findAllWithRelationships() for {} role", role);
+                return employeeRepository.findAllWithRelationships(pageable);
             }
             
-            // For other roles, use role-based filtering
+            // For other roles, use role-based filtering with relationships
             return employeeRepository.findAllFilteredByRole(role, departmentId, userId, pageable);
         } catch (Exception e) {
             logger.error("Error fetching employees with role-based filtering: {}", e.getMessage(), e);
             logger.error("Stack trace: ", e);
-            // Fallback to findAll() if role-based query fails (for debugging)
-            logger.warn("Falling back to findAll() due to error");
+            // Fallback to findAllWithRelationships if role-based query fails (for debugging)
+            logger.warn("Falling back to findAllWithRelationships() due to error");
             try {
-                return employeeRepository.findAll(pageable);
+                return employeeRepository.findAllWithRelationships(pageable);
             } catch (Exception fallbackError) {
-                logger.error("Fallback findAll() also failed: {}", fallbackError.getMessage(), fallbackError);
+                logger.error("Fallback findAllWithRelationships() also failed: {}", fallbackError.getMessage(), fallbackError);
                 throw new RuntimeException("Failed to fetch employees: " + e.getMessage(), e);
             }
         }
@@ -76,7 +90,7 @@ public class EmployeeService {
 
     public Employee getById(UUID id) {
         logger.debug("Fetching employee with id: {}", id);
-        return employeeRepository.findById(id).orElse(null);
+        return employeeRepository.findByIdWithRelationships(id).orElse(null);
     }
 
     /**
@@ -138,7 +152,8 @@ public class EmployeeService {
 
     /**
      * Deletes an employee with business logic validation
-     * Validates that employee has no active project assignments and no direct reports
+     * Validates that employee has no active project assignments and no direct reports.
+     * Also deletes associated user account if one exists (cascade delete).
      */
     @Transactional
     public void delete(UUID id) {
@@ -163,6 +178,24 @@ public class EmployeeService {
             logger.warn("Cannot delete employee {}: {} direct report(s) found", employee.getEmail(), directReportsCount);
             throw new IllegalStateException("Cannot delete employee with " + directReportsCount + " direct report(s). Please reassign direct reports first.");
         }
+        
+        // Delete associated user account if one exists (cascade delete)
+        // Must delete invite tokens and password reset tokens first
+        userRepository.findByEmployeeId(id).ifPresent(user -> {
+            logger.info("Deleting associated user account for employee {} (user: {})", employee.getEmail(), user.getUsername());
+            
+            // Delete invite tokens first
+            inviteTokenRepository.deleteByUser(user);
+            logger.debug("Deleted invite tokens for user {}", user.getUsername());
+            
+            // Delete password reset tokens
+            passwordResetTokenRepository.deleteByUser(user);
+            logger.debug("Deleted password reset tokens for user {}", user.getUsername());
+            
+            // Finally delete the user
+            userRepository.delete(user);
+            logger.info("Deleted user account for employee {}", employee.getEmail());
+        });
         
         employeeRepository.deleteById(id);
         logger.info("Employee deleted successfully with id: {}", id);

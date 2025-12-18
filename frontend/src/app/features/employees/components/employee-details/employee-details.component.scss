@@ -1,0 +1,256 @@
+// Jira-style Employee Details Layout
+.employee-details-container {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 24px;
+  background: #f4f5f7;
+  min-height: 100vh;
+}
+
+// Breadcrumb Navigation
+.breadcrumb-nav {
+  display: flex;
+  align-items: center;
+  margin-bottom: 16px;
+  font-size: 14px;
+  padding: 8px 0;
+
+  .breadcrumb-link {
+    color: #0052cc;
+    text-decoration: none;
+    cursor: pointer;
+    
+    &:hover {
+      text-decoration: underline;
+    }
+  }
+
+  .breadcrumb-separator {
+    margin: 0 8px;
+    color: #6b778c;
+  }
+
+  .breadcrumb-current {
+    font-weight: 500;
+    color: #172b4d;
+  }
+}
+
+// Main Content Layout: Left Panel + Right Sidebar
+.content-layout {
+  display: flex;
+  gap: 24px;
+  align-items: flex-start;
+}
+
+// Left Panel: Main Content
+.left-panel {
+  flex: 1;
+  min-width: 0; // Prevents flex item overflow
+  background: #ffffff;
+  border-radius: 3px;
+  padding: 24px;
+}
+
+// Title Section
+.title-section {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 24px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid #dfe1e6;
+
+  .employee-title {
+    font-size: 24px;
+    font-weight: 500;
+    color: #172b4d;
+    margin: 0;
+    flex: 1;
+    line-height: 1.5;
+  }
+
+  .action-buttons {
+    margin-left: 16px;
+  }
+}
+
+// Section Titles
+.section-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: #172b4d;
+  margin: 0 0 16px 0;
+}
+
+// Contact Section
+.contact-section {
+  margin-bottom: 32px;
+
+  .contact-content {
+    background: #f4f5f7;
+    border-radius: 3px;
+    padding: 16px;
+
+    .contact-item {
+      display: flex;
+      margin-bottom: 12px;
+
+      &:last-child {
+        margin-bottom: 0;
+      }
+
+      .contact-label {
+        font-weight: 600;
+        color: #6b778c;
+        min-width: 120px;
+        margin-right: 16px;
+      }
+
+      .contact-value {
+        color: #172b4d;
+        flex: 1;
+      }
+    }
+  }
+}
+
+// Professional Section
+.professional-section {
+  margin-bottom: 32px;
+
+  .professional-content {
+    background: #f4f5f7;
+    border-radius: 3px;
+    padding: 16px;
+
+    .professional-item {
+      display: flex;
+      margin-bottom: 12px;
+
+      &:last-child {
+        margin-bottom: 0;
+      }
+
+      .professional-label {
+        font-weight: 600;
+        color: #6b778c;
+        min-width: 120px;
+        margin-right: 16px;
+      }
+
+      .professional-value {
+        color: #172b4d;
+        flex: 1;
+      }
+    }
+  }
+}
+
+// Right Sidebar: Metadata
+.right-sidebar {
+  width: 300px;
+  flex-shrink: 0;
+  background: #ffffff;
+  border-radius: 3px;
+  padding: 16px;
+  position: sticky;
+  top: 24px;
+  max-height: calc(100vh - 48px);
+  overflow-y: auto;
+}
+
+.sidebar-section {
+  .sidebar-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: #172b4d;
+    margin: 0 0 16px 0;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+}
+
+.sidebar-item {
+  margin-bottom: 16px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid #dfe1e6;
+
+  &:last-child {
+    border-bottom: none;
+    margin-bottom: 0;
+    padding-bottom: 0;
+  }
+
+  .sidebar-label {
+    display: block;
+    font-size: 12px;
+    font-weight: 600;
+    color: #6b778c;
+    text-transform: uppercase;
+    margin-bottom: 6px;
+    letter-spacing: 0.5px;
+  }
+
+  .sidebar-value {
+    font-size: 14px;
+    color: #172b4d;
+    word-break: break-word;
+
+    .clickable-link {
+      color: #0052cc;
+      text-decoration: none;
+      cursor: pointer;
+
+      &:hover {
+        text-decoration: underline;
+      }
+    }
+  }
+}
+
+// Loading and Error States
+.loading-container,
+.error-container {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 48px 24px;
+  text-align: center;
+  background: #ffffff;
+  border-radius: 3px;
+  min-height: 400px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+
+  h2 {
+    color: #172b4d;
+    margin-bottom: 16px;
+  }
+
+  p {
+    color: #6b778c;
+    margin-bottom: 24px;
+  }
+}
+
+.error-container {
+  h2 {
+    color: #de350b;
+  }
+}
+
+// Responsive Design
+@media (max-width: 1200px) {
+  .content-layout {
+    flex-direction: column;
+  }
+
+  .right-sidebar {
+    width: 100%;
+    position: static;
+    max-height: none;
+  }
+}
+

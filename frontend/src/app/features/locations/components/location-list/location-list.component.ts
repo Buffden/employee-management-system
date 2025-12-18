@@ -15,6 +15,7 @@ import { DialogData, overlayType } from '../../../../shared/models/dialog';
 import { AuthService } from '../../../../core/services/auth.service';
 import { filter } from 'rxjs';
 import { take } from 'rxjs/operators';
+import { ConfirmationDialogComponent } from '../../../../shared/components/confirmation-dialog/confirmation-dialog.component';
 
 @Component({
   selector: 'app-location-list',
@@ -32,19 +33,18 @@ export class LocationListComponent implements OnInit, OnDestroy {
   pageSize = 10;
   totalElements = 0;
   totalPages = 0;
+  hasNext = false;
+  hasPrevious = false;
+  currentSortColumn = '';
+  currentSortDirection = 'ASC';
+  loading = false; // Loading state for table spinner
   private isRefreshing = false; // Guard to prevent duplicate refresh calls
   private locationAddedHandler?: () => void; // Store handler reference for cleanup
 
-  // Custom handler for location name click - opens edit dialog
+  // Custom handler for location name click - navigates to location details page
   onLocationNameClick = (row: TableCellData, colKey: string) => {
-    if (colKey === 'name') {
-      // Check if user has permission to edit (HR Manager or Admin)
-      if (this.canEditLocation()) {
-        this.openEditDialog(row as Location);
-      } else {
-        // If no edit permission, just show details view
-        this.openViewDialog(row as Location);
-      }
+    if (colKey === 'name' && row.id) {
+      this.router.navigate(['/locations', row.id]);
     }
   };
 
@@ -57,6 +57,26 @@ export class LocationListComponent implements OnInit, OnDestroy {
 
   canEditLocation(): boolean {
     return this.authService.isAdmin() || this.authService.isHRManager();
+  }
+
+  ngOnInit(): void {
+    // Enable action buttons for admins and HR managers
+    this.tableConfig.displayActionButtons = this.canEditLocation();
+    
+    // Load with default sort from config
+    if (this.tableConfig.defaultSortColumn) {
+      this.currentSortColumn = this.tableConfig.defaultSortColumn;
+      this.currentSortDirection = this.tableConfig.defaultSortDirection === 'desc' ? 'DESC' : 'ASC';
+    }
+    this.loadLocations(this.currentPage, this.pageSize, this.currentSortColumn, this.currentSortDirection);
+    
+    // Listen only for add operations from table component (edit/delete handled by afterClosed())
+    // Store handler reference so we can remove it later
+    this.locationAddedHandler = () => {
+      this.loadLocations(this.currentPage, this.pageSize, this.currentSortColumn, this.currentSortDirection);
+    };
+    
+    globalThis.window.addEventListener('locationAdded', this.locationAddedHandler);
   }
 
   openEditDialog(location: Location): void {
@@ -107,20 +127,6 @@ export class LocationListComponent implements OnInit, OnDestroy {
     });
   }
 
-  ngOnInit(): void {
-    // Load with default sort from config
-    const defaultSortColumn = this.tableConfig.defaultSortColumn;
-    const defaultSortDir = this.tableConfig.defaultSortDirection === 'desc' ? 'DESC' : 'ASC';
-    this.loadLocations(0, this.pageSize, defaultSortColumn, defaultSortDir);
-    
-    // Listen only for add operations from table component (edit/delete handled by afterClosed())
-    // Store handler reference so we can remove it later
-    this.locationAddedHandler = () => {
-      this.loadLocations(this.currentPage, this.pageSize);
-    };
-    
-    globalThis.window.addEventListener('locationAdded', this.locationAddedHandler);
-  }
 
   ngOnDestroy(): void {
     // Clean up event listener to prevent memory leaks and duplicate calls
@@ -131,6 +137,7 @@ export class LocationListComponent implements OnInit, OnDestroy {
   }
 
   loadLocations(page = 0, size = 10, sortBy?: string, sortDir = 'ASC'): void {
+    this.loading = true;
     this.locationService.queryLocations(page, size, sortBy, sortDir).subscribe({
       next: (response: PaginatedResponse<Location>) => {
         this.locations = response.content || [];
@@ -138,6 +145,8 @@ export class LocationListComponent implements OnInit, OnDestroy {
         this.pageSize = response.size || 10;
         this.totalElements = response.totalElements || 0;
         this.totalPages = response.totalPages || 0;
+        this.hasNext = response.hasNext ?? false;
+        this.hasPrevious = response.hasPrevious ?? false;
         
         this.tableData = this.locations?.map(loc => ({
           ...loc,
@@ -148,22 +157,69 @@ export class LocationListComponent implements OnInit, OnDestroy {
           address: loc.address || '',
           postalCode: loc.postalCode || '',
         }));
+        this.loading = false;
       },
       error: () => {
         // Error handled by global error handler or service
+        this.loading = false;
       }
     });
   }
 
   onSortChange(event: { active: string; direction: string }): void {
-    const sortDir = event.direction === 'ASC' || event.direction === 'asc' ? 'ASC' : 'DESC';
-    this.loadLocations(this.currentPage, this.pageSize, event.active, sortDir);
+    this.currentSortColumn = event.active;
+    this.currentSortDirection = event.direction === 'ASC' || event.direction === 'asc' ? 'ASC' : 'DESC';
+    // Reset to first page when sorting changes
+    this.currentPage = 0;
+    this.loadLocations(this.currentPage, this.pageSize, this.currentSortColumn, this.currentSortDirection);
   }
 
   onPageChange(event: { pageIndex: number; pageSize: number }): void {
-    this.currentPage = event.pageIndex;
+    // Reset to first page if page size changed
+    const pageSizeChanged = this.pageSize !== event.pageSize;
+    this.currentPage = pageSizeChanged ? 0 : event.pageIndex;
     this.pageSize = event.pageSize;
-    this.loadLocations(this.currentPage, this.pageSize);
+    // Use current sort settings when loading
+    this.loadLocations(this.currentPage, this.pageSize, this.currentSortColumn, this.currentSortDirection);
+  }
+
+  openDeleteDialog(location: Location): void {
+    const locationName = location.name || 'this location';
+    const dialogRef = this.matDialog.open(ConfirmationDialogComponent, {
+      width: '400px',
+      data: {
+        title: 'Delete Location',
+        message: `Are you sure you want to delete "${locationName}"?`,
+        warning: 'This action cannot be undone.',
+        confirmText: 'Delete',
+        cancelText: 'Cancel'
+      }
+    });
+
+    dialogRef.afterClosed().pipe(take(1)).subscribe(result => {
+      if (result && location.id) {
+        this.locationService.deleteLocation(location.id).subscribe({
+          next: () => {
+            this.loadLocations(this.currentPage, this.pageSize, this.currentSortColumn, this.currentSortDirection);
+          },
+          error: (error: unknown) => {
+            console.error('Error deleting location:', error);
+            alert('Failed to delete location. Please try again.');
+          }
+        });
+      }
+    });
+  }
+
+  // Handler methods for table component
+  onEditAction = (row: TableCellData): void => {
+    const location = row as unknown as Location;
+    this.openEditDialog(location);
+  }
+
+  onDeleteAction = (row: TableCellData): void => {
+    const location = row as unknown as Location;
+    this.openDeleteDialog(location);
   }
 }
 

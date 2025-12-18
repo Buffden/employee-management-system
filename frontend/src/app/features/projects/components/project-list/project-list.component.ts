@@ -2,7 +2,7 @@ import { Component, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { SharedModule } from '../../../../shared/shared.module';
 import { TableComponent } from '../../../../shared/components/table/table.component';
-import { TableCellData, FormMode } from '../../../../shared/models/table';
+import { TableCellData, FormMode, TableConfig, ColumnType } from '../../../../shared/models/table';
 import { Project } from '../../../../shared/models/project.model';
 import { ProjectService } from '../../services/project.service';
 import { projectListConfig } from './project-list.config';
@@ -15,6 +15,7 @@ import { DialogData, overlayType } from '../../../../shared/models/dialog';
 import { AuthService } from '../../../../core/services/auth.service';
 import { filter, take } from 'rxjs/operators';
 import { ProjectSelectionService } from '../../services/project-selection.service';
+import { ConfirmationDialogComponent } from '../../../../shared/components/confirmation-dialog/confirmation-dialog.component';
 
 @Component({
   selector: 'app-project-list',
@@ -27,24 +28,31 @@ import { ProjectSelectionService } from '../../services/project-selection.servic
 export class ProjectListComponent implements OnInit, OnDestroy {
   projects: Project[] = [];
   tableData: TableCellData[] = [];
-  tableConfig = projectListConfig;
+  tableConfig: TableConfig = { ...projectListConfig }; // Create a copy to avoid mutating the original config
   currentPage = 0;
   pageSize = 10;
   totalElements = 0;
   totalPages = 0;
+  currentSortColumn = '';
+  currentSortDirection = 'ASC';
   filters: Record<string, FilterOption[]> = {}; // Store filters from paginated response
+  loading = false; // Loading state for table spinner
   private isRefreshing = false; // Guard to prevent duplicate refresh calls
   private projectAddedHandler?: () => void; // Store handler reference for cleanup
 
-  // Custom handler for project name click - opens edit dialog
+  // Custom handler for link clicks - uses config to determine navigation target
   onProjectNameClick = (row: TableCellData, colKey: string) => {
-    if (colKey === 'name') {
-      // Check if user has permission to edit (Admin or Department Manager)
-      if (this.canEditProject()) {
-        this.openEditDialog(row as unknown as Project);
-      } else {
-        // If no edit permission, just show details view
-        this.openViewDialog(row as unknown as Project);
+    // Find the column config for this column key
+    const column = this.tableConfig.columns.find(col => col.key === colKey);
+    
+    if (column && column.type === ColumnType.LINK && column.navigationTarget && column.navigationIdKey) {
+      // Get the ID from the row using the navigationIdKey
+      const rowData = row as unknown as Record<string, unknown>;
+      const navigationId = rowData[column.navigationIdKey] as string | undefined;
+      
+      if (navigationId) {
+        // Navigate based on the navigationTarget from config
+        this.router.navigate([`/${column.navigationTarget}s`, navigationId]);
       }
     }
   };
@@ -58,7 +66,28 @@ export class ProjectListComponent implements OnInit, OnDestroy {
   ) {}
 
   canEditProject(): boolean {
-    return this.authService.isAdmin() || this.authService.isDepartmentManager();
+    return this.authService.isAdmin() || this.authService.isHRManager() || this.authService.isDepartmentManager();
+  }
+
+  ngOnInit(): void {
+    // Enable action buttons ONLY for admins, HR managers, and department managers
+    // Employees should NOT see action buttons
+    this.tableConfig.displayActionButtons = this.canEditProject();
+    
+    // Load with default sort from config
+    if (this.tableConfig.defaultSortColumn) {
+      this.currentSortColumn = this.tableConfig.defaultSortColumn;
+      this.currentSortDirection = this.tableConfig.defaultSortDirection === 'desc' ? 'DESC' : 'ASC';
+    }
+    this.loadProjects(this.currentPage, this.pageSize, this.currentSortColumn, this.currentSortDirection);
+    
+    // Listen only for add operations from table component (edit/delete handled by afterClosed())
+    // Store handler reference so we can remove it later
+    this.projectAddedHandler = () => {
+      this.loadProjects(this.currentPage, this.pageSize, this.currentSortColumn, this.currentSortDirection);
+    };
+    
+    globalThis.window.addEventListener('projectAdded', this.projectAddedHandler);
   }
 
   openEditDialog(project: Project): void {
@@ -89,7 +118,7 @@ export class ProjectListComponent implements OnInit, OnDestroy {
       this.isRefreshing = true;
       
       // Refresh the project list after update or delete
-      this.loadProjects(this.currentPage, this.pageSize);
+      this.loadProjects(this.currentPage, this.pageSize, this.currentSortColumn, this.currentSortDirection);
       
       // Reset flag after a short delay to allow the refresh to complete
       setTimeout(() => {
@@ -110,35 +139,6 @@ export class ProjectListComponent implements OnInit, OnDestroy {
     });
   }
 
-  ngOnInit(): void {
-    // Load with default sort from config
-    const defaultSortColumn = this.tableConfig.defaultSortColumn;
-    const defaultSortDir = this.tableConfig.defaultSortDirection === 'desc' ? 'DESC' : 'ASC';
-    this.loadProjects(0, this.pageSize, defaultSortColumn, defaultSortDir);
-    
-    // Listen only for add operations from table component (edit/delete handled by afterClosed())
-    // Store handler reference so we can remove it later
-    this.projectAddedHandler = () => {
-      // Guard to prevent duplicate refresh calls
-      if (this.isRefreshing) {
-        return;
-      }
-      this.isRefreshing = true;
-      
-      // Refresh the project list after create operation
-      // Use current sort settings if available
-      const defaultSortColumn = this.tableConfig.defaultSortColumn;
-      const defaultSortDir = this.tableConfig.defaultSortDirection === 'desc' ? 'DESC' : 'ASC';
-      this.loadProjects(this.currentPage, this.pageSize, defaultSortColumn, defaultSortDir);
-      
-      // Reset flag after a short delay to allow the refresh to complete
-      setTimeout(() => {
-        this.isRefreshing = false;
-      }, 500);
-    };
-    
-    globalThis.window.addEventListener('projectAdded', this.projectAddedHandler);
-  }
 
   ngOnDestroy(): void {
     // Clean up event listener to prevent memory leaks and duplicate calls
@@ -149,6 +149,7 @@ export class ProjectListComponent implements OnInit, OnDestroy {
   }
 
   loadProjects(page = 0, size = 10, sortBy?: string, sortDir = 'ASC'): void {
+    this.loading = true;
     this.projectService.queryProjects(page, size, sortBy, sortDir).subscribe({
       next: (response: PaginatedResponse<Project>) => {
         console.log('Project query response:', response);
@@ -173,13 +174,15 @@ export class ProjectListComponent implements OnInit, OnDestroy {
           endDate: project.endDate || '',
           status: project.status || '',
           budget: project.budget || 0,
+          // Include IDs for navigation (these come from the spread but explicitly included for clarity)
           departmentId: project.departmentId || '',
           projectManagerId: project.projectManagerId || '',
           // Map additional fields for table display
-          department: project.department?.name || project.departmentId || '',
-          projectManager: project.projectManager 
-            ? `${project.projectManager.firstName} ${project.projectManager.lastName}`.trim()
-            : project.projectManagerId || '',
+          department: project.departmentName || project.department?.name || 'Not specified',
+          projectManager: project.projectManagerName 
+            || (project.projectManager 
+              ? `${project.projectManager.firstName} ${project.projectManager.lastName}`.trim()
+              : 'Not assigned'),
           // Fill in required TableCellData fields
           locationName: '',
           locationId: '',
@@ -189,21 +192,68 @@ export class ProjectListComponent implements OnInit, OnDestroy {
           departmentHeadId: '',
           totalEmployees: 0
         }));
+        this.loading = false;
       },
       error: () => {
         // Error handled by global error handler or service
+        this.loading = false;
       }
     });
   }
 
   onSortChange(event: { active: string; direction: string }): void {
-    const sortDir = event.direction === 'ASC' || event.direction === 'asc' ? 'ASC' : 'DESC';
-    this.loadProjects(this.currentPage, this.pageSize, event.active, sortDir);
+    this.currentSortColumn = event.active;
+    this.currentSortDirection = event.direction === 'ASC' || event.direction === 'asc' ? 'ASC' : 'DESC';
+    // Reset to first page when sorting changes
+    this.currentPage = 0;
+    this.loadProjects(this.currentPage, this.pageSize, this.currentSortColumn, this.currentSortDirection);
   }
 
   onPageChange(event: { pageIndex: number; pageSize: number }): void {
-    this.currentPage = event.pageIndex;
+    // Reset to first page if page size changed
+    const pageSizeChanged = this.pageSize !== event.pageSize;
+    this.currentPage = pageSizeChanged ? 0 : event.pageIndex;
     this.pageSize = event.pageSize;
-    this.loadProjects(this.currentPage, this.pageSize);
+    // Use current sort settings when loading
+    this.loadProjects(this.currentPage, this.pageSize, this.currentSortColumn, this.currentSortDirection);
+  }
+
+  openDeleteDialog(project: Project): void {
+    const projectName = project.name || 'this project';
+    const dialogRef = this.matDialog.open(ConfirmationDialogComponent, {
+      width: '400px',
+      data: {
+        title: 'Delete Project',
+        message: `Are you sure you want to delete "${projectName}"?`,
+        warning: 'This action cannot be undone.',
+        confirmText: 'Delete',
+        cancelText: 'Cancel'
+      }
+    });
+
+    dialogRef.afterClosed().pipe(take(1)).subscribe(result => {
+      if (result && project.id) {
+        this.projectService.delete(project.id).subscribe({
+          next: () => {
+            this.loadProjects(this.currentPage, this.pageSize, this.currentSortColumn, this.currentSortDirection);
+          },
+          error: (error: unknown) => {
+            console.error('Error deleting project:', error);
+            alert('Failed to delete project. Please try again.');
+          }
+        });
+      }
+    });
+  }
+
+  // Handler methods for table component
+  onEditAction = (row: TableCellData): void => {
+    const project = row as unknown as Project;
+    this.openEditDialog(project);
+  }
+
+  onDeleteAction = (row: TableCellData): void => {
+    const project = row as unknown as Project;
+    this.openDeleteDialog(project);
   }
 }

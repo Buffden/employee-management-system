@@ -1,6 +1,7 @@
 package com.ems.employee_management_system.dtos;
 
 import java.time.LocalDate;
+import java.util.List;
 import java.util.UUID;
 
 public class ProjectResponseDTO {
@@ -15,6 +16,7 @@ public class ProjectResponseDTO {
     private String departmentName; // Denormalized
     private UUID projectManagerId; // Project manager ID for form binding
     private String projectManagerName; // Denormalized (firstName + lastName)
+    private List<TaskResponseDTO> tasks; // Associated tasks for the project
 
     // Getters and setters
     public UUID getId() {
@@ -103,6 +105,14 @@ public class ProjectResponseDTO {
 
     public void setProjectManagerName(String projectManagerName) {
         this.projectManagerName = projectManagerName;
+    }
+
+    public List<TaskResponseDTO> getTasks() {
+        return tasks;
+    }
+
+    public void setTasks(List<TaskResponseDTO> tasks) {
+        this.tasks = tasks;
     }
 }
 

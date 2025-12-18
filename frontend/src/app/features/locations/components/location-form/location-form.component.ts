@@ -9,6 +9,7 @@ import { defaultTableConfig } from '../../../../shared/components/table/table.co
 import { LocationService } from '../../services/location.service';
 import { MatDialog } from '@angular/material/dialog';
 import { AuthService } from '../../../../core/services/auth.service';
+import { locationFormFields } from './location-form.config';
 import { ConfirmationDialogComponent } from '../../../../shared/components/confirmation-dialog/confirmation-dialog.component';
 
 @Component({
@@ -70,48 +71,7 @@ export class LocationFormComponent implements OnInit {
   }
 
   createFormFields(): LocationFormField[] {
-    return [
-      {
-        label: 'Location Name',
-        formControlName: 'name',
-        placeholder: 'Enter location name',
-        errorMessage: 'Location name is required (max 100 characters)',
-        required: true
-      },
-      {
-        label: 'Address',
-        formControlName: 'address',
-        placeholder: 'Enter address (optional)',
-        errorMessage: 'Address must not exceed 255 characters',
-      },
-      {
-        label: 'City',
-        formControlName: 'city',
-        placeholder: 'Enter city',
-        errorMessage: 'City is required (max 100 characters)',
-        required: true
-      },
-      {
-        label: 'State',
-        formControlName: 'state',
-        placeholder: 'Enter state',
-        errorMessage: 'State is required (max 100 characters)',
-        required: true
-      },
-      {
-        label: 'Country',
-        formControlName: 'country',
-        placeholder: 'Enter country',
-        errorMessage: 'Country is required (max 100 characters)',
-        required: true
-      },
-      {
-        label: 'Postal Code',
-        formControlName: 'postalCode',
-        placeholder: 'Enter postal code (optional)',
-        errorMessage: 'Postal code must not exceed 20 characters',
-      },
-    ];
+    return locationFormFields;
   }
 
   loadLocationDetails() {

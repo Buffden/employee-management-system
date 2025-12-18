@@ -69,6 +69,11 @@
                         [disabled]="isSubmitting">Delete Employee</button>
             </div>
             <div class="right-actions">
+                <mat-checkbox 
+                    *ngIf="mode === FormMode.ADD"
+                    formControlName="grantAccess">
+                    Grant access (send invite)
+                </mat-checkbox>
                 <button mat-raised-button
                         color="primary"
                         type="submit"
