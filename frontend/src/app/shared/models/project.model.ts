@@ -10,6 +10,8 @@ export interface Project {
   budget: number;
   departmentId: string;
   projectManagerId: string;
+  departmentName?: string; // Denormalized department name from backend
+  projectManagerName?: string; // Denormalized project manager name from backend
   tasks?: Task[]; // Tasks associated with the project
   taskCounts?: {
     open: number;

@@ -221,6 +221,16 @@
       font-size: 12px;
       height: 24px;
     }
+
+    .clickable-link {
+      color: #0052cc;
+      text-decoration: none;
+      cursor: pointer;
+      
+      &:hover {
+        text-decoration: underline;
+      }
+    }
   }
 }
 

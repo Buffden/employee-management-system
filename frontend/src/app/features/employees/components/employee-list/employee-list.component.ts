@@ -2,7 +2,7 @@ import { Component, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { SharedModule } from '../../../../shared/shared.module';
 import { TableComponent } from '../../../../shared/components/table/table.component';
-import { TableCellData, FormMode } from '../../../../shared/models/table';
+import { TableCellData, FormMode, ColumnType } from '../../../../shared/models/table';
 import { PageEvent } from '@angular/material/paginator';
 import { EmployeeService } from '../../services/employee.service';
 import { employeeListConfig } from './employee-list.config';
@@ -41,10 +41,20 @@ export class EmployeeListComponent implements OnInit, OnDestroy {
   private isRefreshing = false; // Guard to prevent duplicate refresh calls
   private employeeAddedHandler?: () => void; // Store handler reference for cleanup
 
-  // Custom handler for employee name click - navigates to employee details page
+  // Custom handler for link clicks - uses config to determine navigation target
   onEmployeeNameClick = (row: TableCellData, colKey: string) => {
-    if ((colKey === 'firstName' || colKey === 'lastName' || colKey === 'name') && row.id) {
-      this.router.navigate(['/employees', row.id]);
+    // Find the column config for this column key
+    const column = this.tableConfig.columns.find(col => col.key === colKey);
+    
+    if (column && column.type === ColumnType.LINK && column.navigationTarget && column.navigationIdKey) {
+      // Get the ID from the row using the navigationIdKey
+      const rowData = row as unknown as Record<string, unknown>;
+      const navigationId = rowData[column.navigationIdKey] as string | undefined;
+      
+      if (navigationId) {
+        // Navigate based on the navigationTarget from config
+        this.router.navigate([`/${column.navigationTarget}s`, navigationId]);
+      }
     }
   };
 
@@ -198,6 +208,7 @@ export class EmployeeListComponent implements OnInit, OnDestroy {
         // Map employees to table data format
         this.tableData = this.employees.map(emp => ({
           ...emp,
+          id: emp.id,
           name: `${emp.firstName} ${emp.lastName}`,
           email: emp.email || '',
           phone: emp.phone || '',
@@ -205,12 +216,27 @@ export class EmployeeListComponent implements OnInit, OnDestroy {
           designation: emp.designation || '',
           salary: emp.salary || 0,
           joiningDate: emp.joiningDate || '',
+          locationId: emp.locationId || '',
           locationName: emp.locationName || '',
+          departmentId: emp.departmentId || '',
           departmentName: emp.departmentName || '',
+          managerId: emp.managerId || '',
           managerName: emp.managerName || '',
           performanceRating: emp.performanceRating || 0,
           workLocation: emp.workLocation || '',
-          experienceYears: emp.experienceYears || 0
+          experienceYears: emp.experienceYears || 0,
+          // Fill in required TableCellData fields
+          description: '',
+          createdAt: '',
+          budget: 0,
+          budgetUtilization: 0,
+          performanceMetric: 0,
+          departmentHeadId: '',
+          totalEmployees: 0,
+          startDate: '',
+          endDate: '',
+          status: '',
+          projectManager: ''
         }));
         this.loading = false;
       },

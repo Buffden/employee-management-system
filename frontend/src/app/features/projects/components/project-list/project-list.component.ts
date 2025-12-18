@@ -2,7 +2,7 @@ import { Component, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { SharedModule } from '../../../../shared/shared.module';
 import { TableComponent } from '../../../../shared/components/table/table.component';
-import { TableCellData, FormMode, TableConfig } from '../../../../shared/models/table';
+import { TableCellData, FormMode, TableConfig, ColumnType } from '../../../../shared/models/table';
 import { Project } from '../../../../shared/models/project.model';
 import { ProjectService } from '../../services/project.service';
 import { projectListConfig } from './project-list.config';
@@ -40,13 +40,19 @@ export class ProjectListComponent implements OnInit, OnDestroy {
   private isRefreshing = false; // Guard to prevent duplicate refresh calls
   private projectAddedHandler?: () => void; // Store handler reference for cleanup
 
-  // Custom handler for project name click - navigates to project details page
+  // Custom handler for link clicks - uses config to determine navigation target
   onProjectNameClick = (row: TableCellData, colKey: string) => {
-    if (colKey === 'name') {
-      const project = row as unknown as Project;
-      if (project?.id) {
-        // Navigate to project details page
-        this.router.navigate(['/projects', project.id]);
+    // Find the column config for this column key
+    const column = this.tableConfig.columns.find(col => col.key === colKey);
+    
+    if (column && column.type === ColumnType.LINK && column.navigationTarget && column.navigationIdKey) {
+      // Get the ID from the row using the navigationIdKey
+      const rowData = row as unknown as Record<string, unknown>;
+      const navigationId = rowData[column.navigationIdKey] as string | undefined;
+      
+      if (navigationId) {
+        // Navigate based on the navigationTarget from config
+        this.router.navigate([`/${column.navigationTarget}s`, navigationId]);
       }
     }
   };
@@ -168,11 +174,15 @@ export class ProjectListComponent implements OnInit, OnDestroy {
           endDate: project.endDate || '',
           status: project.status || '',
           budget: project.budget || 0,
+          // Include IDs for navigation (these come from the spread but explicitly included for clarity)
+          departmentId: project.departmentId || '',
+          projectManagerId: project.projectManagerId || '',
           // Map additional fields for table display
-          department: project.department?.name || 'Not specified',
-          projectManager: project.projectManager 
-            ? `${project.projectManager.firstName} ${project.projectManager.lastName}`.trim()
-            : 'Not assigned',
+          department: project.departmentName || project.department?.name || 'Not specified',
+          projectManager: project.projectManagerName 
+            || (project.projectManager 
+              ? `${project.projectManager.firstName} ${project.projectManager.lastName}`.trim()
+              : 'Not assigned'),
           // Fill in required TableCellData fields
           locationName: '',
           locationId: '',
