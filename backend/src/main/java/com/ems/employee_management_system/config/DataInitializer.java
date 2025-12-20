@@ -1,9 +1,7 @@
 package com.ems.employee_management_system.config;
 
-import com.ems.employee_management_system.models.User;
-import com.ems.employee_management_system.repositories.UserRepository;
-import com.ems.employee_management_system.utils.HashUtil;
-import com.ems.employee_management_system.enums.UserRole;
+import java.time.LocalDateTime;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -12,7 +10,10 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
-import java.time.LocalDateTime;
+import com.ems.employee_management_system.enums.UserRole;
+import com.ems.employee_management_system.models.User;
+import com.ems.employee_management_system.repositories.UserRepository;
+import com.ems.employee_management_system.utils.HashUtil;
 
 @Configuration
 public class DataInitializer {
