@@ -130,6 +130,28 @@
 				<groupId>org.springframework.boot</groupId>
 				<artifactId>spring-boot-maven-plugin</artifactId>
 			</plugin>
+			<!-- OWASP Dependency-Check for vulnerability scanning -->
+			<plugin>
+				<groupId>org.owasp</groupId>
+				<artifactId>dependency-check-maven</artifactId>
+				<version>9.0.9</version>
+				<executions>
+					<execution>
+						<goals>
+							<goal>check</goal>
+						</goals>
+					</execution>
+				</executions>
+				<configuration>
+					<!-- Fail build only on high/critical vulnerabilities -->
+					<failOnError>true</failOnError>
+					<failBuildOnCVSS>7</failBuildOnCVSS>
+					<!-- Suppress false positives if needed -->
+					<suppressionFiles>
+						<suppressionFile>${project.basedir}/src/main/resources/dependency-check-suppressions.xml</suppressionFile>
+					</suppressionFiles>
+				</configuration>
+			</plugin>
 		</plugins>
 	</build>
 

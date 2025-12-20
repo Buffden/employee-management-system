@@ -20,10 +20,9 @@ RUN if [ -f /usr/share/nginx/html/index.csr.html ]; then \
         cp /usr/share/nginx/html/index.csr.html /usr/share/nginx/html/index.html; \
     fi
 
-# Copy nginx configuration to templates directory
+# Copy nginx configuration template
 # nginx:alpine automatically processes .template files in /etc/nginx/templates/
-# We copy nginx.conf and rename it to .template so nginx processes it at startup
-COPY gateway/nginx.conf /etc/nginx/templates/default.conf.template
+COPY gateway/nginx-http.conf.template /etc/nginx/templates/default.conf.template
 
 # Environment variables (must be set in docker-compose or db/.env):
 # - NGINX_PORT
@@ -32,10 +31,11 @@ COPY gateway/nginx.conf /etc/nginx/templates/default.conf.template
 # - BACKEND_PORT
 # - CORS_ALLOWED_ORIGINS
 
-# Health check (uses NGINX_PORT environment variable)
+# Health check (uses port 80 for health check)
 HEALTHCHECK --interval=30s --timeout=5s --retries=3 \
-  CMD wget --quiet --tries=1 --spider http://localhost:${NGINX_PORT}/health || exit 1
+  CMD wget --quiet --tries=1 --spider http://localhost:80/health || exit 1
 
 EXPOSE 80
 
-CMD ["nginx", "-g", "daemon off;"]
+# Use nginx:alpine's default entrypoint which processes templates
+# No custom scripts needed

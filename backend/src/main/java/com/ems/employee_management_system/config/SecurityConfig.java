@@ -21,9 +21,11 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 import com.ems.employee_management_system.security.CustomAccessDeniedHandler;
 import com.ems.employee_management_system.security.CustomAuthenticationEntryPoint;
 import com.ems.employee_management_system.security.JwtAuthenticationFilter;
+import com.ems.employee_management_system.security.RateLimitFilter;
 import com.ems.employee_management_system.constants.RoleConstants;
 
 import org.springframework.boot.actuate.autoconfigure.security.servlet.EndpointRequest;
+import org.springframework.boot.actuate.health.HealthEndpoint;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import java.util.Arrays;
@@ -37,15 +39,18 @@ public class SecurityConfig {
     private static final Logger logger = LoggerFactory.getLogger(SecurityConfig.class);
     
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
+    private final RateLimitFilter rateLimitFilter;
     private final UserDetailsService userDetailsService;
     private final CustomAuthenticationEntryPoint authenticationEntryPoint;
     private final CustomAccessDeniedHandler accessDeniedHandler;
     
     public SecurityConfig(JwtAuthenticationFilter jwtAuthenticationFilter,
+                         RateLimitFilter rateLimitFilter,
                          UserDetailsService userDetailsService,
                          CustomAuthenticationEntryPoint authenticationEntryPoint,
                          CustomAccessDeniedHandler accessDeniedHandler) {
         this.jwtAuthenticationFilter = jwtAuthenticationFilter;
+        this.rateLimitFilter = rateLimitFilter;
         this.userDetailsService = userDetailsService;
         this.authenticationEntryPoint = authenticationEntryPoint;
         this.accessDeniedHandler = accessDeniedHandler;
@@ -61,13 +66,17 @@ public class SecurityConfig {
                 .requestMatchers("/api/auth/login", "/api/auth/refresh", "/api/auth/logout").permitAll()
                 .requestMatchers("/api/auth/activate", "/api/auth/forgot-password", "/api/auth/reset-password").permitAll()
                 .requestMatchers("/api/auth/register").hasRole(RoleConstants.SYSTEM_ADMIN)
-                .requestMatchers(EndpointRequest.toAnyEndpoint()).permitAll()
+                // Health endpoint is public for monitoring
+                .requestMatchers(EndpointRequest.to(HealthEndpoint.class)).permitAll()
+                // All other actuator endpoints require SYSTEM_ADMIN role
+                .requestMatchers(EndpointRequest.toAnyEndpoint()).hasRole(RoleConstants.SYSTEM_ADMIN)
                 .anyRequest().authenticated()
             )
             .exceptionHandling(ex -> ex
                 .authenticationEntryPoint(authenticationEntryPoint)
                 .accessDeniedHandler(accessDeniedHandler)
             )
+            .addFilterBefore(rateLimitFilter, UsernamePasswordAuthenticationFilter.class)
             .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
         
         return http.build();
@@ -110,7 +119,15 @@ public class SecurityConfig {
         
         configuration.setAllowedOrigins(allowedOrigins);
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS"));
-        configuration.setAllowedHeaders(Arrays.asList("*"));
+        // Restrict allowed headers to specific list for security
+        configuration.setAllowedHeaders(Arrays.asList(
+            "Authorization",
+            "Content-Type",
+            "X-Requested-With",
+            "Accept",
+            "Origin",
+            "Cache-Control"
+        ));
         configuration.setAllowCredentials(true);
         
         logger.info("CORS configured with allowed origins: {}", allowedOrigins);

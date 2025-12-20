@@ -13,13 +13,15 @@ public class WebConfig implements WebMvcConfigurer {
 
     @Override
     public void addCorsMappings(CorsRegistry registry) {
-        // CORS is handled by SecurityConfig, this is a fallback
+        // CORS is primarily handled by SecurityConfig, this is a fallback
         // Only configure if CORS_ALLOWED_ORIGINS is set
         if (allowedOrigins != null && !allowedOrigins.isEmpty()) {
             registry.addMapping("/**")
                     .allowedOrigins(allowedOrigins.split(","))
                     .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS")
-                    .allowedHeaders("*")
+                    // Use same restricted headers as SecurityConfig for consistency
+                    .allowedHeaders("Authorization", "Content-Type", "X-Requested-With", 
+                                   "Accept", "Origin", "Cache-Control")
                     .allowCredentials(true);
         }
     }

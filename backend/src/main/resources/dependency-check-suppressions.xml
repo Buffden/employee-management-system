@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<suppressions xmlns="https://jeremylong.github.io/DependencyCheck/dependency-suppression.1.3.xsd">
+    <!--
+    OWASP Dependency-Check Suppression File
+    
+    Use this file to suppress false positives or known acceptable vulnerabilities.
+    Only suppress vulnerabilities that are:
+    1. False positives (incorrectly identified)
+    2. Acceptable risks (documented and approved)
+    3. Already patched in newer versions (temporary until upgrade)
+    
+    Format:
+    <suppress>
+        <notes>Reason for suppression</notes>
+        <cve>CVE-YYYY-NNNNN</cve>
+    </suppress>
+    
+    Example:
+    <suppress>
+        <notes>False positive - vulnerability not applicable to our usage</notes>
+        <cve>CVE-2024-12345</cve>
+    </suppress>
+    -->
+</suppressions>
+
