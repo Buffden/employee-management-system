@@ -8,12 +8,20 @@ SSL_ENABLED=${SSL_ENABLED:-false}
 
 if [ "$SSL_ENABLED" = "true" ]; then
     echo "SSL enabled - using HTTPS template"
+    # Remove HTTP template to avoid duplicate upstream definitions
+    rm -f /etc/nginx/templates/nginx-http.conf.template
     # Copy HTTPS template to default.conf.template
     cp /etc/nginx/templates/nginx-https.conf.template /etc/nginx/templates/default.conf.template
+    # Remove the source template to avoid processing it twice
+    rm -f /etc/nginx/templates/nginx-https.conf.template
 else
     echo "SSL disabled - using HTTP template"
+    # Remove HTTPS template to avoid duplicate upstream definitions
+    rm -f /etc/nginx/templates/nginx-https.conf.template
     # Copy HTTP template to default.conf.template
     cp /etc/nginx/templates/nginx-http.conf.template /etc/nginx/templates/default.conf.template
+    # Remove the source template to avoid processing it twice
+    rm -f /etc/nginx/templates/nginx-http.conf.template
 fi
 
 # Call the original nginx entrypoint which processes templates and starts nginx
