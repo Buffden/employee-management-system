@@ -24,11 +24,11 @@ services:
       - ems-network
     restart: unless-stopped
     healthcheck:
-      test: ["CMD-SHELL", "wget --quiet --tries=1 --spider http://localhost:${BACKEND_PORT:-8080}/actuator/health || exit 1"]
+      test: ["CMD-SHELL", "wget --quiet --tries=1 --spider http://localhost:8080/actuator/health || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 40s
+      start_period: 360s
 
   gateway:
     build:
@@ -41,8 +41,16 @@ services:
       # All variables loaded from env_file (.env.production)
       # Backend connection (internal Docker service name)
       - BACKEND_HOST=backend
+      - BACKEND_PORT=8080
+      # Enable SSL/HTTPS
+      - SSL_ENABLED=${SSL_ENABLED:-true}
     ports:
       - "80:80"
+      - "443:443"
+    volumes:
+      # SSL certificates from certbot
+      - certbot-etc:/etc/letsencrypt:ro
+      - certbot-www:/var/www/certbot:ro
     depends_on:
       backend:
         condition: service_healthy
@@ -50,10 +58,29 @@ services:
       - ems-network
     restart: unless-stopped
     healthcheck:
-      test: ["CMD-SHELL", "wget --quiet --tries=1 --spider http://localhost:80/health || exit 1"]
+      # When SSL is enabled, HTTP redirects to HTTPS, so check HTTPS directly
+      # wget with --spider follows redirects, but we check HTTPS directly for reliability
+      test: ["CMD-SHELL", "wget --quiet --tries=1 --spider --no-check-certificate https://localhost:443/health 2>/dev/null || wget --quiet --tries=1 --spider http://localhost:80/health 2>/dev/null || exit 1"]
       interval: 30s
       timeout: 5s
       retries: 3
+
+  certbot:
+    image: certbot/certbot:latest
+    container_name: ems-certbot
+    volumes:
+      - certbot-etc:/etc/letsencrypt
+      - certbot-www:/var/www/certbot
+    entrypoint: "/bin/sh -c 'trap exit TERM; while :; do certbot renew; sleep 12h & wait $${!}; done;'"
+    networks:
+      - ems-network
+    restart: unless-stopped
+
+volumes:
+  certbot-etc:
+    driver: local
+  certbot-www:
+    driver: local
 
 networks:
   ems-network:

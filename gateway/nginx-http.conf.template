@@ -60,6 +60,11 @@ server {
         proxy_read_timeout 60s;
     }
 
+    # Let's Encrypt ACME challenge - must be on port 80
+    location /.well-known/acme-challenge/ {
+        root /var/www/certbot;
+    }
+
     # Health check endpoint
     location /health {
         access_log off;

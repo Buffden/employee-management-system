@@ -5,23 +5,33 @@ upstream backend {
     server ${BACKEND_HOST}:${BACKEND_PORT};
 }
 
-# HTTP Server - Redirects to HTTPS
+# HTTP Server - Redirects to HTTPS (except for Let's Encrypt ACME challenge)
 server {
     listen 80;
     server_name ${NGINX_SERVER_NAME};
-    return 301 https://$server_name$request_uri;
+    
+    # Let's Encrypt ACME challenge - must be on port 80
+    location /.well-known/acme-challenge/ {
+        root /var/www/certbot;
+    }
+    
+    # Redirect all other traffic to HTTPS
+    location / {
+        return 301 https://$server_name$request_uri;
+    }
 }
 
 # HTTPS Server
 server {
-    listen 443 ssl http2;
+    listen 443 ssl;
+    http2 on;
     server_name ${NGINX_SERVER_NAME};
     root /usr/share/nginx/html;
     index index.html;
 
-    # SSL Configuration
-    ssl_certificate /etc/nginx/ssl/cert.pem;
-    ssl_certificate_key /etc/nginx/ssl/key.pem;
+    # SSL Configuration (Let's Encrypt)
+    ssl_certificate /etc/letsencrypt/live/${NGINX_SERVER_NAME}/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/${NGINX_SERVER_NAME}/privkey.pem;
     
     # Modern SSL Configuration
     ssl_protocols TLSv1.2 TLSv1.3;
@@ -31,10 +41,10 @@ server {
     ssl_session_timeout 10m;
     ssl_session_tickets off;
     
-    # OCSP Stapling (uncomment if using full chain)
+    # OCSP Stapling (commented out - Let's Encrypt certs may not have OCSP responder)
     # ssl_stapling on;
     # ssl_stapling_verify on;
-    # ssl_trusted_certificate /etc/nginx/ssl/chain.pem;
+    # ssl_trusted_certificate /etc/letsencrypt/live/${NGINX_SERVER_NAME}/chain.pem;
 
     # Security Headers
     add_header X-Frame-Options "SAMEORIGIN" always;

@@ -20,9 +20,17 @@ RUN if [ -f /usr/share/nginx/html/index.csr.html ]; then \
         cp /usr/share/nginx/html/index.csr.html /usr/share/nginx/html/index.html; \
     fi
 
-# Copy nginx configuration template
-# nginx:alpine automatically processes .template files in /etc/nginx/templates/
-COPY gateway/nginx-http.conf.template /etc/nginx/templates/default.conf.template
+# Copy both nginx configuration templates
+COPY gateway/nginx-http.conf.template /etc/nginx/templates/nginx-http.conf.template
+COPY gateway/nginx-https.conf.template /etc/nginx/templates/nginx-https.conf.template
+
+# Copy entrypoint script to select template based on SSL_ENABLED
+# Save original nginx entrypoint and use our custom one
+COPY gateway/docker-entrypoint.sh /custom-entrypoint.sh
+RUN chmod +x /custom-entrypoint.sh
+
+# Create SSL directory
+RUN mkdir -p /etc/nginx/ssl
 
 # Environment variables (must be set in docker-compose or db/.env):
 # - NGINX_PORT
@@ -30,12 +38,14 @@ COPY gateway/nginx-http.conf.template /etc/nginx/templates/default.conf.template
 # - BACKEND_HOST
 # - BACKEND_PORT
 # - CORS_ALLOWED_ORIGINS
+# - SSL_ENABLED (true/false) - determines which template to use
 
-# Health check (uses port 80 for health check)
+# Health check (uses port 80 for health check, works for both HTTP and HTTPS)
 HEALTHCHECK --interval=30s --timeout=5s --retries=3 \
   CMD wget --quiet --tries=1 --spider http://localhost:80/health || exit 1
 
-EXPOSE 80
+EXPOSE 80 443
 
-# Use nginx:alpine's default entrypoint which processes templates
-# No custom scripts needed
+# Use custom entrypoint to select template, which then calls original nginx entrypoint
+ENTRYPOINT ["/custom-entrypoint.sh"]
+CMD ["nginx", "-g", "daemon off;"]

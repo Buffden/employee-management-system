@@ -77,25 +77,41 @@ export class AuthService {
    * Hashes password before sending to backend (username stays plain)
    */
   login(credentials: LoginRequest): Observable<AuthResponse> {
+    console.log('AuthService.login called with:', { username: credentials.username, password: '***' });
+    console.log('API_URL:', this.API_URL);
+    
     // Hash only password before sending (username stays plain for user-friendliness)
     return from(hashPassword(credentials.password)).pipe(
+      tap(hashedPassword => {
+        console.log('Password hashed, length:', hashedPassword.length);
+      }),
       switchMap(hashedPassword => {
         const hashedCredentials: LoginRequest = {
           username: credentials.username, // Keep username plain
           password: hashedPassword
         };
         
+        console.log('Making HTTP POST to:', `${this.API_URL}/login`);
+        console.log('Request payload:', { username: hashedCredentials.username, password: '***' });
+        
         return this.http.post<AuthResponse>(`${this.API_URL}/login`, hashedCredentials).pipe(
           tap(response => {
+            console.log('Login response received:', response);
             this.setAuthData(response);
             this.currentUserSubject.next(response.user);
             this.isAuthenticatedSubject.next(true);
           }),
           catchError(error => {
-            console.error('Login error:', error);
+            console.error('Login HTTP error:', error);
+            console.error('Error status:', error.status);
+            console.error('Error message:', error.message);
             return throwError(() => error);
           })
         );
+      }),
+      catchError(error => {
+        console.error('Password hashing error:', error);
+        return throwError(() => error);
       })
     );
   }

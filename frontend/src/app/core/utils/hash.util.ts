@@ -1,26 +1,40 @@
 /**
  * Utility for hashing sensitive data before sending to backend
- * Uses Web Crypto API for secure hashing
+ * Uses Web Crypto API for secure hashing (with crypto-js fallback for HTTP contexts)
  */
+
+import * as CryptoJS from 'crypto-js';
 
 /**
  * Hash a string using SHA-256
+ * Uses Web Crypto API if available (HTTPS/localhost), otherwise uses crypto-js fallback
  * @param data The string to hash
  * @returns Promise resolving to the hex-encoded hash
  */
 export async function hashString(data: string): Promise<string> {
-  // Convert string to ArrayBuffer
-  const encoder = new TextEncoder();
-  const dataBuffer = encoder.encode(data);
+  // Check if Web Crypto API is available (requires HTTPS or localhost)
+  if (typeof crypto !== 'undefined' && crypto.subtle) {
+    try {
+      // Convert string to ArrayBuffer
+      const encoder = new TextEncoder();
+      const dataBuffer = encoder.encode(data);
 
-  // Hash using Web Crypto API
-  const hashBuffer = await crypto.subtle.digest('SHA-256', dataBuffer);
+      // Hash using Web Crypto API
+      const hashBuffer = await crypto.subtle.digest('SHA-256', dataBuffer);
 
-  // Convert ArrayBuffer to hex string
-  const hashArray = Array.from(new Uint8Array(hashBuffer));
-  const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+      // Convert ArrayBuffer to hex string
+      const hashArray = Array.from(new Uint8Array(hashBuffer));
+      const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
 
-  return hashHex;
+      return hashHex;
+    } catch (error) {
+      console.warn('Web Crypto API failed, using crypto-js fallback:', error);
+      // Fall through to fallback implementation
+    }
+  }
+
+  // Fallback: Use crypto-js for HTTP contexts (works everywhere)
+  return CryptoJS.SHA256(data).toString(CryptoJS.enc.Hex);
 }
 
 /**
