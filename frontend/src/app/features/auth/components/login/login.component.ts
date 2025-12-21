@@ -56,7 +56,14 @@ export class LoginComponent implements OnInit {
   }
 
   onSubmit(): void {
+    console.log('Login form submitted');
+    console.log('Form valid:', this.loginForm.valid);
+    console.log('Form errors:', this.loginForm.errors);
+    console.log('Username errors:', this.loginForm.get('username')?.errors);
+    console.log('Password errors:', this.loginForm.get('password')?.errors);
+    
     if (this.loginForm.invalid) {
+      console.log('Form is invalid, marking fields as touched');
       this.markFormGroupTouched(this.loginForm);
       return;
     }
@@ -69,12 +76,16 @@ export class LoginComponent implements OnInit {
       password: this.loginForm.get('password')?.value
     };
 
+    console.log('Calling authService.login with credentials:', { username: credentials.username, password: '***' });
+    
     this.authService.login(credentials).subscribe({
-      next: () => {
+      next: (response) => {
+        console.log('Login successful:', response);
         this.loading = false;
         this.router.navigate([this.returnUrl]);
       },
       error: (error) => {
+        console.error('Login error:', error);
         this.loading = false;
         if (error.status === 401) {
           this.errorMessage = 'Invalid username or password. Please try again.';
