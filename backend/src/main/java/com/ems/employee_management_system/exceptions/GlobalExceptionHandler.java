@@ -5,6 +5,7 @@ import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
@@ -21,6 +22,9 @@ import com.ems.employee_management_system.dtos.ErrorResponseDTO;
 public class GlobalExceptionHandler {
 
     private static final Logger logger = LoggerFactory.getLogger(GlobalExceptionHandler.class);
+    
+    @Value("${app.error.show-details:true}")
+    private boolean showErrorDetails;
 
     /**
      * Handles Bean Validation errors (@Valid annotations)
@@ -142,10 +146,15 @@ public class GlobalExceptionHandler {
             RuntimeException ex, WebRequest request) {
         logger.error("Runtime exception: ", ex);
         
+        // In production, show generic message; in development, show detailed message
+        String message = showErrorDetails && ex.getMessage() != null 
+            ? ex.getMessage() 
+            : "An unexpected error occurred. Please contact support if the problem persists.";
+        
         ErrorResponseDTO errorResponse = new ErrorResponseDTO(
                 HttpStatus.INTERNAL_SERVER_ERROR.value(),
                 "Internal Server Error",
-                ex.getMessage() != null ? ex.getMessage() : "An unexpected error occurred",
+                message,
                 request.getDescription(false).replace("uri=", ""));
         
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse);

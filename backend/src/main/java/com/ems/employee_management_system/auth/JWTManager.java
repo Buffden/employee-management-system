@@ -31,6 +31,36 @@ public class JWTManager {
                 "Generate a secure key with: openssl rand -base64 64"
             );
         }
+        
+        // Enforce minimum length for HS512 (64 bytes = 512 bits)
+        // Check both raw length and base64 decoded length
+        int minLength = 64;
+        int actualLength = secretKey.length();
+        
+        // Try to decode as base64 to check actual byte length
+        try {
+            byte[] keyBytes = Decoders.BASE64.decode(secretKey);
+            if (keyBytes.length < minLength) {
+                throw new IllegalStateException(
+                    String.format(
+                        "JWT_SECRET_KEY must be at least %d bytes (characters) long for HS512 algorithm. " +
+                        "Decoded length: %d bytes. Generate a secure key with: openssl rand -base64 64",
+                        minLength, keyBytes.length
+                    )
+                );
+            }
+        } catch (Exception e) {
+            // Not base64 encoded, check raw string length
+            if (actualLength < minLength) {
+                throw new IllegalStateException(
+                    String.format(
+                        "JWT_SECRET_KEY must be at least %d characters (bytes) long for HS512 algorithm. " +
+                        "Current length: %d. Generate a secure key with: openssl rand -base64 64",
+                        minLength, actualLength
+                    )
+                );
+            }
+        }
     }
     
     @Value("${jwt.access.token.expiration:86400000}") // 24 hours in milliseconds

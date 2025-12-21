@@ -1,60 +1,99 @@
 package com.ems.employee_management_system.config;
 
-import com.ems.employee_management_system.models.User;
-import com.ems.employee_management_system.repositories.UserRepository;
-import com.ems.employee_management_system.utils.HashUtil;
-import com.ems.employee_management_system.enums.UserRole;
+import java.time.LocalDateTime;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
-import java.time.LocalDateTime;
+import com.ems.employee_management_system.enums.UserRole;
+import com.ems.employee_management_system.models.User;
+import com.ems.employee_management_system.repositories.UserRepository;
+import com.ems.employee_management_system.utils.HashUtil;
 
 @Configuration
 public class DataInitializer {
 
     private static final Logger logger = LoggerFactory.getLogger(DataInitializer.class);
 
+    @Value("${app.admin.username:}")
+    private String adminUsername;
+
+    @Value("${app.admin.password:}")
+    private String adminPassword;
+
+    @Value("${app.admin.email:ems.buffden@gmail.com}")
+    private String adminEmail;
+
+    @Value("${app.admin.create:false}")
+    private boolean createAdmin;
+
     @Bean
     CommandLineRunner initDatabase(UserRepository userRepository, PasswordEncoder passwordEncoder) {
         return args -> {
-            // Hash only admin password (matching frontend hashing)
+            // Only create/update admin user if explicitly enabled and credentials provided
+            if (!createAdmin) {
+                logger.info("Admin user creation is disabled (app.admin.create=false). Skipping admin initialization.");
+                return;
+            }
+
+            if (adminUsername == null || adminUsername.trim().isEmpty()) {
+                logger.warn("WARNING: Admin user creation is enabled but ADMIN_USERNAME is not set. Skipping admin initialization.");
+                logger.warn("   Set ADMIN_USERNAME and ADMIN_PASSWORD in .env file to create admin user.");
+                return;
+            }
+
+            if (adminPassword == null || adminPassword.trim().isEmpty()) {
+                logger.warn("WARNING: Admin user creation is enabled but ADMIN_PASSWORD is not set. Skipping admin initialization.");
+                logger.warn("   Set ADMIN_USERNAME and ADMIN_PASSWORD in .env file to create admin user.");
+                return;
+            }
+
+            // Validate password strength
+            if (adminPassword.length() < 8) {
+                logger.error("ERROR: Admin password must be at least 8 characters long. Skipping admin initialization.");
+                return;
+            }
+
+            // Hash admin password (matching frontend hashing)
             // Username stays plain for user-friendliness
-            String hashedAdminPassword = HashUtil.hashPassword("admin123");
+            String hashedAdminPassword = HashUtil.hashPassword(adminPassword);
             String doubleHashedPassword = passwordEncoder.encode(hashedAdminPassword); // Double hash: frontend hash + BCrypt
             
-            // Check if admin user already exists (by plain username)
-            userRepository.findByUsername("admin").ifPresentOrElse(
+            // Check if admin user already exists (by username)
+            userRepository.findByUsername(adminUsername.trim()).ifPresentOrElse(
                 existingAdmin -> {
                     // Admin exists - update password to use new double-hashing method
-                    logger.info("Admin user exists. Updating password to use new double-hashing method...");
+                    logger.info("Admin user '{}' exists. Updating password...", adminUsername);
                     existingAdmin.setPassword(doubleHashedPassword);
                     userRepository.save(existingAdmin);
-                    logger.info("✅ Admin user password updated successfully!");
-                    logger.info("   Username: admin");
-                    logger.info("   Password: admin123 (now stored as double hash)");
+                    logger.info("Admin user password updated successfully!");
+                    logger.info("   Username: {}", adminUsername);
                     logger.info("   Role: SYSTEM_ADMIN");
+                    logger.warn("   SECURITY WARNING: Admin password has been updated. Ensure this is intentional.");
                 },
                 () -> {
                     // Admin doesn't exist - create new one
-                    logger.info("Creating initial admin user...");
+                    logger.info("Creating initial admin user '{}'...", adminUsername);
                     
                     User admin = new User();
                     // ID will be auto-generated by JPA (@GeneratedValue)
-                    admin.setUsername("admin"); // Store plain username
+                    admin.setUsername(adminUsername.trim()); // Store plain username
                     admin.setPassword(doubleHashedPassword); // Double hash: frontend hash + BCrypt
-                    admin.setEmail("admin@ems.com");
+                    admin.setEmail(adminEmail != null && !adminEmail.trim().isEmpty() ? adminEmail.trim() : "ems.buffden@gmail.com");
                     admin.setRole(UserRole.SYSTEM_ADMIN.getValue());
                     admin.setCreatedAt(LocalDateTime.now());
                     
                     userRepository.save(admin);
-                    logger.info("✅ Initial admin user created successfully!");
-                    logger.info("   Username: admin");
-                    logger.info("   Password: admin123 (stored as double hash)");
+                    logger.info("Initial admin user created successfully!");
+                    logger.info("   Username: {}", adminUsername);
+                    logger.info("   Email: {}", admin.getEmail());
                     logger.info("   Role: SYSTEM_ADMIN");
+                    logger.warn("   SECURITY WARNING: Change default admin password immediately after first login!");
                     logger.info("   Note: Frontend will hash password before sending, username stays plain");
                 }
             );

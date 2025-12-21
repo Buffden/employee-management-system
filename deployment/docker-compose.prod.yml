@@ -1,57 +1,39 @@
-services:
-  postgres:
-    image: postgres:15-alpine
-    container_name: ems-postgres
-    env_file:
-      - ../db/.env
-    environment:
-      POSTGRES_DB: ${DB_NAME}
-      POSTGRES_USER: ${DB_USER}
-      POSTGRES_PASSWORD: ${DB_PWD}
-    # No port exposure - only accessible from backend container
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-      - ../db/init:/docker-entrypoint-initdb.d
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER}"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-    networks:
-      - ems-network
-    restart: unless-stopped
+# Docker Compose for Production Deployment
+# This configuration uses AWS RDS for database (no local PostgreSQL container)
+# Usage: docker compose -f docker-compose.prod.yml up -d --build
+#
+# For local development with Docker PostgreSQL, use: docker-compose.yml
 
+services:
   backend:
     build:
       context: ../backend
       dockerfile: Dockerfile.app
     container_name: ems-backend
     env_file:
-      - ../db/.env
+      - ../db/.env.production
     environment:
-      # Override DB_HOST and DB_PORT for Docker (use service name)
-      - DB_HOST=postgres
-      - DB_PORT=5432
+      # Use RDS endpoint from .env (not Docker service name)
+      - DB_HOST=${DB_HOST}  # RDS endpoint from .env
+      - DB_PORT=${DB_PORT}  # 5432
       # Use DB credentials from .env file
       - DB_NAME=${DB_NAME}
       - DB_USER=${DB_USER}
       - DB_PWD=${DB_PWD}
-      # Database SSL mode (default: disable for dev, require for production)
-      - DB_SSL_MODE=${DB_SSL_MODE:-disable}
-      # Spring profile (default: prod for production, set to dev for development)
+      # Database SSL mode (require for RDS)
+      - DB_SSL_MODE=${DB_SSL_MODE:-require}
+      # Spring profile (default: prod for production)
       - SPRING_PROFILE=${SPRING_PROFILE:-prod}
       # Application configuration from .env (REQUIRED - no defaults)
       - JWT_SECRET_KEY=${JWT_SECRET_KEY}
       - CORS_ALLOWED_ORIGINS=${CORS_ALLOWED_ORIGINS}
       - FRONTEND_BASE_URL=${FRONTEND_BASE_URL}
-      - EMAIL_SERVICE_PROVIDER=${EMAIL_SERVICE_PROVIDER:-demo}
+      - EMAIL_SERVICE_PROVIDER=${EMAIL_SERVICE_PROVIDER:}
       - EMAIL_SENDGRID_API_KEY=${EMAIL_SENDGRID_API_KEY:-}
       - EMAIL_SENDGRID_FROM_EMAIL=${EMAIL_SENDGRID_FROM_EMAIL:-}
       - EMAIL_SENDGRID_FROM_NAME=${EMAIL_SENDGRID_FROM_NAME:-Employee Management System}
     # No port exposure - only accessible via nginx/gateway
-    depends_on:
-      postgres:
-        condition: service_healthy
+    # No depends_on postgres (using RDS)
     networks:
       - ems-network
     restart: unless-stopped
@@ -91,10 +73,6 @@ services:
       interval: 30s
       timeout: 5s
       retries: 3
-
-volumes:
-  postgres_data:
-    driver: local
 
 networks:
   ems-network:

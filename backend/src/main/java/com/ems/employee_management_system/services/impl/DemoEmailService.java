@@ -11,11 +11,17 @@ public class DemoEmailService implements EmailService {
 
     @Override
     public void sendInvite(String toEmail, String inviteLink, String demoToken) {
-        logger.info("Invite email to {} -> link: {}, token: {}", toEmail, inviteLink, demoToken);
+        // Don't log sensitive tokens - only log email and link for debugging
+        logger.info("Invite email sent to: {}", toEmail);
+        logger.debug("Invite link: {}", inviteLink);
+        // Token is not logged for security
     }
 
     @Override
     public void sendPasswordReset(String toEmail, String resetLink, String demoToken) {
-        logger.info("Password reset email to {} -> link: {}, token: {}", toEmail, resetLink, demoToken);
+        // Don't log sensitive tokens - only log email and link for debugging
+        logger.info("Password reset email sent to: {}", toEmail);
+        logger.debug("Reset link: {}", resetLink);
+        // Token is not logged for security
     }
 }
