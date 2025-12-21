@@ -58,7 +58,9 @@ services:
       - ems-network
     restart: unless-stopped
     healthcheck:
-      test: ["CMD-SHELL", "wget --quiet --tries=1 --spider http://localhost:80/health || exit 1"]
+      # When SSL is enabled, HTTP redirects to HTTPS, so check HTTPS directly
+      # wget with --spider follows redirects, but we check HTTPS directly for reliability
+      test: ["CMD-SHELL", "wget --quiet --tries=1 --spider --no-check-certificate https://localhost:443/health 2>/dev/null || wget --quiet --tries=1 --spider http://localhost:80/health 2>/dev/null || exit 1"]
       interval: 30s
       timeout: 5s
       retries: 3
