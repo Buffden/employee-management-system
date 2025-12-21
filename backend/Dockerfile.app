@@ -6,8 +6,10 @@ COPY pom.xml .
 RUN mvn dependency:go-offline -B
 
 # Copy source code and build
+# Skip tests during Docker build for faster production deployments
+# Tests should be run in CI/CD pipeline, not during image build
 COPY src ./src
-RUN mvn clean package
+RUN mvn clean package -DskipTests
 
 # Runtime stage
 FROM eclipse-temurin:17-jre
