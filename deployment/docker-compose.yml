@@ -13,7 +13,8 @@ services:
       - postgres_data:/var/lib/postgresql/data
       - ../db/init:/docker-entrypoint-initdb.d
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER}"]
+      # Use POSTGRES_USER if set, otherwise fallback to 'postgres' (default)
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER:-postgres} || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 5
