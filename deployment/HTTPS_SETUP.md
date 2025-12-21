@@ -26,11 +26,13 @@ This guide explains how to set up HTTPS for `ems.buffden.com` using Let's Encryp
 Ensure `db/.env.production` has:
 ```bash
 NGINX_SERVER_NAME=ems.buffden.com
-SSL_ENABLED=true
+SSL_ENABLED=false  # Set to false initially, will enable after getting certificate
 CORS_ALLOWED_ORIGINS=https://ems.buffden.com
 ```
 
-### 2. Deploy Application (HTTP first)
+### 2. Deploy Application (HTTP first - SSL disabled)
+
+Deploy with SSL disabled (nginx will serve HTTP only):
 
 ```bash
 cd ~/employee-management-system/deployment
@@ -44,19 +46,42 @@ docker-compose -f docker-compose.prod.yml ps
 
 ### 3. Obtain Let's Encrypt Certificate
 
-**On EC2 instance**, run:
+**On EC2 instance**, run these docker-compose commands directly:
+
 ```bash
 cd ~/employee-management-system/deployment
-./init-letsencrypt.sh
+
+# Request certificate using webroot mode (nginx must be running)
+docker-compose -f docker-compose.prod.yml run --rm certbot certonly \
+  --webroot \
+  --webroot-path=/var/www/certbot \
+  --email ems.buffden@gmail.com \
+  --agree-tos \
+  --no-eff-email \
+  -d ems.buffden.com
+
+# Verify certificate was created
+docker-compose -f docker-compose.prod.yml exec certbot ls -la /etc/letsencrypt/live/ems.buffden.com/
 ```
 
-This script will:
-- Create a temporary self-signed certificate
-- Start nginx with HTTPS config
-- Request a real certificate from Let's Encrypt
-- Reload nginx with the real certificate
+You should see:
+- `privkey.pem` (private key)
+- `fullchain.pem` (certificate + chain)
+- `chain.pem` (certificate chain)
 
-### 4. Verify HTTPS
+### 4. Enable HTTPS
+
+Update `db/.env.production`:
+```bash
+SSL_ENABLED=true
+```
+
+Restart gateway to use HTTPS:
+```bash
+docker-compose -f docker-compose.prod.yml up -d --force-recreate gateway
+```
+
+### 5. Verify HTTPS
 
 Visit: `https://ems.buffden.com`
 
@@ -85,8 +110,9 @@ The `certbot` container automatically renews certificates every 12 hours. Certif
 ### Nginx Fails to Start
 
 **Error: "SSL certificate not found"**
-- Run `init-letsencrypt.sh` first to obtain certificates
-- Check certificates exist: `docker exec ems-certbot ls -la /etc/letsencrypt/live/ems.buffden.com/`
+- Run the certbot command from step 3 to obtain certificates
+- Check certificates exist: `docker-compose -f docker-compose.prod.yml exec certbot ls -la /etc/letsencrypt/live/ems.buffden.com/`
+- Ensure `SSL_ENABLED=true` is set in `.env.production`
 
 ### Certificate Expired
 
@@ -106,12 +132,20 @@ docker-compose -f docker-compose.prod.yml exec gateway nginx -s reload
 
 ## Testing with Staging
 
-To test without hitting Let's Encrypt rate limits, edit `init-letsencrypt.sh`:
+To test without hitting Let's Encrypt rate limits, add `--staging` flag:
+
 ```bash
-STAGING=1  # Use Let's Encrypt staging environment
+docker-compose -f docker-compose.prod.yml run --rm certbot certonly \
+  --webroot \
+  --webroot-path=/var/www/certbot \
+  --staging \
+  --email ems.buffden@gmail.com \
+  --agree-tos \
+  --no-eff-email \
+  -d ems.buffden.com
 ```
 
-Then run the script. Staging certificates won't be trusted by browsers but are useful for testing.
+Staging certificates won't be trusted by browsers but are useful for testing.
 
 ## Security Notes
 
