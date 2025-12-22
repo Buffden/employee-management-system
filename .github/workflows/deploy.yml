@@ -3,6 +3,8 @@ name: Deploy to Production
 on:
   push:
     branches: [main]
+  pull_request:
+    branches: [main]
   workflow_dispatch: # Allow manual trigger
 
 env:
@@ -15,7 +17,6 @@ jobs:
   build-and-push:
     name: Build and Push Docker Images
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main'
     
     steps:
       - name: Checkout code
@@ -45,7 +46,7 @@ jobs:
     name: Deploy to EC2
     runs-on: ubuntu-latest
     needs: build-and-push
-    if: github.ref == 'refs/heads/main'
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     environment:
       name: production
 
