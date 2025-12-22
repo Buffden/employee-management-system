@@ -3,19 +3,21 @@ name: Deploy to Production
 on:
   push:
     branches: [main]
+  pull_request:
+    branches: [main]
   workflow_dispatch: # Allow manual trigger
 
 env:
   DOCKER_REGISTRY: docker.io
-  DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
-  BACKEND_IMAGE: ${{ secrets.DOCKER_USERNAME }}/ems-backend
-  GATEWAY_IMAGE: ${{ secrets.DOCKER_USERNAME }}/ems-gateway
 
 jobs:
   build-and-push:
     name: Build and Push Docker Images
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main'
+    # Add environment to access environment-level secrets when pushing to main
+    # For PRs, this job will still run but won't access secrets (which is fine for validation builds)
+    environment:
+      name: production
     
     steps:
       - name: Checkout code
@@ -25,35 +27,64 @@ jobs:
         uses: docker/setup-buildx-action@v3
       
       - name: Login to Docker Hub
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
       
       - name: Build and push backend image
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         working-directory: ./backend
+        env:
+          BACKEND_IMAGE: ${{ secrets.DOCKER_USERNAME }}/ems-backend
         run: |
           docker build -f Dockerfile.app -t ${{ env.BACKEND_IMAGE }}:latest .
           docker push ${{ env.BACKEND_IMAGE }}:latest
       
+      - name: Build backend image (PR validation only)
+        if: github.event_name == 'pull_request'
+        working-directory: ./backend
+        run: |
+          docker build -f Dockerfile.app -t ems-backend:test .
+      
       - name: Build and push gateway image
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        env:
+          GATEWAY_IMAGE: ${{ secrets.DOCKER_USERNAME }}/ems-gateway
         run: |
           docker build -f gateway/Dockerfile -t ${{ env.GATEWAY_IMAGE }}:latest .
           docker push ${{ env.GATEWAY_IMAGE }}:latest
+      
+      - name: Build gateway image (PR validation only)
+        if: github.event_name == 'pull_request'
+        run: |
+          docker build -f gateway/Dockerfile -t ems-gateway:test .
 
   deploy:
     name: Deploy to EC2
     runs-on: ubuntu-latest
     needs: build-and-push
-    if: github.ref == 'refs/heads/main'
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     environment:
       name: production
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-      
-      - name: Deploy to EC2
+
+      - name: Pull latest code on EC2
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: |
+            cd ~/employee-management-system/deployment
+            echo "🔄 Pulling latest code..."
+            git pull origin main || echo "⚠️ Git pull failed, using existing code"
+
+      - name: Pull Docker images from Docker Hub
         uses: appleboy/ssh-action@v1.0.3
         env:
           DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
@@ -64,56 +95,81 @@ jobs:
           username: ${{ secrets.EC2_USER }}
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
-            cd ~/employee-management-system/deployment
-            
-            echo "🔄 Pulling latest code..."
-            git pull origin main || echo "⚠️ Git pull failed, using existing code"
-            
             echo "📦 Pulling Docker images from Docker Hub..."
             docker pull $BACKEND_IMAGE
             docker pull $GATEWAY_IMAGE
-            
+
+      - name: Generate .env.production from GitHub Secrets
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: |
+            cd ~/employee-management-system/deployment
             echo "📝 Generating .env.production from GitHub Secrets..."
             mkdir -p ../db
-            cat > ../db/.env.production << 'ENVEOF'
-DB_HOST=${{ secrets.DB_HOST }}
-DB_PORT=${{ secrets.DB_PORT }}
-DB_NAME=${{ secrets.DB_NAME }}
-DB_USER=${{ secrets.DB_USER }}
-DB_PWD=${{ secrets.DB_PWD }}
-DB_SSL_MODE=require
-SPRING_PROFILE=prod
-JWT_SECRET_KEY=${{ secrets.JWT_SECRET_KEY }}
-CORS_ALLOWED_ORIGINS=${{ secrets.CORS_ALLOWED_ORIGINS || '' }}
-FRONTEND_BASE_URL=${{ secrets.FRONTEND_BASE_URL || '' }}
-EMAIL_SERVICE_PROVIDER=demo
-EMAIL_SENDGRID_API_KEY=${{ secrets.EMAIL_SENDGRID_API_KEY || '' }}
-EMAIL_SENDGRID_FROM_EMAIL=${{ secrets.EMAIL_SENDGRID_FROM_EMAIL || '' }}
-EMAIL_SENDGRID_FROM_NAME=Employee Management System
-ADMIN_CREATE=true
-ADMIN_USERNAME=${{ secrets.ADMIN_USERNAME || '' }}
-ADMIN_PASSWORD=${{ secrets.ADMIN_PASSWORD || '' }}
-ADMIN_EMAIL=${{ secrets.ADMIN_EMAIL || '' }}
-NGINX_PORT=80
-NGINX_SERVER_NAME=${{ secrets.NGINX_SERVER_NAME || '' }}
-BACKEND_HOST=backend
-BACKEND_PORT=8080
-SSL_ENABLED=true
-DOCKER_USERNAME=${{ secrets.DOCKER_USERNAME }}
-ENVEOF
-            
+            {
+              echo "DB_HOST=${{ secrets.DB_HOST }}"
+              echo "DB_PORT=${{ secrets.DB_PORT }}"
+              echo "DB_NAME=${{ secrets.DB_NAME }}"
+              echo "DB_USER=${{ secrets.DB_USER }}"
+              echo "DB_PWD=${{ secrets.DB_PWD }}"
+              echo "DB_SSL_MODE=require"
+              echo "SPRING_PROFILE=prod"
+              echo "JWT_SECRET_KEY=${{ secrets.JWT_SECRET_KEY }}"
+              echo "CORS_ALLOWED_ORIGINS=${{ secrets.CORS_ALLOWED_ORIGINS || '' }}"
+              echo "FRONTEND_BASE_URL=${{ secrets.FRONTEND_BASE_URL || '' }}"
+              echo "EMAIL_SERVICE_PROVIDER=demo"
+              echo "EMAIL_SENDGRID_API_KEY=${{ secrets.EMAIL_SENDGRID_API_KEY || '' }}"
+              echo "EMAIL_SENDGRID_FROM_EMAIL=${{ secrets.EMAIL_SENDGRID_FROM_EMAIL || '' }}"
+              echo "EMAIL_SENDGRID_FROM_NAME=Employee Management System"
+              echo "ADMIN_CREATE=true"
+              echo "ADMIN_USERNAME=${{ secrets.ADMIN_USERNAME || '' }}"
+              echo "ADMIN_PASSWORD=${{ secrets.ADMIN_PASSWORD || '' }}"
+              echo "ADMIN_EMAIL=${{ secrets.ADMIN_EMAIL || '' }}"
+              echo "NGINX_PORT=80"
+              echo "NGINX_SERVER_NAME=${{ secrets.NGINX_SERVER_NAME || '' }}"
+              echo "BACKEND_HOST=backend"
+              echo "BACKEND_PORT=8080"
+              echo "SSL_ENABLED=true"
+              echo "DOCKER_USERNAME=${{ secrets.DOCKER_USERNAME }}"
+            } > ../db/.env.production
+
+      - name: Stop existing containers
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: |
+            cd ~/employee-management-system/deployment
             echo "🛑 Stopping existing containers..."
             docker compose -f docker-compose.prod.yml down || true
-            
+
+      - name: Start new containers
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: |
+            cd ~/employee-management-system/deployment
             echo "🚀 Starting new containers..."
             docker compose -f docker-compose.prod.yml up -d
-            
+
+      - name: Wait for services and verify
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: |
+            cd ~/employee-management-system/deployment
             echo "⏳ Waiting for services to be healthy..."
             sleep 30
-            
             echo "📊 Service Status:"
             docker compose -f docker-compose.prod.yml ps
-            
             if docker compose -f docker-compose.prod.yml ps | grep -q "Up"; then
               echo "✅ Deployment completed successfully!"
             else
@@ -121,13 +177,7 @@ ENVEOF
               docker compose -f docker-compose.prod.yml logs --tail=50
               exit 1
             fi
-      
-      - name: Health check
-        run: |
-          echo "🏥 Health check skipped - verify manually on EC2"
-          echo "   Run: docker compose -f docker-compose.prod.yml ps"
-          echo "   Check logs: docker compose -f docker-compose.prod.yml logs"
-      
+
       - name: Deployment summary
         if: always()
         run: |
