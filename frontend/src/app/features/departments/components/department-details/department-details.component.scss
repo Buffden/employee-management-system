@@ -150,6 +150,70 @@
   }
 }
 
+// Projects Section
+.projects-section {
+  margin-top: 32px;
+
+  .projects-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 16px;
+
+    .projects-header-actions {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+
+      .project-count {
+        font-size: 14px;
+        color: #6b778c;
+      }
+    }
+
+    .create-project-btn {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+  }
+
+  .projects-table-container {
+    .projects-table {
+      width: 100%;
+      background: #ffffff;
+
+      .clickable {
+        cursor: pointer;
+        color: #0052cc;
+
+        &:hover {
+          text-decoration: underline;
+        }
+      }
+
+      .project-name {
+        font-weight: 500;
+      }
+    }
+  }
+
+  .empty-projects {
+    background: #f4f5f7;
+    border-radius: 3px;
+    padding: 32px;
+    text-align: center;
+    color: #6b778c;
+
+    .create-project-btn-empty {
+      margin-top: 16px;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+  }
+}
+
 // Right Sidebar: Metadata
 .right-sidebar {
   width: 300px;

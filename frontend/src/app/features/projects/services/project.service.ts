@@ -88,4 +88,13 @@ export class ProjectService {
       })
     );
   }
+
+  getByDepartmentId(departmentId: string): Observable<Project[]> {
+    return this.http.get<Project[]>(`${this.apiUrl}/department/${departmentId}`).pipe(
+      catchError((error) => {
+        this.handleError(error);
+        throw error;
+      })
+    );
+  }
 } 
