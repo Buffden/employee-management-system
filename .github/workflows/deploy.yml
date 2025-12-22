@@ -48,12 +48,23 @@ jobs:
     if: github.ref == 'refs/heads/main'
     environment:
       name: production
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-      
-      - name: Deploy to EC2
+
+      - name: Pull latest code on EC2
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: |
+            cd ~/employee-management-system/deployment
+            echo "🔄 Pulling latest code..."
+            git pull origin main || echo "⚠️ Git pull failed, using existing code"
+
+      - name: Pull Docker images from Docker Hub
         uses: appleboy/ssh-action@v1.0.3
         env:
           DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
@@ -64,15 +75,18 @@ jobs:
           username: ${{ secrets.EC2_USER }}
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
-            cd ~/employee-management-system/deployment
-            
-            echo "🔄 Pulling latest code..."
-            git pull origin main || echo "⚠️ Git pull failed, using existing code"
-            
             echo "📦 Pulling Docker images from Docker Hub..."
             docker pull $BACKEND_IMAGE
             docker pull $GATEWAY_IMAGE
-            
+
+      - name: Generate .env.production from GitHub Secrets
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: |
+            cd ~/employee-management-system/deployment
             echo "📝 Generating .env.production from GitHub Secrets..."
             mkdir -p ../db
             {
@@ -101,19 +115,41 @@ jobs:
               echo "SSL_ENABLED=true"
               echo "DOCKER_USERNAME=${{ secrets.DOCKER_USERNAME }}"
             } > ../db/.env.production
-            
+
+      - name: Stop existing containers
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: |
+            cd ~/employee-management-system/deployment
             echo "🛑 Stopping existing containers..."
             docker compose -f docker-compose.prod.yml down || true
-            
+
+      - name: Start new containers
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: |
+            cd ~/employee-management-system/deployment
             echo "🚀 Starting new containers..."
             docker compose -f docker-compose.prod.yml up -d
-            
+
+      - name: Wait for services and verify
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: |
+            cd ~/employee-management-system/deployment
             echo "⏳ Waiting for services to be healthy..."
             sleep 30
-            
             echo "📊 Service Status:"
             docker compose -f docker-compose.prod.yml ps
-            
             if docker compose -f docker-compose.prod.yml ps | grep -q "Up"; then
               echo "✅ Deployment completed successfully!"
             else
@@ -121,13 +157,7 @@ jobs:
               docker compose -f docker-compose.prod.yml logs --tail=50
               exit 1
             fi
-      
-      - name: Health check
-        run: |
-          echo "🏥 Health check skipped - verify manually on EC2"
-          echo "   Run: docker compose -f docker-compose.prod.yml ps"
-          echo "   Check logs: docker compose -f docker-compose.prod.yml logs"
-      
+
       - name: Deployment summary
         if: always()
         run: |
