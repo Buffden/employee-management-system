@@ -9,9 +9,6 @@ on:
 
 env:
   DOCKER_REGISTRY: docker.io
-  DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
-  BACKEND_IMAGE: ${{ secrets.DOCKER_USERNAME }}/ems-backend
-  GATEWAY_IMAGE: ${{ secrets.DOCKER_USERNAME }}/ems-gateway
 
 jobs:
   build-and-push:
@@ -26,21 +23,39 @@ jobs:
         uses: docker/setup-buildx-action@v3
       
       - name: Login to Docker Hub
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
       
       - name: Build and push backend image
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         working-directory: ./backend
+        env:
+          BACKEND_IMAGE: ${{ secrets.DOCKER_USERNAME }}/ems-backend
         run: |
           docker build -f Dockerfile.app -t ${{ env.BACKEND_IMAGE }}:latest .
           docker push ${{ env.BACKEND_IMAGE }}:latest
       
+      - name: Build backend image (PR validation only)
+        if: github.event_name == 'pull_request'
+        working-directory: ./backend
+        run: |
+          docker build -f Dockerfile.app -t ems-backend:test .
+      
       - name: Build and push gateway image
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        env:
+          GATEWAY_IMAGE: ${{ secrets.DOCKER_USERNAME }}/ems-gateway
         run: |
           docker build -f gateway/Dockerfile -t ${{ env.GATEWAY_IMAGE }}:latest .
           docker push ${{ env.GATEWAY_IMAGE }}:latest
+      
+      - name: Build gateway image (PR validation only)
+        if: github.event_name == 'pull_request'
+        run: |
+          docker build -f gateway/Dockerfile -t ems-gateway:test .
 
   deploy:
     name: Deploy to EC2
