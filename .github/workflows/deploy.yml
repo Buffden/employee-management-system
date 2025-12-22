@@ -16,7 +16,8 @@ jobs:
     runs-on: ubuntu-latest
     # Environment is required to access environment-level secrets
     # If environment has protection rules, you may need to approve the workflow run
-    # Make sure DOCKER_USERNAME and DOCKER_PASSWORD are set in the 'production' environment
+    # Make sure DOCKER_PASSWORD is set in the 'production' environment
+    # DOCKER_USERNAME is hardcoded as 'buffden' for now
     environment:
       name: production
     
@@ -27,32 +28,19 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
       
-      - name: Verify Docker secrets are available
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-        run: |
-          if [ -z "${{ secrets.DOCKER_USERNAME }}" ]; then
-            echo "❌ Error: DOCKER_USERNAME secret is not set or not accessible"
-            exit 1
-          fi
-          if [ -z "${{ secrets.DOCKER_PASSWORD }}" ]; then
-            echo "❌ Error: DOCKER_PASSWORD secret is not set or not accessible"
-            exit 1
-          fi
-          echo "✅ Docker secrets are available"
-      
       - name: Login to Docker Hub
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         uses: docker/login-action@v3
         with:
           registry: docker.io
-          username: ${{ secrets.DOCKER_USERNAME }}
+          username: buffden
           password: ${{ secrets.DOCKER_PASSWORD }}
       
       - name: Build and push backend image
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         working-directory: ./backend
         env:
-          BACKEND_IMAGE: ${{ secrets.DOCKER_USERNAME }}/ems-backend
+          BACKEND_IMAGE: buffden/ems-backend
         run: |
           docker build -f Dockerfile.app -t ${{ env.BACKEND_IMAGE }}:latest .
           docker push ${{ env.BACKEND_IMAGE }}:latest
@@ -66,7 +54,7 @@ jobs:
       - name: Build and push gateway image
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         env:
-          GATEWAY_IMAGE: ${{ secrets.DOCKER_USERNAME }}/ems-gateway
+          GATEWAY_IMAGE: buffden/ems-gateway
         run: |
           docker build -f gateway/Dockerfile -t ${{ env.GATEWAY_IMAGE }}:latest .
           docker push ${{ env.GATEWAY_IMAGE }}:latest
@@ -102,9 +90,9 @@ jobs:
       - name: Pull Docker images from Docker Hub
         uses: appleboy/ssh-action@v1.0.3
         env:
-          DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
-          BACKEND_IMAGE: ${{ secrets.DOCKER_USERNAME }}/ems-backend:latest
-          GATEWAY_IMAGE: ${{ secrets.DOCKER_USERNAME }}/ems-gateway:latest
+          DOCKER_USERNAME: buffden
+          BACKEND_IMAGE: buffden/ems-backend:latest
+          GATEWAY_IMAGE: buffden/ems-gateway:latest
         with:
           host: ${{ secrets.EC2_HOST }}
           username: ${{ secrets.EC2_USER }}
@@ -148,7 +136,7 @@ jobs:
               echo "BACKEND_HOST=backend"
               echo "BACKEND_PORT=8080"
               echo "SSL_ENABLED=true"
-              echo "DOCKER_USERNAME=${{ secrets.DOCKER_USERNAME }}"
+              echo "DOCKER_USERNAME=buffden"
             } > ../db/.env.production
 
       - name: Stop existing containers
