@@ -74,8 +74,7 @@ public class DepartmentController {
     @GetMapping("/{id}")
     @PreAuthorize("hasAnyRole('" + RoleConstants.SYSTEM_ADMIN + "', '" + RoleConstants.HR_MANAGER + "', '" + RoleConstants.DEPARTMENT_MANAGER + "', '" + RoleConstants.EMPLOYEE + "') and " +
                   "(@securityService.hasRole('" + RoleConstants.SYSTEM_ADMIN + "') or @securityService.hasRole('" + RoleConstants.HR_MANAGER + "') or " +
-                  "@securityService.hasRole('" + RoleConstants.DEPARTMENT_MANAGER + "') or @securityService.isOwnDepartment(#id) or " +
-                  "@securityService.getCurrentUserEmployeeId() != null)")
+                  "@securityService.isOwnDepartment(#id))")
     public ResponseEntity<DepartmentResponseDTO> getById(@PathVariable UUID id) {
         logger.debug("Fetching department with id: {}", id);
         Department department = departmentService.getById(id);
@@ -175,14 +174,29 @@ public class DepartmentController {
             throw new IllegalArgumentException("Location not found with id: " + requestDTO.getLocationId());
         }
         
-        // Department head is optional - fetch if provided
+        // For DEPARTMENT_MANAGER, restrict HR-related fields
+        String role = securityService.getCurrentUserRole();
+        if ("DEPARTMENT_MANAGER".equals(role)) {
+            // DEPARTMENT_MANAGER cannot modify HR-related fields
+            // These will be preserved in the service layer, but we should not pass them from DTO
+            requestDTO.setBudget(null);
+            requestDTO.setBudgetUtilization(null);
+            requestDTO.setPerformanceMetric(null);
+            requestDTO.setDepartmentHeadId(null);
+            logger.debug("Restricted HR-related fields for DEPARTMENT_MANAGER update");
+        }
+        
+        // Department head is optional - fetch if provided (only for SYSTEM_ADMIN and HR_MANAGER)
         Employee head = null;
-        if (requestDTO.getDepartmentHeadId() != null) {
+        if (requestDTO.getDepartmentHeadId() != null && !"DEPARTMENT_MANAGER".equals(role)) {
             head = employeeService.getById(requestDTO.getDepartmentHeadId());
             if (head == null) {
                 logger.warn("Department head employee not found with id: {}", requestDTO.getDepartmentHeadId());
                 throw new IllegalArgumentException("Employee not found with id: " + requestDTO.getDepartmentHeadId());
             }
+        } else if ("DEPARTMENT_MANAGER".equals(role)) {
+            // Preserve existing department manager
+            head = existingDepartment.getHead();
         }
         
         Department updatedDepartment = DepartmentMapper.toEntity(requestDTO, location, head);

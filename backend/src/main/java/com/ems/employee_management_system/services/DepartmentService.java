@@ -13,7 +13,9 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.ems.employee_management_system.models.Department;
 import com.ems.employee_management_system.repositories.DepartmentRepository;
+import com.ems.employee_management_system.repositories.UserRepository;
 import com.ems.employee_management_system.security.SecurityService;
+import com.ems.employee_management_system.constants.RoleConstants;
 
 @Service
 public class DepartmentService {
@@ -22,13 +24,16 @@ public class DepartmentService {
     private final DepartmentRepository departmentRepository;
     private final SecurityService securityService;
     private final EmployeeService employeeService;
+    private final UserRepository userRepository;
 
     public DepartmentService(DepartmentRepository departmentRepository,
                              SecurityService securityService,
-                             EmployeeService employeeService) {
+                             EmployeeService employeeService,
+                             UserRepository userRepository) {
         this.departmentRepository = departmentRepository;
         this.securityService = securityService;
         this.employeeService = employeeService;
+        this.userRepository = userRepository;
     }
 
     public Page<Department> getAll(Pageable pageable) {
@@ -61,11 +66,26 @@ public class DepartmentService {
     /**
      * Saves a department with business logic validation
      * Validates department name uniqueness
-     * Synchronizes bidirectional relationship: ensures department head employee's department_id matches
+     * Synchronizes bidirectional relationship: ensures department manager employee's department_id matches
+     * For DEPARTMENT_MANAGER role, restricts HR-related fields (budget, budgetUtilization, performanceMetric, departmentHeadId)
      */
     @Transactional
     public Department save(Department department) {
         logger.debug("Saving department: {}", department.getName());
+        
+        // If user is DEPARTMENT_MANAGER, preserve HR-related fields from existing department
+        String role = securityService.getCurrentUserRole();
+        if ("DEPARTMENT_MANAGER".equals(role) && department.getId() != null) {
+            Department existingDepartment = departmentRepository.findById(department.getId()).orElse(null);
+            if (existingDepartment != null) {
+                // Preserve HR-related fields that DEPARTMENT_MANAGER cannot modify
+                department.setBudget(existingDepartment.getBudget());
+                department.setBudgetUtilization(existingDepartment.getBudgetUtilization());
+                department.setPerformanceMetric(existingDepartment.getPerformanceMetric());
+                department.setHead(existingDepartment.getHead()); // Preserve department manager
+                logger.debug("Preserved HR-related fields for DEPARTMENT_MANAGER update");
+            }
+        }
         
         // Validate name uniqueness (excluding current department if updating)
         if (department.getName() != null) {
@@ -79,8 +99,8 @@ public class DepartmentService {
                 });
         }
         
-        // Handle department head synchronization (bidirectional relationship)
-        // Business rule: Department head employee must belong to the department they head
+        // Handle department manager synchronization (bidirectional relationship)
+        // Business rule: Department manager employee must belong to the department they manage
         // Edge cases handled:
         // 1. Employee can only be head of ONE department at a time
         // 2. When assigning new head, update their department_id to this department
@@ -102,23 +122,23 @@ public class DepartmentService {
         
         // Validate new head assignment
         if (newHead != null) {
-            // Edge Case 1: Validate employee is not already head of a DIFFERENT department
+            // Edge Case 1: Validate employee is not already manager of a DIFFERENT department
             List<Department> departmentsWhereHead = departmentRepository.findDepartmentsByHeadId(newHead.getId());
             for (Department dept : departmentsWhereHead) {
                 // Allow if it's the same department (updating other fields), but prevent if different
                 if (department.getId() == null || !dept.getId().equals(department.getId())) {
-                    logger.warn("Employee {} is already head of department {}", 
+                    logger.warn("Employee {} is already manager of department {}", 
                         newHead.getId(), dept.getName());
                     throw new IllegalStateException(
-                        "Employee is already head of department: " + dept.getName() + 
-                        ". An employee can only be head of one department at a time.");
+                        "Employee is already manager of department: " + dept.getName() + 
+                        ". An employee can only be manager of one department at a time.");
                 }
             }
             
             // Edge Case 2: Validate employee exists and is managed entity
             // (Already validated in controller, but defensive check)
             if (newHead.getId() == null) {
-                throw new IllegalArgumentException("Department head employee must have an ID");
+                throw new IllegalArgumentException("Department manager employee must have an ID");
             }
             
             // Edge Case 3: If employee has direct reports, changing their department might affect them
@@ -130,21 +150,22 @@ public class DepartmentService {
         // Save department first to ensure it has an ID
         Department saved = departmentRepository.save(department);
         
-        // Edge Case 4: Synchronize new head's department_id
-        // Business rule: Department head must belong to the department they head
+        // Edge Case 4: Synchronize new manager's department_id and update User role
+        // Business rule: Department manager must belong to the department they manage
+        // Also update the User's role to DEPARTMENT_MANAGER if they have a User account
         if (newHead != null) {
             // Only update if employee's department doesn't already match
             boolean needsUpdate = newHead.getDepartment() == null || 
                                   !saved.getId().equals(newHead.getDepartment().getId());
             
             if (needsUpdate) {
-                logger.debug("Updating department head employee {} to belong to department {}", 
+                logger.debug("Updating department manager employee {} to belong to department {}", 
                     newHead.getId(), saved.getId());
                 
                 // Get fresh employee entity to ensure we're working with managed entity
                 Employee employeeToUpdate = employeeService.getById(newHead.getId());
                 if (employeeToUpdate == null) {
-                    throw new IllegalArgumentException("Department head employee not found: " + newHead.getId());
+                    throw new IllegalArgumentException("Department manager employee not found: " + newHead.getId());
                 }
                 
                 // Update employee's department to match this department
@@ -152,26 +173,41 @@ public class DepartmentService {
                 
                 // This will also validate manager is in same department
                 employeeService.save(employeeToUpdate);
-                logger.info("Synchronized department head employee's department assignment");
+                logger.info("Synchronized department manager employee's department assignment");
             } else {
-                logger.debug("Department head employee {} already belongs to department {}, no update needed", 
+                logger.debug("Department manager employee {} already belongs to department {}, no update needed", 
                     newHead.getId(), saved.getId());
             }
+            
+            // Update User role to DEPARTMENT_MANAGER if user account exists
+            userRepository.findByEmployeeId(newHead.getId()).ifPresent(user -> {
+                if (!RoleConstants.DEPARTMENT_MANAGER.equals(user.getRole())) {
+                    logger.info("Updating User role to DEPARTMENT_MANAGER for employee {} (user: {})", 
+                        newHead.getId(), user.getUsername());
+                    user.setRole(RoleConstants.DEPARTMENT_MANAGER);
+                    userRepository.save(user);
+                    logger.info("User role updated successfully");
+                } else {
+                    logger.debug("User {} already has DEPARTMENT_MANAGER role", user.getUsername());
+                }
+            });
         }
         
-        // Edge Case 5: When removing department head (newHead is null but oldHead existed)
-        // The old head's department_id is NOT changed - they may still work in that department
+        // Edge Case 5: When removing department manager (newHead is null but oldHead existed)
+        // The old manager's department_id is NOT changed - they may still work in that department
         // Only the department.department_head_id is set to NULL
+        // Note: We do NOT automatically change the old manager's User role back to EMPLOYEE
+        // as they may still need DEPARTMENT_MANAGER role for other purposes
         if (isUpdate && oldHead != null && newHead == null) {
-            logger.debug("Department head removed. Old head {} retains their department assignment", 
+            logger.debug("Department manager removed. Old manager {} retains their department assignment", 
                 oldHead.getId());
         }
         
-        // Edge Case 6: When changing department head (oldHead and newHead both exist and are different)
-        // Old head keeps their department_id (they still work there, just not as head)
-        // New head gets their department_id updated to this department
+        // Edge Case 6: When changing department manager (oldHead and newHead both exist and are different)
+        // Old manager keeps their department_id (they still work there, just not as manager)
+        // New manager gets their department_id updated to this department
         if (isUpdate && oldHead != null && newHead != null && !oldHead.getId().equals(newHead.getId())) {
-            logger.debug("Department head changed from {} to {}. Old head retains department assignment", 
+            logger.debug("Department manager changed from {} to {}. Old manager retains department assignment", 
                 oldHead.getId(), newHead.getId());
         }
         

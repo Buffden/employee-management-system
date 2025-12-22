@@ -2,7 +2,7 @@
     <form [formGroup]="departmentForm"
           (ngSubmit)="onSubmit()">
         <ng-container *ngFor="let field of FormFields;">
-            <!-- Department Head typeahead - has its own mat-form-field -->
+            <!-- Department Manager typeahead - has its own mat-form-field -->
             <app-typeahead
                 *ngIf="field.type === 'typeahead' && field.formControlName === 'departmentHeadId'"
                 [formControl]="$any(departmentForm.get('departmentHeadId'))"

@@ -13,7 +13,7 @@ public class DepartmentResponseDTO {
     private Double budget;
     private Double budgetUtilization;
     private Double performanceMetric;
-    private UUID departmentHeadId; // Department head employee ID
+    private UUID departmentHeadId; // Department manager employee ID
     private String departmentHeadName; // Denormalized (firstName + lastName)
 
     // Getters and setters

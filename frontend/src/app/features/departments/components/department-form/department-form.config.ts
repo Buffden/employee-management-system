@@ -49,9 +49,9 @@ export const departmentFormFields: DepartmentFormField[] = [
     type: 'number'
   },
   {
-    label: 'Department Head',
+    label: 'Department Manager',
     formControlName: 'departmentHeadId',
-    placeholder: 'Search for department head (optional)',
+    placeholder: 'Search for department manager (optional)',
     errorMessage: 'Please select a valid employee',
     type: 'typeahead',
   },
