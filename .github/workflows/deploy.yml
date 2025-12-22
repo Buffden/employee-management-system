@@ -14,6 +14,10 @@ jobs:
   build-and-push:
     name: Build and Push Docker Images
     runs-on: ubuntu-latest
+    # Add environment to access environment-level secrets when pushing to main
+    # For PRs, this job will still run but won't access secrets (which is fine for validation builds)
+    environment:
+      name: production
     
     steps:
       - name: Checkout code
