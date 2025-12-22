@@ -14,8 +14,9 @@ jobs:
   build-and-push:
     name: Build and Push Docker Images
     runs-on: ubuntu-latest
-    # Add environment to access environment-level secrets when pushing to main
-    # For PRs, this job will still run but won't access secrets (which is fine for validation builds)
+    # Environment is required to access environment-level secrets
+    # If environment has protection rules, you may need to approve the workflow run
+    # Make sure DOCKER_USERNAME and DOCKER_PASSWORD are set in the 'production' environment
     environment:
       name: production
     
@@ -26,10 +27,24 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
       
+      - name: Verify Docker secrets are available
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: |
+          if [ -z "${{ secrets.DOCKER_USERNAME }}" ]; then
+            echo "❌ Error: DOCKER_USERNAME secret is not set or not accessible"
+            exit 1
+          fi
+          if [ -z "${{ secrets.DOCKER_PASSWORD }}" ]; then
+            echo "❌ Error: DOCKER_PASSWORD secret is not set or not accessible"
+            exit 1
+          fi
+          echo "✅ Docker secrets are available"
+      
       - name: Login to Docker Hub
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         uses: docker/login-action@v3
         with:
+          registry: docker.io
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
       
