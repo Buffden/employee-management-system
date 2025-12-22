@@ -49,7 +49,7 @@ A full-stack monorepo application for managing employees, departments, projects,
 ### DevOps & Infrastructure
 - **Containerization**: Docker & Docker Compose
 - **Web Server**: Nginx (Gateway)
-- **CI/CD**: Jenkins
+- **CI/CD**: GitHub Actions (CI + CD)
 - **Version Control**: Git
 
 ## 🏗 Architecture
@@ -277,15 +277,16 @@ frontend/src/app/
 
 ## 🐳 Docker Deployment
 
-### Architecture
+### Local Development
 
+**Architecture**:
 ```
-Host → Gateway (Port 80) → Backend → Database
+Host → Gateway (Port 80) → Backend → PostgreSQL
 ```
 
 **Only the Gateway is exposed** on port 80. All other services (PostgreSQL, Backend) are internal and not directly accessible from the host.
 
-### Docker Compose Commands
+**Commands**:
 
 ```bash
 cd deployment
@@ -302,6 +303,31 @@ docker-compose logs -f
 # View logs for specific service
 docker-compose logs -f gateway
 docker-compose logs -f backend
+```
+
+### Production Deployment
+
+**Automatic Deployment** (Recommended):
+- Code merged to `main` → Automatically deploys via GitHub Actions
+- No manual steps required
+- See [CI/CD](#-cicd) section above
+
+**Architecture**:
+```
+Users → Gateway (HTTPS) → Backend → AWS RDS
+```
+
+**Manual Deployment** (If needed):
+
+```bash
+cd deployment
+docker-compose -f docker-compose.prod.yml up -d
+```
+
+**Note**: 
+- Production uses `docker-compose.prod.yml` which pulls images from Docker Hub
+- Requires AWS RDS database (configured via `.env.production`)
+- Images must be built and pushed to Docker Hub first
 docker-compose logs -f postgres
 
 # Restart services
@@ -327,11 +353,9 @@ docker-compose up -d --build gateway
 
 ## 🔄 CI/CD
 
-### GitHub Actions (CI)
+The project uses **GitHub Actions** for both Continuous Integration (CI) and Continuous Deployment (CD).
 
-The project uses **GitHub Actions** for continuous integration (CI) - automatic testing and validation on every pull request.
-
-#### Automatic CI Pipeline
+### CI Pipeline (Testing & Validation)
 
 **Workflow**: `.github/workflows/ci.yml`
 
@@ -353,50 +377,48 @@ The project uses **GitHub Actions** for continuous integration (CI) - automatic 
 
 **Status Badge**: ![CI](https://github.com/Buffden/employee-management-system/workflows/CI%20Pipeline/badge.svg)
 
-See `.github/workflows/README.md` for detailed documentation.
+### CD Pipeline (Production Deployment)
 
-### Jenkins Integration (CD)
+**Workflow**: `.github/workflows/deploy.yml`
 
-The project includes Jenkins configuration for continuous deployment (CD) - production deployments when the application is hosted.
+**Runs automatically when**:
+- Code is merged to `main` branch
 
-#### Start Jenkins
+**What it does**:
+1. **Build & Push**: Builds Docker images and pushes to Docker Hub
+   - Backend: `{DOCKER_USERNAME}/ems-backend:latest`
+   - Gateway: `{DOCKER_USERNAME}/ems-gateway:latest`
+2. **Deploy to EC2**:
+   - SSHs to EC2 server
+   - Pulls latest code from repository
+   - Pulls Docker images from Docker Hub
+   - Generates `.env.production` from GitHub Secrets
+   - Deploys using `docker-compose.prod.yml`
+   - Verifies deployment success
 
-```bash
-cd deployment/jenkins
-docker-compose up -d --build
-```
+**Key Features**:
+- ✅ **Secure**: Secrets stored in GitHub Secrets, never in code
+- ✅ **Automated**: Zero manual steps required
+- ✅ **Versioned**: Images stored in Docker Hub
+- ✅ **Idempotent**: Safe to rerun deployments
 
-Access Jenkins at `http://localhost:8085`
+**Required GitHub Secrets**:
+- `EC2_HOST`, `EC2_USER`, `EC2_SSH_KEY` - EC2 server access
+- `DOCKER_USERNAME`, `DOCKER_PASSWORD` - Docker Hub credentials
+- `DB_HOST`, `DB_NAME`, `DB_USER`, `DB_PWD` - Database credentials
+- `JWT_SECRET_KEY` - Application security
+- `ADMIN_USERNAME`, `ADMIN_PASSWORD`, `ADMIN_EMAIL` - Admin user
+- Optional: `CORS_ALLOWED_ORIGINS`, `FRONTEND_BASE_URL`, `NGINX_SERVER_NAME`, etc.
 
-#### Jenkins Pipelines
+**Documentation**:
+- See `.github/workflows/README.md` for complete workflow documentation
+- See `docs/architecture/github-actions-setup.md` for setup guide
 
-The project includes Jenkinsfiles for automated pipelines:
+### Legacy Jenkins (Optional)
 
-- **Backend Pipeline** (`deployment/jenkins/Jenkinsfile.backend`):
-  - Build and test backend
-  - Docker image creation
-  - Deployment automation
-
-- **Frontend Pipeline** (`deployment/jenkins/Jenkinsfile.frontend`):
-  - Build Angular application
-  - Docker image creation
-  - Gateway deployment
-
-#### CI/CD Testing
-
-For testing individual services:
-
-```bash
-# Test backend only
-cd deployment
-docker-compose -f docker-compose.backend.yml up -d --build
-
-# Test frontend/gateway only
-cd deployment
-docker-compose -f docker-compose.frontend.yml up -d --build
-```
-
-See `deployment/jenkins/README.md` for detailed CI/CD setup instructions.
+Jenkins configuration is available for alternative CI/CD setups:
+- See `deployment/jenkins/README.md` for Jenkins setup
+- Jenkins pipelines: `deployment/jenkins/Jenkinsfile.*`
 
 ## 💻 Development
 

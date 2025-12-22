@@ -1,5 +1,5 @@
 @startuml Deployment Overview
-' Workflow test - updated
+' Updated to reflect GitHub Actions CI/CD
 skinparam linetype ortho
 skinparam roundcorner 10
 
@@ -11,32 +11,37 @@ node "Development Environment" #LightBlue {
 }
 
 node "CI/CD Infrastructure" #LightGreen {
-    [GitHub Actions] as GitHubActions
-    [Jenkins] as Jenkins
+    [GitHub Actions CI] as GitHubCI
+    [GitHub Actions CD] as GitHubCD
     [Docker Hub] as DockerHub
+    [GitHub Secrets] as Secrets
 }
 
-node "Production Environment" #LightYellow {
-    [Docker Host] as DockerHost
-    [PostgreSQL Container] as ProdDB
+node "Production Environment (EC2)" #LightYellow {
+    [EC2 Instance] as EC2
     [Backend Container] as ProdBackend
     [Gateway Container] as ProdGateway
+    [Certbot Container] as Certbot
 }
 
 cloud "External" #LightCoral {
     [Users] as Users
     [GitHub] as GitHub
-    [AWS Cloud] as AWS
+    [AWS RDS] as RDS
 }
 
-Users --> ProdGateway : HTTPS
+Users --> ProdGateway : HTTPS (Port 443)
 ProdGateway --> ProdBackend : HTTP (Internal)
-ProdBackend --> ProdDB : JDBC
+ProdBackend --> RDS : JDBC (SSL)
 
-GitHub --> GitHubActions : Push/PR
-GitHubActions --> Jenkins : CI Pass
-Jenkins --> DockerHub : Build & Push
-DockerHub --> DockerHost : Pull & Deploy
+GitHub --> GitHubCI : Push/PR
+GitHubCI --> GitHubCD : Merge to main
+GitHubCD --> DockerHub : Build & Push Images
+GitHubCD --> Secrets : Read secrets
+Secrets --> EC2 : Generate .env.production
+DockerHub --> EC2 : Pull images
+EC2 --> ProdBackend : Start containers
+EC2 --> ProdGateway : Start containers
 
 LocalDocker --> LocalDB : Development
 
@@ -45,27 +50,33 @@ note right of LocalDocker
   - docker-compose up
   - Local testing
   - Hot reload
+  - Uses docker-compose.yml
 end note
 
-note right of GitHubActions
+note right of GitHubCI
   **CI Pipeline:**
   - Automated tests
   - Code quality
   - Build verification
+  - Runs on PR/push
 end note
 
-note right of Jenkins
+note right of GitHubCD
   **CD Pipeline:**
-  - Integration tests
-  - Docker builds
-  - Deployment automation
+  - Build Docker images
+  - Push to Docker Hub
+  - Deploy to EC2
+  - Generate .env from secrets
+  - Runs on main merge
 end note
 
-note right of DockerHost
+note right of EC2
   **Production:**
   - Container orchestration
   - Health monitoring
   - Auto-restart
+  - Uses docker-compose.prod.yml
+  - Images from Docker Hub
 end note
 
 @enduml

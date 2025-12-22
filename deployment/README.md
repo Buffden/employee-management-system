@@ -26,8 +26,22 @@ Host → Nginx (Port 80) → Gateway → Backend → Database
 - **`docker-compose.yml`** - Main deployment configuration (postgres, backend, gateway, frontend)
   - Use this for: `docker-compose up -d --build`
 
+### Production Deployment
+- **`docker-compose.prod.yml`** - Production deployment configuration
+  - Uses pre-built Docker images from Docker Hub
+  - Connects to AWS RDS (no local PostgreSQL)
+  - Includes SSL/HTTPS support via Certbot
+  - Usage: `docker compose -f docker-compose.prod.yml up -d`
+  - **Note**: Automatically deployed via GitHub Actions when code is merged to `main`
+
 ### CI/CD Files
-- **`jenkins/`** - Jenkins CI/CD folder
+- **`.github/workflows/deploy.yml`** - GitHub Actions deployment workflow
+  - Automatically builds and pushes Docker images to Docker Hub
+  - Deploys to EC2 when code is merged to `main`
+  - Generates `.env.production` from GitHub Secrets
+  - See `.github/workflows/README.md` for details
+
+- **`jenkins/`** - Jenkins CI/CD folder (optional/legacy)
   - `docker-compose.yml` - Jenkins container setup
   - `Dockerfile` - Custom Jenkins image
   - `Jenkinsfile.backend` - Backend CI/CD pipeline
@@ -36,11 +50,17 @@ Host → Nginx (Port 80) → Gateway → Backend → Database
 
 ## Services
 
-The docker-compose.yml orchestrates:
+### Local Development (`docker-compose.yml`)
 - **PostgreSQL** - Database (internal only)
 - **Backend** - Spring Boot API (internal only)
 - **Gateway** - API Gateway (internal only)
 - **Frontend/Nginx** - Angular App with Nginx (exposed on port 80)
+
+### Production (`docker-compose.prod.yml`)
+- **Backend** - Spring Boot API (from Docker Hub)
+- **Gateway** - Nginx Gateway with frontend (from Docker Hub)
+- **Certbot** - SSL certificate management
+- **AWS RDS** - External managed PostgreSQL database
 
 ## Prerequisites
 
