@@ -1,14 +1,13 @@
 # Docker Compose for Production Deployment
 # This configuration uses AWS RDS for database (no local PostgreSQL container)
-# Usage: docker compose -f docker-compose.prod.yml up -d --build
+# Uses pre-built images from Docker Hub (configured via DOCKER_USERNAME env var)
+# Usage: docker compose -f docker-compose.prod.yml up -d
 #
 # For local development with Docker PostgreSQL, use: docker-compose.yml
 
 services:
   backend:
-    build:
-      context: ../backend
-      dockerfile: Dockerfile.app
+    image: ${DOCKER_USERNAME:-your-username}/ems-backend:latest
     container_name: ems-backend
     env_file:
       - ../db/.env.production
@@ -31,9 +30,7 @@ services:
       start_period: 360s
 
   gateway:
-    build:
-      context: ..
-      dockerfile: gateway/Dockerfile
+    image: ${DOCKER_USERNAME:-your-username}/ems-gateway:latest
     container_name: ems-gateway
     env_file:
       - ../db/.env.production

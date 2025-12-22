@@ -1,5 +1,5 @@
 @startuml CI/CD Pipeline
-' Workflow test - updated
+' Updated to reflect GitHub Actions CI/CD with Docker Hub
 skinparam linetype ortho
 skinparam roundcorner 10
 
@@ -13,22 +13,23 @@ node "CI Pipeline (GitHub Actions)" #LightGreen {
     [Checkout Code] as Checkout
     [Backend Tests] as BackendTest
     [Frontend Tests] as FrontendTest
-    [Docker Build] as DockerBuild
+    [Docker Build Verification] as DockerBuild
     [Code Quality Checks] as Quality
 }
 
-node "CD Pipeline (Jenkins)" #LightYellow {
-    [Build Backend] as BuildBackend
-    [Build Frontend] as BuildFrontend
-    [Run Integration Tests] as IntegrationTest
+node "CD Pipeline (GitHub Actions)" #LightYellow {
     [Build Docker Images] as BuildImages
     [Push to Docker Hub] as PushDocker
-    [Deploy to Environment] as Deploy
+    [SSH to EC2] as SSH
+    [Pull Images] as PullImages
+    [Generate .env] as GenEnv
+    [Deploy Containers] as Deploy
 }
 
 cloud "External Services" #LightCoral {
     [Docker Hub] as DockerHub
-    [AWS Cloud] as AWS
+    [EC2 Server] as EC2
+    [AWS RDS] as RDS
 }
 
 database "Test Database" as TestDB
@@ -40,19 +41,20 @@ BackendTest --> TestDB : Connect to test DB
 BackendTest --> Quality : Code quality checks
 FrontendTest --> Quality : Linting
 Quality --> DockerBuild : Build verification
-DockerBuild --> BuildBackend : Pass CI
-DockerBuild --> BuildFrontend : Pass CI
 
-BuildBackend --> IntegrationTest : Build success
-BuildFrontend --> IntegrationTest : Build success
-IntegrationTest --> BuildImages : Tests pass
+GitHub --> BuildImages : Merge to main
 BuildImages --> PushDocker : Images built
 PushDocker --> DockerHub : Push images
-DockerHub --> Deploy : Images available
-Deploy --> AWS : Deploy containers
+DockerHub --> SSH : Trigger deployment
+SSH --> PullImages : Connect to EC2
+PullImages --> DockerHub : Pull images
+PullImages --> GenEnv : Generate .env.production
+GenEnv --> Deploy : Start containers
+Deploy --> EC2 : Running containers
+Deploy --> RDS : Database connection
 
 note right of BackendTest
-  **Steps:**
+  **CI Steps:**
   - Set up JDK 17
   - Run Maven tests
   - Build JAR
@@ -60,7 +62,7 @@ note right of BackendTest
 end note
 
 note right of FrontendTest
-  **Steps:**
+  **CI Steps:**
   - Set up Node.js 18
   - Install dependencies
   - Run linter
@@ -69,18 +71,21 @@ note right of FrontendTest
 end note
 
 note right of BuildImages
-  **Docker Images:**
-  - ems-backend:latest
-  - ems-frontend:latest
-  - ems-gateway:latest
+  **CD Steps:**
+  - Build backend image
+  - Build gateway image
+  - Tag as latest
+  - Push to Docker Hub
 end note
 
 note right of Deploy
   **Deployment:**
+  - Pull latest code
   - Pull images from Docker Hub
-  - Start containers
+  - Generate .env from secrets
+  - docker-compose up -d
   - Health checks
-  - Rolling updates
+  - Verify running
 end note
 
 @enduml

@@ -2,12 +2,13 @@
 
 ## Overview
 
-GitHub Actions provides **free, automatic CI** for the Employee Management System. It runs tests and validates builds on every pull request and push.
+GitHub Actions provides **free, automatic CI/CD** for the Employee Management System. It runs tests and validates builds on every pull request, and automatically deploys to production when code is merged to the main branch.
 
 ## Workflow Configuration
 
 ### Location
-- **Workflow File**: `.github/workflows/ci.yml`
+- **CI Workflow File**: `.github/workflows/ci.yml` - Testing and validation
+- **Deploy Workflow File**: `.github/workflows/deploy.yml` - Production deployment
 - **Documentation**: `.github/workflows/README.md`
 
 ### Workflow Structure
@@ -206,24 +207,67 @@ Edit `.github/workflows/ci.yml`:
 - YAML syntax is correct
 - Branch name matches trigger
 
-## Integration with Jenkins
+## Deployment Workflow
 
-GitHub Actions and Jenkins work together:
+### Automatic Production Deployment
+
+When code is merged to `main`, GitHub Actions automatically:
 
 ```
-GitHub Actions (CI)
+Code merged to main
     ↓
-PR Validation (tests, linting)
+Build Docker Images (backend, gateway)
     ↓
-PR Merged
+Push to Docker Hub
     ↓
-Jenkins (CD)
+SSH to EC2 Server
     ↓
-Production Deployment
+Pull latest code
+    ↓
+Pull Docker images from Docker Hub
+    ↓
+Generate .env.production from GitHub Secrets
+    ↓
+Deploy with docker-compose
+    ↓
+✅ Live on production!
 ```
 
-**GitHub Actions**: Fast, free CI for PR validation  
-**Jenkins**: Controlled CD for production deployments
+**Key Features**:
+- ✅ **Secure**: Secrets stored in GitHub Secrets, never in code
+- ✅ **Automated**: No manual steps required
+- ✅ **Versioned**: Images tagged and stored in Docker Hub
+- ✅ **Idempotent**: Safe to rerun deployments
+
+### Deployment Workflow (`deploy.yml`)
+
+**Triggers**:
+- Push to `main` branch (automatic)
+- Manual trigger via GitHub Actions UI
+
+**Jobs**:
+
+1. **Build and Push**
+   - Builds backend Docker image
+   - Builds gateway Docker image (includes frontend)
+   - Pushes images to Docker Hub
+
+2. **Deploy to EC2**
+   - Pulls latest code on EC2
+   - Pulls Docker images from Docker Hub
+   - Generates `.env.production` from GitHub Secrets
+   - Deploys using `docker-compose.prod.yml`
+   - Verifies deployment success
+
+**Required GitHub Secrets**:
+- `EC2_HOST`, `EC2_USER`, `EC2_SSH_KEY` - EC2 access
+- `DOCKER_USERNAME`, `DOCKER_PASSWORD` - Docker Hub access
+- `DB_HOST`, `DB_NAME`, `DB_USER`, `DB_PWD` - Database credentials
+- `JWT_SECRET_KEY` - Application security
+- `ADMIN_USERNAME`, `ADMIN_PASSWORD`, `ADMIN_EMAIL` - Admin user
+- And other application-specific secrets
+
+See `.github/workflows/README.md` for complete documentation.
 
 ## Best Practices
 

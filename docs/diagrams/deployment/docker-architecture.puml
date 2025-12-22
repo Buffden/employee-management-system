@@ -5,29 +5,26 @@ skinparam roundcorner 10
 
 title Employee Management System - Docker Architecture
 
-node "Docker Host" #LightBlue {
+node "EC2 Instance" #LightBlue {
     node "Docker Network: ems-network" #LightYellow {
-        component [PostgreSQL Container\nems-postgres] as Postgres
         component [Spring Boot API Container\nems-backend] as Backend
         component [Nginx Gateway Container\nems-gateway] as Gateway
+        component [Certbot Container\nems-certbot] as Certbot
     }
 }
 
 cloud "External" #LightGreen {
     [User Browser] as User
     [Docker Hub] as DockerHub
+    [AWS RDS] as RDS
 }
 
-database "PostgreSQL Volume\npostgres_data" as DBVolume
-
-User --> Gateway : HTTP (Port 80)
+User --> Gateway : HTTPS (Port 443)\nHTTP (Port 80)
 Gateway --> Backend : HTTP (Internal)
-Backend --> Postgres : JDBC (Internal)
-Postgres --> DBVolume : Data persistence
+Backend --> RDS : JDBC (SSL)
 
-DockerHub --> Gateway : Pull image
-DockerHub --> Backend : Pull image
-DockerHub --> Postgres : Pull image
+DockerHub --> Gateway : Pull image\n{username}/ems-gateway:latest
+DockerHub --> Backend : Pull image\n{username}/ems-backend:latest
 
 note right of Gateway
   **Container:** ems-gateway
@@ -50,19 +47,20 @@ note right of Backend
   - Health check: /api/departments
 end note
 
-note right of Postgres
-  **Container:** ems-postgres
-  **Image:** postgres:15-alpine
-  **Port:** Internal only (5432)
-  **Volume:** postgres_data
-  **Health Check:** pg_isready
+note right of Certbot
+  **Container:** ems-certbot
+  **Image:** certbot/certbot:latest
+  **Purpose:** SSL certificate management
+  **Features:**
+  - Auto-renew Let's Encrypt certs
+  - Shares volumes with gateway
 end note
 
-note right of DBVolume
-  **Volume:** postgres_data
-  **Type:** Local volume
-  **Purpose:** Persistent data storage
-  **Location:** /var/lib/postgresql/data
+note right of RDS
+  **Database:** AWS RDS PostgreSQL
+  **Connection:** SSL required
+  **Managed:** AWS managed service
+  **Backup:** Automated backups
 end note
 
 @enduml
