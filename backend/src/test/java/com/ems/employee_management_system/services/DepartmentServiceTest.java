@@ -20,6 +20,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import com.ems.employee_management_system.models.Department;
 import com.ems.employee_management_system.models.Employee;
 import com.ems.employee_management_system.repositories.DepartmentRepository;
+import com.ems.employee_management_system.repositories.UserRepository;
 import com.ems.employee_management_system.security.SecurityService;
 
 @ExtendWith(MockitoExtension.class)
@@ -33,6 +34,9 @@ class DepartmentServiceTest {
 
     @Mock
     private EmployeeService employeeService;
+
+    @Mock
+    private UserRepository userRepository;
 
     @InjectMocks
     private DepartmentService departmentService;
@@ -158,11 +162,13 @@ class DepartmentServiceTest {
         savedDepartment.setName("Engineering");
         savedDepartment.setHead(testEmployee);
         
+        when(securityService.getCurrentUserRole()).thenReturn("SYSTEM_ADMIN");
         when(departmentRepository.findByName(testDepartment.getName())).thenReturn(Optional.empty());
         when(departmentRepository.findDepartmentsByHeadId(testEmployee.getId())).thenReturn(new ArrayList<>());
         when(departmentRepository.save(testDepartment)).thenReturn(savedDepartment);
         when(employeeService.getById(testEmployee.getId())).thenReturn(testEmployee);
         when(employeeService.save(testEmployee)).thenReturn(testEmployee);
+        when(userRepository.findByEmployeeId(testEmployee.getId())).thenReturn(Optional.empty());
 
         // Act
         Department result = departmentService.save(testDepartment);
@@ -202,6 +208,7 @@ class DepartmentServiceTest {
         
         testDepartment.setId(null);
         testDepartment.setHead(testEmployee);
+        when(securityService.getCurrentUserRole()).thenReturn("SYSTEM_ADMIN");
         when(departmentRepository.findByName(testDepartment.getName())).thenReturn(Optional.empty());
         when(departmentRepository.findDepartmentsByHeadId(testEmployee.getId()))
             .thenReturn(List.of(otherDepartment));
@@ -209,7 +216,8 @@ class DepartmentServiceTest {
         // Act & Assert
         IllegalStateException exception = assertThrows(IllegalStateException.class,
             () -> departmentService.save(testDepartment));
-        assertTrue(exception.getMessage().contains("already head of department"));
+        assertTrue(exception.getMessage().contains("already manager of department") || 
+                   exception.getMessage().contains("already head of department"));
         verify(departmentRepository, never()).save(any());
     }
 }

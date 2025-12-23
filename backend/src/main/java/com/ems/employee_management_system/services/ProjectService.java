@@ -44,7 +44,7 @@ public class ProjectService {
         // Use findAllWithRelationships to eagerly load relationships
         // This ensures department and projectManager are available for mapping to DTOs
         logger.debug("Returning all projects for all users");
-        return projectRepository.findAllWithRelationships(pageable);
+            return projectRepository.findAllWithRelationships(pageable);
     }
 
     public List<Project> getAll() {
