@@ -2,8 +2,10 @@ import { Component, OnInit, Input } from '@angular/core';
 import { ActivatedRoute, Router, RouterModule } from '@angular/router';
 import { Department } from '../../../../shared/models/department.model';
 import { Employee } from '../../../../shared/models/employee.model';
+import { Project } from '../../../../shared/models/project.model';
 import { DepartmentService } from '../../services/department.service';
 import { EmployeeService } from '../../../employees/services/employee.service';
+import { ProjectService } from '../../../projects/services/project.service';
 import { MatTableModule } from '@angular/material/table';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
@@ -38,6 +40,7 @@ export class DepartmentDetailsComponent implements OnInit {
 
   department: Department | null = null;
   employees: Employee[] = [];
+  projects: Project[] = [];
   displayedColumns: string[] = [
     'name',
     'email',
@@ -46,12 +49,21 @@ export class DepartmentDetailsComponent implements OnInit {
     'joiningDate',
     'actions'
   ];
+  projectDisplayedColumns: string[] = [
+    'name',
+    'status',
+    'projectManager',
+    'startDate',
+    'endDate',
+    'actions'
+  ];
 
   constructor(
     private readonly route: ActivatedRoute,
     private readonly router: Router,
     private readonly departmentService: DepartmentService,
     private readonly employeeService: EmployeeService,
+    private readonly projectService: ProjectService,
     private readonly matDialog: MatDialog,
     private readonly authService: AuthService
   ) {}
@@ -68,12 +80,20 @@ export class DepartmentDetailsComponent implements OnInit {
       this.department = department;
       // Load employees for this department
       this.loadEmployees(id);
+      // Load projects for this department
+      this.loadProjects(id);
     });
   }
 
   loadEmployees(departmentId: string): void {
     this.employeeService.getEmployeesByDepartment(departmentId).subscribe(employees => {
       this.employees = employees || [];
+    });
+  }
+
+  loadProjects(departmentId: string): void {
+    this.projectService.getByDepartmentId(departmentId).subscribe(projects => {
+      this.projects = projects || [];
     });
   }
 
@@ -142,8 +162,137 @@ export class DepartmentDetailsComponent implements OnInit {
     });
   }
 
+  isDepartmentHead(): boolean {
+    const user = this.authService.getCurrentUser();
+    if (!user?.employeeId || !this.department?.departmentHeadId) {
+      return false;
+    }
+    return user.employeeId === this.department.departmentHeadId;
+  }
+
   canEditDepartment(): boolean {
-    return this.authService.isAdmin() || this.authService.isHRManager();
+    // Admin, HR Manager, or Department Manager (role or assigned as manager)
+    return this.authService.isAdmin() || 
+           this.authService.isHRManager() || 
+           this.authService.isDepartmentManager() || 
+           this.isDepartmentHead();
+  }
+
+  canCreateProject(): boolean {
+    // Admin or Department Manager (role or assigned as manager)
+    return this.authService.isAdmin() || 
+           this.authService.isDepartmentManager() || 
+           this.isDepartmentHead();
+  }
+
+  canEditProject(): boolean {
+    // Admin or Department Manager (role or assigned as manager)
+    return this.authService.isAdmin() || 
+           this.authService.isDepartmentManager() || 
+           this.isDepartmentHead();
+  }
+
+  canDeleteProject(): boolean {
+    // Only admins can delete projects, department managers cannot delete
+    return this.authService.isAdmin();
+  }
+
+  canShowProjectMenu(): boolean {
+    // Always show menu if user can edit (admin or department manager)
+    return this.canEditProject();
+  }
+
+  onCreateProject(): void {
+    if (!this.department?.id) return;
+
+    const dialogRef: MatDialogRef<OverlayDialogComponent> = this.matDialog.open(OverlayDialogComponent, {
+      width: '850px',
+      maxHeight: '90vh',
+      data: {
+        title: 'Create Project',
+        content: { departmentId: this.department.id } as unknown as TableCellData,
+        viewController: overlayType.EDITPROJECT,
+        config: {
+          mode: FormMode.ADD
+        },
+        returnToPage: 'departments'
+      } as DialogData
+    });
+
+    dialogRef.afterClosed().pipe(
+      filter(result => !!result && result?.content && ('id' in result.content || result.content.deleted))
+    ).subscribe(() => {
+      // Reload projects after create
+      if (this.department?.id) {
+        this.loadProjects(this.department.id);
+      }
+    });
+  }
+
+  onEditProject(project: Project): void {
+    if (!project?.id) return;
+
+    const dialogRef: MatDialogRef<OverlayDialogComponent> = this.matDialog.open(OverlayDialogComponent, {
+      width: '850px',
+      maxHeight: '90vh',
+      data: {
+        title: 'Edit Project',
+        content: project as unknown as TableCellData,
+        viewController: overlayType.EDITPROJECT,
+        config: {
+          mode: FormMode.EDIT
+        },
+        returnToPage: 'departments'
+      } as DialogData
+    });
+
+    dialogRef.afterClosed().pipe(
+      filter(result => !!result && result?.content && ('id' in result.content || result.content.deleted))
+    ).subscribe(() => {
+      // Reload projects after edit
+      if (this.department?.id) {
+        this.loadProjects(this.department.id);
+      }
+    });
+  }
+
+  onDeleteProject(project: Project): void {
+    if (!project?.id) return;
+
+    const projectName = project.name || 'this project';
+    const dialogRef = this.matDialog.open(ConfirmationDialogComponent, {
+      width: '400px',
+      data: {
+        title: 'Delete Project',
+        message: `Are you sure you want to delete "${projectName}"?`,
+        warning: 'This will also delete all tasks and employee assignments associated with this project.',
+        confirmText: 'Delete',
+        cancelText: 'Cancel'
+      }
+    });
+
+    dialogRef.afterClosed().subscribe(result => {
+      if (result && project.id) {
+        this.projectService.delete(project.id).subscribe({
+          next: () => {
+            // Reload projects after delete
+            if (this.department?.id) {
+              this.loadProjects(this.department.id);
+            }
+          },
+          error: (error) => {
+            console.error('Error deleting project:', error);
+            alert('Failed to delete project. Please try again.');
+          }
+        });
+      }
+    });
+  }
+
+  onProjectClick(project: Project): void {
+    if (project?.id) {
+      this.router.navigate(['/projects', project.id]);
+    }
   }
 
   canDeleteDepartment(): boolean {

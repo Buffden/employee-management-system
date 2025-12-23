@@ -1,5 +1,6 @@
 package com.ems.employee_management_system.repositories;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -41,4 +42,10 @@ public interface ProjectRepository extends JpaRepository<Project, UUID> {
     @Query(value = "SELECT DISTINCT p FROM Project p LEFT JOIN FETCH p.department LEFT JOIN FETCH p.projectManager",
            countQuery = "SELECT COUNT(DISTINCT p) FROM Project p")
     Page<Project> findAllWithRelationships(Pageable pageable);
+    
+    /**
+     * Find all projects by department ID with relationships eagerly loaded
+     */
+    @Query("SELECT p FROM Project p LEFT JOIN FETCH p.department LEFT JOIN FETCH p.projectManager WHERE p.department.id = :departmentId")
+    List<Project> findByDepartmentId(@Param("departmentId") UUID departmentId);
 }

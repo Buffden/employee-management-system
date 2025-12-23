@@ -26,8 +26,8 @@ public interface DepartmentRepository extends JpaRepository<Department, UUID> {
     Long countEmployeesByDepartment(@Param("departmentId") UUID departmentId);
 
     /**
-     * Find departments where a specific employee is the department head
-     * Used to validate that an employee is not already head of another department
+     * Find departments where a specific employee is the department manager
+     * Used to validate that an employee is not already manager of another department
      */
     @Query("SELECT d FROM Department d WHERE d.departmentHead.id = :employeeId")
     List<Department> findDepartmentsByHeadId(@Param("employeeId") UUID employeeId);

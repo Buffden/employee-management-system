@@ -38,7 +38,7 @@ export class DepartmentFormComponent implements OnInit {
   locations: Location[] = [];
   loadingLocations = false;
   
-  // Typeahead configuration for department head selection
+  // Typeahead configuration for department manager selection
   departmentHeadTypeaheadConfig!: TypeaheadConfig<Employee>;
   
   departmentForm = new FormGroup({
@@ -205,7 +205,7 @@ export class DepartmentFormComponent implements OnInit {
     if (departmentHeadId && typeof departmentHeadId === 'string' && departmentHeadId.trim() !== '' && departmentHeadId !== 'null') {
       departmentData['departmentHeadId'] = departmentHeadId.trim();
     } else {
-      // Explicitly set to null if empty/cleared to allow backend to clear the department head
+      // Explicitly set to null if empty/cleared to allow backend to clear the department manager
       departmentData['departmentHeadId'] = null;
     }
 
@@ -337,7 +337,7 @@ export class DepartmentFormComponent implements OnInit {
     if (departmentHeadId && typeof departmentHeadId === 'string' && departmentHeadId.trim() !== '' && departmentHeadId !== 'null') {
       departmentData['departmentHeadId'] = departmentHeadId.trim();
     } else {
-      // Explicitly set to null if empty/cleared to allow backend to clear the department head
+      // Explicitly set to null if empty/cleared to allow backend to clear the department manager
       departmentData['departmentHeadId'] = null;
     }
 

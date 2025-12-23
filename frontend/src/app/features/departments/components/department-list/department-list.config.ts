@@ -10,7 +10,7 @@ export const departmentListConfig: TableConfig = {
         { key: 'name', header: 'Department Name', sortable: true, type: ColumnType.LINK, isSticky: true, navigationTarget: 'department', navigationIdKey: 'id' },
         { key: 'description', header: 'Description', sortable: false, type: ColumnType.TEXT },
         { key: 'locationName', header: 'Location', sortable: true, type: ColumnType.LINK, navigationTarget: 'location', navigationIdKey: 'locationId' },
-        { key: 'departmentHeadName', header: 'Department Head', sortable: true, type: ColumnType.LINK, navigationTarget: 'employee', navigationIdKey: 'departmentHeadId' },
+        { key: 'departmentHeadName', header: 'Department Manager', sortable: true, type: ColumnType.LINK, navigationTarget: 'employee', navigationIdKey: 'departmentHeadId' },
         { key: 'createdAt', header: 'Created At', sortable: true, type: ColumnType.DATE },
         { key: 'budget', header: 'Budget', sortable: true, type: ColumnType.NUMBER },
         { key: 'budgetUtilization', header: 'Budget Utilization', sortable: true, type: ColumnType.NUMBER },

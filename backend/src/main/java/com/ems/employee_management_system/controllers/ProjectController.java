@@ -122,6 +122,17 @@ public class ProjectController {
         }
     }
 
+    @GetMapping("/department/{departmentId}")
+    @PreAuthorize("hasAnyRole('" + RoleConstants.SYSTEM_ADMIN + "', '" + RoleConstants.HR_MANAGER + "', '" + RoleConstants.DEPARTMENT_MANAGER + "', '" + RoleConstants.EMPLOYEE + "')")
+    public ResponseEntity<List<ProjectResponseDTO>> getByDepartmentId(@PathVariable UUID departmentId) {
+        logger.debug("Fetching projects for department: {}", departmentId);
+        List<Project> projects = projectService.getByDepartmentId(departmentId);
+        List<ProjectResponseDTO> response = projects.stream()
+                .map(ProjectMapper::toResponseDTO)
+                .collect(java.util.stream.Collectors.toList());
+        return ResponseEntity.ok(response);
+    }
+
     @GetMapping("/{id}")
     @PreAuthorize("hasAnyRole('" + RoleConstants.SYSTEM_ADMIN + "', '" + RoleConstants.HR_MANAGER + "', '" + RoleConstants.DEPARTMENT_MANAGER + "', '" + RoleConstants.EMPLOYEE + "')")
     public ResponseEntity<ProjectResponseDTO> getById(@PathVariable UUID id) {

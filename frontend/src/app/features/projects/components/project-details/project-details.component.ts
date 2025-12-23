@@ -106,7 +106,7 @@ export class ProjectDetailsComponent implements OnInit {
       return;
     }
 
-    // Check if user is department head or assigned to project
+    // Check if user is department manager or assigned to project
     const user = this.authService.getCurrentUser();
     const employeeId = user?.employeeId;
     if (!employeeId) {
@@ -114,7 +114,7 @@ export class ProjectDetailsComponent implements OnInit {
       return;
     }
 
-    // Check if user is department head
+    // Check if user is department manager
     const departmentId = project.departmentId;
     if (departmentId) {
       this.departmentService.getDepartmentById(departmentId).subscribe({
@@ -151,7 +151,7 @@ export class ProjectDetailsComponent implements OnInit {
     if (this.canCreateTask) {
       return '';
     }
-    return 'Creating tasks is only available for admins, HR managers, department heads, and project assignees.';
+    return 'Creating tasks is only available for admins, HR managers, department managers, and project assignees.';
   }
 
   checkProjectPermissions(project: Project): void {
@@ -171,7 +171,7 @@ export class ProjectDetailsComponent implements OnInit {
       return;
     }
 
-    // Check if user is department head of the project's department
+    // Check if user is department manager of the project's department
     this.departmentService.getDepartmentById(project.departmentId).subscribe({
       next: (department) => {
         this.canEditProject = department.departmentHeadId === employeeId;
@@ -228,14 +228,14 @@ export class ProjectDetailsComponent implements OnInit {
     if (this.canEditProject) {
       return '';
     }
-    return 'Editing projects is only available for admins and department heads.';
+    return 'Editing projects is only available for admins and department managers.';
   }
 
   getDeleteProjectTooltip(): string {
     if (this.canDeleteProject) {
       return '';
     }
-    return 'Deleting projects is only available for admins and department heads.';
+    return 'Deleting projects is only available for admins and department managers.';
   }
 
   getEditTaskTooltip(task: Task): string {

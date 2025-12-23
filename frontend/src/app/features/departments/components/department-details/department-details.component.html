@@ -114,6 +114,100 @@
           </div>
         </ng-template>
       </div>
+
+      <!-- Projects Section -->
+      <div class="projects-section">
+        <div class="projects-header">
+          <h3 class="section-title">Projects</h3>
+          <div class="projects-header-actions">
+            <span class="project-count" *ngIf="projects.length > 0">{{ projects.length }} project{{ projects.length !== 1 ? 's' : '' }}</span>
+            <button *ngIf="canCreateProject()" 
+                    mat-raised-button 
+                    color="primary" 
+                    (click)="onCreateProject()"
+                    class="create-project-btn">
+              <mat-icon>add</mat-icon>
+              <span>Create Project</span>
+            </button>
+          </div>
+        </div>
+        <div class="projects-table-container" *ngIf="projects.length > 0; else noProjects">
+          <table mat-table [dataSource]="projects" class="projects-table">
+            <!-- Name Column -->
+            <ng-container matColumnDef="name">
+              <th mat-header-cell *matHeaderCellDef>Name</th>
+              <td mat-cell *matCellDef="let project" (click)="onProjectClick(project)" class="clickable project-name" tabindex="0" role="button">
+                {{ project.name }}
+              </td>
+            </ng-container>
+
+            <!-- Status Column -->
+            <ng-container matColumnDef="status">
+              <th mat-header-cell *matHeaderCellDef>Status</th>
+              <td mat-cell *matCellDef="let project">
+                <mat-chip>{{ project.status }}</mat-chip>
+              </td>
+            </ng-container>
+
+            <!-- Project Manager Column -->
+            <ng-container matColumnDef="projectManager">
+              <th mat-header-cell *matHeaderCellDef>Project Manager</th>
+              <td mat-cell *matCellDef="let project">{{ project.projectManagerName || 'Not assigned' }}</td>
+            </ng-container>
+
+            <!-- Start Date Column -->
+            <ng-container matColumnDef="startDate">
+              <th mat-header-cell *matHeaderCellDef>Start Date</th>
+              <td mat-cell *matCellDef="let project">{{ formatDate(project.startDate) }}</td>
+            </ng-container>
+
+            <!-- End Date Column -->
+            <ng-container matColumnDef="endDate">
+              <th mat-header-cell *matHeaderCellDef>End Date</th>
+              <td mat-cell *matCellDef="let project">{{ formatDate(project.endDate) }}</td>
+            </ng-container>
+
+            <!-- Actions Column -->
+            <ng-container matColumnDef="actions">
+              <th mat-header-cell *matHeaderCellDef></th>
+              <td mat-cell *matCellDef="let project">
+                <button *ngIf="canShowProjectMenu()" 
+                        mat-icon-button 
+                        [matMenuTriggerFor]="projectMenu" 
+                        (click)="$event.stopPropagation()">
+                  <mat-icon>more_vert</mat-icon>
+                </button>
+                <mat-menu #projectMenu="matMenu">
+                  <button mat-menu-item (click)="onEditProject(project)" *ngIf="canEditProject()">
+                    <mat-icon>edit</mat-icon>
+                    <span>Edit</span>
+                  </button>
+                  <button mat-menu-item (click)="onDeleteProject(project)" *ngIf="canDeleteProject()">
+                    <mat-icon>delete</mat-icon>
+                    <span>Delete</span>
+                  </button>
+                </mat-menu>
+              </td>
+            </ng-container>
+
+            <tr mat-header-row *matHeaderRowDef="projectDisplayedColumns"></tr>
+            <tr mat-row *matRowDef="let row; columns: projectDisplayedColumns;"></tr>
+          </table>
+        </div>
+        <ng-template #noProjects>
+          <div class="empty-projects">
+            <p>No projects assigned to this department yet.</p>
+            <button *ngIf="canCreateProject()" 
+                    mat-raised-button 
+                    color="primary" 
+                    (click)="onCreateProject()"
+                    class="create-project-btn-empty">
+              <mat-icon>add</mat-icon>
+              <span>Create First Project</span>
+            </button>
+          </div>
+        </ng-template>
+      </div>
     </div>
 
     <!-- Right Sidebar: Metadata -->
@@ -129,9 +223,9 @@
           </div>
         </div>
 
-        <!-- Department Head -->
+        <!-- Department Manager -->
         <div class="sidebar-item">
-          <span class="sidebar-label">Department Head</span>
+          <span class="sidebar-label">Department Manager</span>
           <div class="sidebar-value">
             {{ department.departmentHeadName || 'Not assigned' }}
           </div>

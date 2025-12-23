@@ -81,7 +81,8 @@ public class TaskController {
 
     @PostMapping
     @PreAuthorize("hasRole('" + RoleConstants.SYSTEM_ADMIN + "') or " +
-                  "(hasRole('" + RoleConstants.DEPARTMENT_MANAGER + "') and @securityService.isTaskProjectInOwnDepartment(#requestDTO.projectId))")
+                  "(hasRole('" + RoleConstants.DEPARTMENT_MANAGER + "') and @securityService.isTaskProjectInOwnDepartment(#requestDTO.projectId)) or " +
+                  "@securityService.isProjectManagerOfProject(#requestDTO.projectId)")
     public ResponseEntity<TaskResponseDTO> create(@Valid @RequestBody TaskRequestDTO requestDTO) {
         logger.info("Creating new task: {}", requestDTO.getName());
         // Validate related entities exist
@@ -107,6 +108,7 @@ public class TaskController {
     @PutMapping("/{id}")
     @PreAuthorize("hasRole('" + RoleConstants.SYSTEM_ADMIN + "') or " +
                   "(hasRole('" + RoleConstants.DEPARTMENT_MANAGER + "') and @securityService.isTaskProjectInOwnDepartmentByTaskId(#id)) or " +
+                  "@securityService.isProjectManagerOfTaskProject(#id) or " +
                   "(hasRole('" + RoleConstants.EMPLOYEE + "') and @securityService.isTaskAssignedToUser(#id))")
     public ResponseEntity<TaskResponseDTO> update(@PathVariable UUID id, @Valid @RequestBody TaskRequestDTO requestDTO) {
         logger.info("Updating task with id: {}", id);
@@ -138,7 +140,8 @@ public class TaskController {
 
     @DeleteMapping("/{id}")
     @PreAuthorize("hasRole('" + RoleConstants.SYSTEM_ADMIN + "') or " +
-                  "(hasRole('" + RoleConstants.DEPARTMENT_MANAGER + "') and @securityService.isTaskProjectInOwnDepartmentByTaskId(#id))")
+                  "(hasRole('" + RoleConstants.DEPARTMENT_MANAGER + "') and @securityService.isTaskProjectInOwnDepartmentByTaskId(#id)) or " +
+                  "@securityService.isProjectManagerOfTaskProject(#id)")
     public ResponseEntity<Void> delete(@PathVariable UUID id) {
         logger.info("Deleting task with id: {}", id);
         Task task = taskService.getById(id);

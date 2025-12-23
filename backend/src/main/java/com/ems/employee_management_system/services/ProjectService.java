@@ -39,30 +39,12 @@ public class ProjectService {
 
     public Page<Project> getAll(Pageable pageable) {
         logger.debug("Fetching projects with pagination: page={}, size={}", pageable.getPageNumber(), pageable.getPageSize());
-        String role = securityService.getCurrentUserRole();
-        UUID departmentId = securityService.getCurrentUserDepartmentId();
-        UUID userId = securityService.getCurrentUserEmployeeId();
         
-        logger.debug("Role-based filtering - role: {}, departmentId: {}, userId: {}", role, departmentId, userId);
-        
-        // If role is null, default to empty result (should not happen due to @PreAuthorize, but defensive coding)
-        if (role == null) {
-            logger.warn("User role is null, returning empty page");
-            return org.springframework.data.domain.Page.empty(pageable);
-        }
-        
-        // For SYSTEM_ADMIN, HR_MANAGER, and EMPLOYEE, use findAllWithRelationships to eagerly load relationships
+        // All users can view all projects (view-only access, edit/delete still restricted by @PreAuthorize)
+        // Use findAllWithRelationships to eagerly load relationships
         // This ensures department and projectManager are available for mapping to DTOs
-        // Employees can view all projects (view-only access, edit/delete still restricted)
-        if ("SYSTEM_ADMIN".equals(role) || "HR_MANAGER".equals(role) || "EMPLOYEE".equals(role)) {
-            logger.debug("Using findAllWithRelationships() for {} role", role);
+        logger.debug("Returning all projects for all users");
             return projectRepository.findAllWithRelationships(pageable);
-        }
-        
-        // For other roles (e.g., DEPARTMENT_MANAGER), use role-based filtering with relationships
-        Page<Project> result = projectRepository.findAllFilteredByRole(role, departmentId, userId, pageable);
-        logger.debug("Found {} projects for role: {}", result.getTotalElements(), role);
-        return result;
     }
 
     public List<Project> getAll() {
@@ -73,6 +55,14 @@ public class ProjectService {
     public Project getById(UUID id) {
         logger.debug("Fetching project with id: {}", id);
         return projectRepository.findByIdWithRelationships(id).orElse(null);
+    }
+    
+    /**
+     * Get all projects for a specific department
+     */
+    public List<Project> getByDepartmentId(UUID departmentId) {
+        logger.debug("Fetching projects for department: {}", departmentId);
+        return projectRepository.findByDepartmentId(departmentId);
     }
 
     /**

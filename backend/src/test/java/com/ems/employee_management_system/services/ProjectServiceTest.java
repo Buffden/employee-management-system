@@ -224,10 +224,7 @@ class ProjectServiceTest {
         // Arrange
         Pageable pageable = PageRequest.of(0, 10);
         Page<Project> expectedPage = new PageImpl<>(List.of(testProject), pageable, 1);
-        when(securityService.getCurrentUserRole()).thenReturn("SYSTEM_ADMIN");
-        when(securityService.getCurrentUserDepartmentId()).thenReturn(null);
-        when(securityService.getCurrentUserEmployeeId()).thenReturn(null);
-        // SYSTEM_ADMIN role now uses findAllWithRelationships() to eagerly load relationships
+        // All users now use findAllWithRelationships() to eagerly load relationships
         when(projectRepository.findAllWithRelationships(pageable))
             .thenReturn(expectedPage);
 
