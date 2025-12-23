@@ -85,37 +85,47 @@ jobs:
         run: |
           INSTANCE_ID="i-03a61b7b515af53b7"
           
+          # Build commands JSON array using heredoc with placeholder
+          COMMANDS_JSON=$(cat <<'HEREDOC_EOF'
+          [
+            "cd ~/employee-management-system/deployment",
+            "echo 'Pulling latest code...'",
+            "git pull origin main || true",
+            "echo 'Logging into Docker Hub...'",
+            "echo '__DOCKER_PASSWORD_PLACEHOLDER__' | docker login -u buffden --password-stdin || true",
+            "echo 'Pulling Docker images...'",
+            "docker pull buffden/ems-backend:latest",
+            "docker pull buffden/ems-gateway:latest",
+            "echo 'Stopping existing containers...'",
+            "docker compose -f docker-compose.prod.yml down || true",
+            "echo 'Verifying files exist...'",
+            "if [ ! -f docker-compose.prod.yml ]; then echo 'Error: docker-compose.prod.yml not found!'; exit 1; fi",
+            "if [ ! -f ../db/.env.production ]; then echo 'Error: .env.production not found!'; exit 1; fi",
+            "echo 'Starting containers...'",
+            "export DOCKER_USERNAME=$(grep '^DOCKER_USERNAME=' ../db/.env.production | cut -d '=' -f2)",
+            "echo 'Using DOCKER_USERNAME: '$DOCKER_USERNAME",
+            "docker compose -f docker-compose.prod.yml up -d",
+            "if [ $? -ne 0 ]; then echo 'Error: Failed to start containers!'; docker compose -f docker-compose.prod.yml logs --tail=20; exit 1; fi",
+            "echo 'Waiting for services to start...'",
+            "sleep 30",
+            "echo 'Service Status:'",
+            "docker compose -f docker-compose.prod.yml ps",
+            "RUNNING_COUNT=$(docker compose -f docker-compose.prod.yml ps --filter 'status=running' --format '{{.Name}}' 2>/dev/null | wc -l)",
+            "if [ \"$RUNNING_COUNT\" -eq 0 ]; then echo 'No services are running!'; docker compose -f docker-compose.prod.yml ps -a; docker compose -f docker-compose.prod.yml logs --tail=30; exit 1; fi",
+            "echo 'Deployment successful! Running containers: '$RUNNING_COUNT"
+          ]
+          HEREDOC_EOF
+          )
+          
+          # Replace placeholder with actual Docker password (escape special chars for JSON)
+          ESCAPED_PASSWORD=$(echo "$DOCKER_PASSWORD" | sed 's/\\/\\\\/g' | sed 's/"/\\"/g')
+          COMMANDS_JSON=$(echo "$COMMANDS_JSON" | sed "s|__DOCKER_PASSWORD_PLACEHOLDER__|$ESCAPED_PASSWORD|g")
+          
           COMMAND_ID=$(aws ssm send-command \
             --instance-ids "$INSTANCE_ID" \
             --document-name "AWS-RunShellScript" \
             --comment "Deploy EMS from GitHub Actions" \
-            --parameters commands="[
-              \"cd ~/employee-management-system/deployment\",
-              \"echo 'Pulling latest code...'\",
-              \"git pull origin main || true\",
-              \"echo 'Logging into Docker Hub...'\",
-              \"echo '$DOCKER_PASSWORD' | docker login -u buffden --password-stdin || true\",
-              \"echo 'Pulling Docker images...'\",
-              \"docker pull buffden/ems-backend:latest\",
-              \"docker pull buffden/ems-gateway:latest\",
-              \"echo 'Stopping existing containers...'\",
-              \"docker compose -f docker-compose.prod.yml down || true\",
-              \"echo 'Verifying files exist...'\",
-              \"if [ ! -f docker-compose.prod.yml ]; then echo 'Error: docker-compose.prod.yml not found!'; exit 1; fi\",
-              \"if [ ! -f ../db/.env.production ]; then echo 'Error: .env.production not found!'; exit 1; fi\",
-              \"echo 'Starting containers...'\",
-              \"export DOCKER_USERNAME=\$(grep '^DOCKER_USERNAME=' ../db/.env.production | cut -d '=' -f2)\",
-              \"echo 'Using DOCKER_USERNAME: '\$DOCKER_USERNAME\",
-              \"docker compose -f docker-compose.prod.yml up -d\",
-              \"if [ \$? -ne 0 ]; then echo 'Error: Failed to start containers!'; docker compose -f docker-compose.prod.yml logs --tail=20; exit 1; fi\",
-              \"echo 'Waiting for services to start...'\",
-              \"sleep 30\",
-              \"echo 'Service Status:'\",
-              \"docker compose -f docker-compose.prod.yml ps\",
-              \"RUNNING_COUNT=\$(docker compose -f docker-compose.prod.yml ps --filter 'status=running' --format '{{.Name}}' 2>/dev/null | wc -l)\",
-              \"if [ \"\$RUNNING_COUNT\" -eq 0 ]; then echo 'No services are running!'; docker compose -f docker-compose.prod.yml ps -a; docker compose -f docker-compose.prod.yml logs --tail=30; exit 1; fi\",
-              \"echo 'Deployment successful! Running containers: '\$RUNNING_COUNT\"
-            ]" \
+            --parameters "commands=$COMMANDS_JSON" \
             --query "Command.CommandId" \
             --output text)
 
@@ -159,35 +169,40 @@ jobs:
         run: |
           INSTANCE_ID="i-03a61b7b515af53b7"
           
+          DIAGNOSTIC_COMMANDS=$(cat <<'EOF'
+          [
+            "cd ~/employee-management-system/deployment",
+            "echo '========================================'",
+            "echo 'DEPLOYMENT FAILED - Diagnostic Information'",
+            "echo '========================================'",
+            "echo ''",
+            "echo 'Container status:'",
+            "docker compose -f docker-compose.prod.yml ps -a || echo 'Could not get container status'",
+            "echo ''",
+            "echo 'Backend logs (last 50 lines):'",
+            "docker compose -f docker-compose.prod.yml logs --tail=50 backend || echo 'Could not retrieve backend logs'",
+            "echo ''",
+            "echo 'Gateway logs (last 50 lines):'",
+            "docker compose -f docker-compose.prod.yml logs --tail=50 gateway || echo 'Could not retrieve gateway logs'",
+            "echo ''",
+            "echo 'All container logs (last 30 lines):'",
+            "docker compose -f docker-compose.prod.yml logs --tail=30 || echo 'Could not retrieve logs'",
+            "echo ''",
+            "echo 'Docker system info:'",
+            "docker ps -a || echo 'Could not get docker ps'",
+            "echo ''",
+            "echo 'Disk space:'",
+            "df -h || echo 'Could not get disk space'",
+            "echo '========================================'"
+          ]
+          EOF
+          )
+          
           COMMAND_ID=$(aws ssm send-command \
             --instance-ids "$INSTANCE_ID" \
             --document-name "AWS-RunShellScript" \
             --comment "Diagnostic logs after deployment failure" \
-            --parameters commands="[
-              \"cd ~/employee-management-system/deployment\",
-              \"echo '========================================'\",
-              \"echo 'DEPLOYMENT FAILED - Diagnostic Information'\",
-              \"echo '========================================'\",
-              \"echo ''\",
-              \"echo 'Container status:'\",
-              \"docker compose -f docker-compose.prod.yml ps -a || echo 'Could not get container status'\",
-              \"echo ''\",
-              \"echo 'Backend logs (last 50 lines):'\",
-              \"docker compose -f docker-compose.prod.yml logs --tail=50 backend || echo 'Could not retrieve backend logs'\",
-              \"echo ''\",
-              \"echo 'Gateway logs (last 50 lines):'\",
-              \"docker compose -f docker-compose.prod.yml logs --tail=50 gateway || echo 'Could not retrieve gateway logs'\",
-              \"echo ''\",
-              \"echo 'All container logs (last 30 lines):'\",
-              \"docker compose -f docker-compose.prod.yml logs --tail=30 || echo 'Could not retrieve logs'\",
-              \"echo ''\",
-              \"echo 'Docker system info:'\",
-              \"docker ps -a || echo 'Could not get docker ps'\",
-              \"echo ''\",
-              \"echo 'Disk space:'\",
-              \"df -h || echo 'Could not get disk space'\",
-              \"echo '========================================'\"
-            ]" \
+            --parameters "commands=$DIAGNOSTIC_COMMANDS" \
             --query "Command.CommandId" \
             --output text)
 
