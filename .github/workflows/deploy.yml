@@ -65,9 +65,8 @@ jobs:
     runs-on: ubuntu-latest
     needs: build-and-push
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    environment:
-      name: Production Secrets
-
+    # Uses repository-level secrets (no environment needed)
+    
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -98,7 +97,7 @@ jobs:
             docker pull $BACKEND_IMAGE
             docker pull $GATEWAY_IMAGE
 
-      - name: Generate .env.production from GitHub Secrets
+      - name: Generate .env.production from Repository Secrets
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.EC2_HOST }}
@@ -106,7 +105,7 @@ jobs:
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
             cd ~/employee-management-system/deployment
-            echo "📝 Generating .env.production from GitHub Secrets..."
+            echo "📝 Generating .env.production from Repository Secrets..."
             mkdir -p ../db
             {
               echo "DB_HOST=${{ secrets.DB_HOST }}"
