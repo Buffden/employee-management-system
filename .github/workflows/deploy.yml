@@ -19,7 +19,7 @@ jobs:
     # Make sure DOCKER_PASSWORD is set in the 'production' environment
     # DOCKER_USERNAME is hardcoded as 'buffden' for now
     environment:
-      name: production
+      name: Production Secrets
     
     steps:
       - name: Checkout code
@@ -70,7 +70,7 @@ jobs:
     needs: build-and-push
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     environment:
-      name: production
+      name: Production Secrets
 
     steps:
       - name: Checkout code
