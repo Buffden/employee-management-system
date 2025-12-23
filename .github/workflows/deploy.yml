@@ -14,12 +14,8 @@ jobs:
   build-and-push:
     name: Build and Push Docker Images
     runs-on: ubuntu-latest
-    # Environment is required to access environment-level secrets
-    # If environment has protection rules, you may need to approve the workflow run
-    # Make sure DOCKER_PASSWORD is set in the 'production' environment
-    # DOCKER_USERNAME is hardcoded as 'buffden' for now
-    environment:
-      name: Production Secrets
+    # No environment needed - uses repository-level secrets for Docker Hub
+    # DOCKER_USERNAME is hardcoded as 'buffden', DOCKER_PASSWORD from repository secrets
     
     steps:
       - name: Checkout code
