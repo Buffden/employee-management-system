@@ -166,6 +166,9 @@ jobs:
               exit 1
             fi
             echo "Starting containers..."
+            # Export DOCKER_USERNAME from .env.production for docker-compose variable substitution
+            export DOCKER_USERNAME=$(grep "^DOCKER_USERNAME=" ../db/.env.production | cut -d '=' -f2)
+            echo "Using DOCKER_USERNAME: $DOCKER_USERNAME"
             docker compose -f docker-compose.prod.yml up -d
             if [ $? -ne 0 ]; then
               echo "Error: Failed to start containers!"
