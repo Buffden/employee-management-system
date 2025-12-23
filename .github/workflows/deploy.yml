@@ -219,6 +219,39 @@ jobs:
               exit 1
             fi
 
+      - name: Show container logs on failure
+        if: failure()
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: |
+            cd ~/employee-management-system/deployment
+            echo "========================================"
+            echo "DEPLOYMENT FAILED - Showing diagnostic information"
+            echo "========================================"
+            echo ""
+            echo "Container status:"
+            docker compose -f docker-compose.prod.yml ps -a || echo "Could not get container status"
+            echo ""
+            echo "Backend container logs (last 50 lines):"
+            docker compose -f docker-compose.prod.yml logs --tail=50 backend || echo "Could not retrieve backend logs"
+            echo ""
+            echo "Gateway container logs (last 50 lines):"
+            docker compose -f docker-compose.prod.yml logs --tail=50 gateway || echo "Could not retrieve gateway logs"
+            echo ""
+            echo "All container logs (last 30 lines):"
+            docker compose -f docker-compose.prod.yml logs --tail=30 || echo "Could not retrieve logs"
+            echo ""
+            echo "Docker system info:"
+            docker ps -a || echo "Could not get docker ps"
+            echo ""
+            echo "Disk space:"
+            df -h || echo "Could not get disk space"
+            echo ""
+            echo "========================================"
+
       - name: Deployment summary
         if: always()
         run: |
@@ -233,6 +266,9 @@ jobs:
             echo "========================================"
             echo "Deployment failed!"
             echo "========================================"
-            echo "Please check the logs above for details."
+            echo "Container logs have been shown above."
+            echo "If you need more details, SSH into EC2 and run:"
+            echo "  cd ~/employee-management-system/deployment"
+            echo "  docker compose -f docker-compose.prod.yml logs"
             exit 1
           fi
