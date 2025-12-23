@@ -79,8 +79,8 @@ jobs:
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
             cd ~/employee-management-system/deployment
-            echo "🔄 Pulling latest code..."
-            git pull origin main || echo "⚠️ Git pull failed, using existing code"
+            echo "Pulling latest code..."
+            git pull origin main || echo "Git pull failed, using existing code"
 
       - name: Pull Docker images from Docker Hub
         uses: appleboy/ssh-action@v1.0.3
@@ -93,7 +93,7 @@ jobs:
           username: ${{ secrets.EC2_USER }}
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
-            echo "📦 Pulling Docker images from Docker Hub..."
+            echo "Pulling Docker images from Docker Hub..."
             docker pull $BACKEND_IMAGE
             docker pull $GATEWAY_IMAGE
 
@@ -143,7 +143,7 @@ jobs:
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
             cd ~/employee-management-system/deployment
-            echo "🛑 Stopping existing containers..."
+            echo "Stopping existing containers..."
             docker compose -f docker-compose.prod.yml down || true
 
       - name: Start new containers
@@ -154,8 +154,26 @@ jobs:
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
             cd ~/employee-management-system/deployment
-            echo "🚀 Starting new containers..."
+            echo "Starting new containers..."
+            echo "Verifying docker-compose.prod.yml exists..."
+            if [ ! -f "docker-compose.prod.yml" ]; then
+              echo "Error: docker-compose.prod.yml not found!"
+              exit 1
+            fi
+            echo "Verifying .env.production exists..."
+            if [ ! -f "../db/.env.production" ]; then
+              echo "Error: .env.production not found!"
+              exit 1
+            fi
+            echo "Starting containers..."
             docker compose -f docker-compose.prod.yml up -d
+            if [ $? -ne 0 ]; then
+              echo "Error: Failed to start containers!"
+              echo "Checking docker compose logs:"
+              docker compose -f docker-compose.prod.yml logs --tail=20
+              exit 1
+            fi
+            echo "Containers started successfully"
 
       - name: Wait for services and verify
         uses: appleboy/ssh-action@v1.0.3
@@ -165,15 +183,36 @@ jobs:
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
             cd ~/employee-management-system/deployment
-            echo "⏳ Waiting for services to be healthy..."
+            echo "Waiting for services to start..."
             sleep 30
-            echo "📊 Service Status:"
+            echo "Service Status:"
             docker compose -f docker-compose.prod.yml ps
-            if docker compose -f docker-compose.prod.yml ps | grep -q "Up"; then
-              echo "✅ Deployment completed successfully!"
+            echo ""
+            echo "Checking container status..."
+            BACKEND_STATUS=$(docker compose -f docker-compose.prod.yml ps backend --format "{{.Status}}" 2>/dev/null || echo "not found")
+            GATEWAY_STATUS=$(docker compose -f docker-compose.prod.yml ps gateway --format "{{.Status}}" 2>/dev/null || echo "not found")
+            echo "Backend status: $BACKEND_STATUS"
+            echo "Gateway status: $GATEWAY_STATUS"
+            echo ""
+            # Check if containers are running
+            RUNNING_COUNT=$(docker compose -f docker-compose.prod.yml ps --filter "status=running" --format "{{.Name}}" 2>/dev/null | wc -l)
+            TOTAL_COUNT=$(docker compose -f docker-compose.prod.yml ps --format "{{.Name}}" 2>/dev/null | wc -l)
+            echo "Running containers: $RUNNING_COUNT / $TOTAL_COUNT"
+            echo ""
+            if [ "$RUNNING_COUNT" -gt 0 ]; then
+              echo "At least one service is running. Deployment appears successful."
+              echo "Full service status:"
+              docker compose -f docker-compose.prod.yml ps
             else
-              echo "❌ Some services failed to start. Check logs:"
-              docker compose -f docker-compose.prod.yml logs --tail=50
+              echo "No services are running. Checking logs..."
+              echo "Container status:"
+              docker compose -f docker-compose.prod.yml ps -a
+              echo ""
+              echo "Backend logs:"
+              docker compose -f docker-compose.prod.yml logs --tail=30 backend || echo "Could not retrieve backend logs"
+              echo ""
+              echo "Gateway logs:"
+              docker compose -f docker-compose.prod.yml logs --tail=30 gateway || echo "Could not retrieve gateway logs"
               exit 1
             fi
 
@@ -181,16 +220,16 @@ jobs:
         if: always()
         run: |
           if [ "${{ job.status }}" == "success" ]; then
-            echo "✅ ========================================"
-            echo "✅ Deployment to production completed!"
-            echo "✅ ========================================"
-            echo "🌐 Check your domain for the deployed application"
-            echo "📅 Deployed at: $(date -u '+%Y-%m-%d %H:%M:%S UTC')"
-            echo "🔗 Commit: ${{ github.sha }}"
+            echo "========================================"
+            echo "Deployment to production completed!"
+            echo "========================================"
+            echo "Check your domain for the deployed application"
+            echo "Deployed at: $(date -u '+%Y-%m-%d %H:%M:%S UTC')"
+            echo "Commit: ${{ github.sha }}"
           else
-            echo "❌ ========================================"
-            echo "❌ Deployment failed!"
-            echo "❌ ========================================"
+            echo "========================================"
+            echo "Deployment failed!"
+            echo "========================================"
             echo "Please check the logs above for details."
             exit 1
           fi
