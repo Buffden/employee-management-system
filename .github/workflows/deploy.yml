@@ -96,7 +96,7 @@ jobs:
             "echo 'Pulling Docker images...'",
             "docker pull buffden/ems-backend:latest",
             "docker pull buffden/ems-gateway:latest",
-            "echo 'Stopping existing containers...'",
+            "echo 'Stopping existing containers'",
             "docker compose -f docker-compose.prod.yml down || true",
             "echo 'Verifying files exist...'",
             "if [ ! -f docker-compose.prod.yml ]; then echo 'Error: docker-compose.prod.yml not found!'; exit 1; fi",
