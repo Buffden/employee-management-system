@@ -106,33 +106,33 @@ jobs:
           script: |
             cd ~/employee-management-system/deployment
             mkdir -p ../db
-            # Generate .env.production file (GitHub Actions automatically masks secret values in logs)
-            # Note: Secret values are replaced with *** in GitHub Actions logs for security
+            # Generate .env.production file
+            # Note: GitHub Actions automatically masks secret values (replaces with ***) in logs
             {
-              printf 'DB_HOST=%s\n' "${{ secrets.DB_HOST }}"
-              printf 'DB_PORT=%s\n' "${{ secrets.DB_PORT }}"
-              printf 'DB_NAME=%s\n' "${{ secrets.DB_NAME }}"
-              printf 'DB_USER=%s\n' "${{ secrets.DB_USER }}"
-              printf 'DB_PWD=%s\n' "${{ secrets.DB_PWD }}"
-              printf 'DB_SSL_MODE=require\n'
-              printf 'SPRING_PROFILE=prod\n'
-              printf 'JWT_SECRET_KEY=%s\n' "${{ secrets.JWT_SECRET_KEY }}"
-              printf 'CORS_ALLOWED_ORIGINS=%s\n' "${{ secrets.CORS_ALLOWED_ORIGINS || '' }}"
-              printf 'FRONTEND_BASE_URL=%s\n' "${{ secrets.FRONTEND_BASE_URL || '' }}"
-              printf 'EMAIL_SERVICE_PROVIDER=demo\n'
-              printf 'EMAIL_SENDGRID_API_KEY=%s\n' "${{ secrets.EMAIL_SENDGRID_API_KEY || '' }}"
-              printf 'EMAIL_SENDGRID_FROM_EMAIL=%s\n' "${{ secrets.EMAIL_SENDGRID_FROM_EMAIL || '' }}"
-              printf 'EMAIL_SENDGRID_FROM_NAME=Employee Management System\n'
-              printf 'ADMIN_CREATE=true\n'
-              printf 'ADMIN_USERNAME=%s\n' "${{ secrets.ADMIN_USERNAME || '' }}"
-              printf 'ADMIN_PASSWORD=%s\n' "${{ secrets.ADMIN_PASSWORD || '' }}"
-              printf 'ADMIN_EMAIL=%s\n' "${{ secrets.ADMIN_EMAIL || '' }}"
-              printf 'NGINX_PORT=80\n'
-              printf 'NGINX_SERVER_NAME=%s\n' "${{ secrets.NGINX_SERVER_NAME || '' }}"
-              printf 'BACKEND_HOST=backend\n'
-              printf 'BACKEND_PORT=8080\n'
-              printf 'SSL_ENABLED=true\n'
-              printf 'DOCKER_USERNAME=buffden\n'
+              echo "DB_HOST=${{ secrets.DB_HOST }}"
+              echo "DB_PORT=${{ secrets.DB_PORT }}"
+              echo "DB_NAME=${{ secrets.DB_NAME }}"
+              echo "DB_USER=${{ secrets.DB_USER }}"
+              echo "DB_PWD=${{ secrets.DB_PWD }}"
+              echo "DB_SSL_MODE=require"
+              echo "SPRING_PROFILE=prod"
+              echo "JWT_SECRET_KEY=${{ secrets.JWT_SECRET_KEY }}"
+              echo "CORS_ALLOWED_ORIGINS=${{ secrets.CORS_ALLOWED_ORIGINS || '' }}"
+              echo "FRONTEND_BASE_URL=${{ secrets.FRONTEND_BASE_URL || '' }}"
+              echo "EMAIL_SERVICE_PROVIDER=demo"
+              echo "EMAIL_SENDGRID_API_KEY=${{ secrets.EMAIL_SENDGRID_API_KEY || '' }}"
+              echo "EMAIL_SENDGRID_FROM_EMAIL=${{ secrets.EMAIL_SENDGRID_FROM_EMAIL || '' }}"
+              echo "EMAIL_SENDGRID_FROM_NAME=Employee Management System"
+              echo "ADMIN_CREATE=true"
+              echo "ADMIN_USERNAME=${{ secrets.ADMIN_USERNAME || '' }}"
+              echo "ADMIN_PASSWORD=${{ secrets.ADMIN_PASSWORD || '' }}"
+              echo "ADMIN_EMAIL=${{ secrets.ADMIN_EMAIL || '' }}"
+              echo "NGINX_PORT=80"
+              echo "NGINX_SERVER_NAME=${{ secrets.NGINX_SERVER_NAME || '' }}"
+              echo "BACKEND_HOST=backend"
+              echo "BACKEND_PORT=8080"
+              echo "SSL_ENABLED=true"
+              echo "DOCKER_USERNAME=buffden"
             } > ../db/.env.production
 
       - name: Stop existing containers
