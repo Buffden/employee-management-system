@@ -65,192 +65,143 @@ jobs:
     runs-on: ubuntu-latest
     needs: build-and-push
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    # Uses repository-level secrets (no environment needed)
+    permissions:
+      id-token: write
+      contents: read
     
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Pull latest code on EC2
-        uses: appleboy/ssh-action@v1.0.3
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
         with:
-          host: ${{ secrets.EC2_HOST }}
-          username: ${{ secrets.EC2_USER }}
-          key: ${{ secrets.EC2_SSH_KEY }}
-          script: |
-            cd ~/employee-management-system/deployment
-            echo "Pulling latest code..."
-            git pull origin main || echo "Git pull failed, using existing code"
+          role-to-assume: arn:aws:iam::911167927589:role/GitHubActionsSSMDeployRole
+          aws-region: us-east-1
 
-      - name: Pull Docker images from Docker Hub
-        uses: appleboy/ssh-action@v1.0.3
+      - name: Deploy to EC2 via AWS SSM
         env:
-          DOCKER_USERNAME: buffden
-          BACKEND_IMAGE: buffden/ems-backend:latest
-          GATEWAY_IMAGE: buffden/ems-gateway:latest
-        with:
-          host: ${{ secrets.EC2_HOST }}
-          username: ${{ secrets.EC2_USER }}
-          key: ${{ secrets.EC2_SSH_KEY }}
-          script: |
-            echo "Pulling Docker images from Docker Hub..."
-            docker pull $BACKEND_IMAGE
-            docker pull $GATEWAY_IMAGE
+          DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
+        run: |
+          INSTANCE_ID="i-03a61b7b515af53b7"
+          
+          COMMAND_ID=$(aws ssm send-command \
+            --instance-ids "$INSTANCE_ID" \
+            --document-name "AWS-RunShellScript" \
+            --comment "Deploy EMS from GitHub Actions" \
+            --parameters commands="[
+              \"cd ~/employee-management-system/deployment\",
+              \"echo 'Pulling latest code...'\",
+              \"git pull origin main || true\",
+              \"echo 'Logging into Docker Hub...'\",
+              \"echo '$DOCKER_PASSWORD' | docker login -u buffden --password-stdin || true\",
+              \"echo 'Pulling Docker images...'\",
+              \"docker pull buffden/ems-backend:latest\",
+              \"docker pull buffden/ems-gateway:latest\",
+              \"echo 'Stopping existing containers...'\",
+              \"docker compose -f docker-compose.prod.yml down || true\",
+              \"echo 'Verifying files exist...'\",
+              \"if [ ! -f docker-compose.prod.yml ]; then echo 'Error: docker-compose.prod.yml not found!'; exit 1; fi\",
+              \"if [ ! -f ../db/.env.production ]; then echo 'Error: .env.production not found!'; exit 1; fi\",
+              \"echo 'Starting containers...'\",
+              \"export DOCKER_USERNAME=\$(grep '^DOCKER_USERNAME=' ../db/.env.production | cut -d '=' -f2)\",
+              \"echo 'Using DOCKER_USERNAME: '\$DOCKER_USERNAME\",
+              \"docker compose -f docker-compose.prod.yml up -d\",
+              \"if [ \$? -ne 0 ]; then echo 'Error: Failed to start containers!'; docker compose -f docker-compose.prod.yml logs --tail=20; exit 1; fi\",
+              \"echo 'Waiting for services to start...'\",
+              \"sleep 30\",
+              \"echo 'Service Status:'\",
+              \"docker compose -f docker-compose.prod.yml ps\",
+              \"RUNNING_COUNT=\$(docker compose -f docker-compose.prod.yml ps --filter 'status=running' --format '{{.Name}}' 2>/dev/null | wc -l)\",
+              \"if [ \"\$RUNNING_COUNT\" -eq 0 ]; then echo 'No services are running!'; docker compose -f docker-compose.prod.yml ps -a; docker compose -f docker-compose.prod.yml logs --tail=30; exit 1; fi\",
+              \"echo 'Deployment successful! Running containers: '\$RUNNING_COUNT\"
+            ]" \
+            --query "Command.CommandId" \
+            --output text)
 
-      - name: Generate .env.production from Repository Secrets
-        uses: appleboy/ssh-action@v1.0.3
-        with:
-          host: ${{ secrets.EC2_HOST }}
-          username: ${{ secrets.EC2_USER }}
-          key: ${{ secrets.EC2_SSH_KEY }}
-          script: |
-            cd ~/employee-management-system/deployment
-            mkdir -p ../db
-            # Generate .env.production file
-            # Note: GitHub Actions automatically masks secret values (replaces with ***) in logs
-            {
-              echo "DB_HOST=${{ secrets.DB_HOST }}"
-              echo "DB_PORT=${{ secrets.DB_PORT }}"
-              echo "DB_NAME=${{ secrets.DB_NAME }}"
-              echo "DB_USER=${{ secrets.DB_USER }}"
-              echo "DB_PWD=${{ secrets.DB_PWD }}"
-              echo "DB_SSL_MODE=require"
-              echo "SPRING_PROFILE=prod"
-              echo "JWT_SECRET_KEY=${{ secrets.JWT_SECRET_KEY }}"
-              echo "CORS_ALLOWED_ORIGINS=${{ secrets.CORS_ALLOWED_ORIGINS || '' }}"
-              echo "FRONTEND_BASE_URL=${{ secrets.FRONTEND_BASE_URL || '' }}"
-              echo "EMAIL_SERVICE_PROVIDER=demo"
-              echo "EMAIL_SENDGRID_API_KEY=${{ secrets.EMAIL_SENDGRID_API_KEY || '' }}"
-              echo "EMAIL_SENDGRID_FROM_EMAIL=${{ secrets.EMAIL_SENDGRID_FROM_EMAIL || '' }}"
-              echo "EMAIL_SENDGRID_FROM_NAME=Employee Management System"
-              echo "ADMIN_CREATE=true"
-              echo "ADMIN_USERNAME=${{ secrets.ADMIN_USERNAME || '' }}"
-              echo "ADMIN_PASSWORD=${{ secrets.ADMIN_PASSWORD || '' }}"
-              echo "ADMIN_EMAIL=${{ secrets.ADMIN_EMAIL || '' }}"
-              echo "NGINX_PORT=80"
-              echo "NGINX_SERVER_NAME=${{ secrets.NGINX_SERVER_NAME || '' }}"
-              echo "BACKEND_HOST=backend"
-              echo "BACKEND_PORT=8080"
-              echo "SSL_ENABLED=true"
-              echo "DOCKER_USERNAME=buffden"
-            } > ../db/.env.production
+          echo "SSM Command ID: $COMMAND_ID"
 
-      - name: Stop existing containers
-        uses: appleboy/ssh-action@v1.0.3
-        with:
-          host: ${{ secrets.EC2_HOST }}
-          username: ${{ secrets.EC2_USER }}
-          key: ${{ secrets.EC2_SSH_KEY }}
-          script: |
-            cd ~/employee-management-system/deployment
-            echo "Stopping existing containers..."
-            docker compose -f docker-compose.prod.yml down || true
+          echo "Waiting for command to complete..."
+          aws ssm wait command-executed \
+            --command-id "$COMMAND_ID" \
+            --instance-id "$INSTANCE_ID" \
+            || true
 
-      - name: Start new containers
-        uses: appleboy/ssh-action@v1.0.3
-        with:
-          host: ${{ secrets.EC2_HOST }}
-          username: ${{ secrets.EC2_USER }}
-          key: ${{ secrets.EC2_SSH_KEY }}
-          script: |
-            cd ~/employee-management-system/deployment
-            echo "Starting new containers..."
-            echo "Verifying docker-compose.prod.yml exists..."
-            if [ ! -f "docker-compose.prod.yml" ]; then
-              echo "Error: docker-compose.prod.yml not found!"
-              exit 1
-            fi
-            echo "Verifying .env.production exists..."
-            if [ ! -f "../db/.env.production" ]; then
-              echo "Error: .env.production not found!"
-              exit 1
-            fi
-            echo "Starting containers..."
-            # Export DOCKER_USERNAME from .env.production for docker-compose variable substitution
-            export DOCKER_USERNAME=$(grep "^DOCKER_USERNAME=" ../db/.env.production | cut -d '=' -f2)
-            echo "Using DOCKER_USERNAME: $DOCKER_USERNAME"
-            docker compose -f docker-compose.prod.yml up -d
-            if [ $? -ne 0 ]; then
-              echo "Error: Failed to start containers!"
-              echo "Checking docker compose logs:"
-              docker compose -f docker-compose.prod.yml logs --tail=20
-              exit 1
-            fi
-            echo "Containers started successfully"
+          STATUS=$(aws ssm get-command-invocation \
+            --command-id "$COMMAND_ID" \
+            --instance-id "$INSTANCE_ID" \
+            --query "Status" \
+            --output text)
 
-      - name: Wait for services and verify
-        uses: appleboy/ssh-action@v1.0.3
-        with:
-          host: ${{ secrets.EC2_HOST }}
-          username: ${{ secrets.EC2_USER }}
-          key: ${{ secrets.EC2_SSH_KEY }}
-          script: |
-            cd ~/employee-management-system/deployment
-            echo "Waiting for services to start..."
-            sleep 30
-            echo "Service Status:"
-            docker compose -f docker-compose.prod.yml ps
-            echo ""
-            echo "Checking container status..."
-            BACKEND_STATUS=$(docker compose -f docker-compose.prod.yml ps backend --format "{{.Status}}" 2>/dev/null || echo "not found")
-            GATEWAY_STATUS=$(docker compose -f docker-compose.prod.yml ps gateway --format "{{.Status}}" 2>/dev/null || echo "not found")
-            echo "Backend status: $BACKEND_STATUS"
-            echo "Gateway status: $GATEWAY_STATUS"
-            echo ""
-            # Check if containers are running
-            RUNNING_COUNT=$(docker compose -f docker-compose.prod.yml ps --filter "status=running" --format "{{.Name}}" 2>/dev/null | wc -l)
-            TOTAL_COUNT=$(docker compose -f docker-compose.prod.yml ps --format "{{.Name}}" 2>/dev/null | wc -l)
-            echo "Running containers: $RUNNING_COUNT / $TOTAL_COUNT"
-            echo ""
-            if [ "$RUNNING_COUNT" -gt 0 ]; then
-              echo "At least one service is running. Deployment appears successful."
-              echo "Full service status:"
-              docker compose -f docker-compose.prod.yml ps
-            else
-              echo "No services are running. Checking logs..."
-              echo "Container status:"
-              docker compose -f docker-compose.prod.yml ps -a
-              echo ""
-              echo "Backend logs:"
-              docker compose -f docker-compose.prod.yml logs --tail=30 backend || echo "Could not retrieve backend logs"
-              echo ""
-              echo "Gateway logs:"
-              docker compose -f docker-compose.prod.yml logs --tail=30 gateway || echo "Could not retrieve gateway logs"
-              exit 1
-            fi
+          echo "SSM command status: $STATUS"
+
+          # Show output
+          echo "Command output:"
+          aws ssm get-command-invocation \
+            --command-id "$COMMAND_ID" \
+            --instance-id "$INSTANCE_ID" \
+            --query "StandardOutputContent" \
+            --output text
+
+          if [ "$STATUS" != "Success" ]; then
+            echo "Deployment failed with status: $STATUS"
+            echo "Error output:"
+            aws ssm get-command-invocation \
+              --command-id "$COMMAND_ID" \
+              --instance-id "$INSTANCE_ID" \
+              --query "StandardErrorContent" \
+              --output text
+            exit 1
+          fi
 
       - name: Show container logs on failure
         if: failure()
-        uses: appleboy/ssh-action@v1.0.3
-        with:
-          host: ${{ secrets.EC2_HOST }}
-          username: ${{ secrets.EC2_USER }}
-          key: ${{ secrets.EC2_SSH_KEY }}
-          script: |
-            cd ~/employee-management-system/deployment
-            echo "========================================"
-            echo "DEPLOYMENT FAILED - Showing diagnostic information"
-            echo "========================================"
-            echo ""
-            echo "Container status:"
-            docker compose -f docker-compose.prod.yml ps -a || echo "Could not get container status"
-            echo ""
-            echo "Backend container logs (last 50 lines):"
-            docker compose -f docker-compose.prod.yml logs --tail=50 backend || echo "Could not retrieve backend logs"
-            echo ""
-            echo "Gateway container logs (last 50 lines):"
-            docker compose -f docker-compose.prod.yml logs --tail=50 gateway || echo "Could not retrieve gateway logs"
-            echo ""
-            echo "All container logs (last 30 lines):"
-            docker compose -f docker-compose.prod.yml logs --tail=30 || echo "Could not retrieve logs"
-            echo ""
-            echo "Docker system info:"
-            docker ps -a || echo "Could not get docker ps"
-            echo ""
-            echo "Disk space:"
-            df -h || echo "Could not get disk space"
-            echo ""
-            echo "========================================"
+        run: |
+          INSTANCE_ID="i-03a61b7b515af53b7"
+          
+          COMMAND_ID=$(aws ssm send-command \
+            --instance-ids "$INSTANCE_ID" \
+            --document-name "AWS-RunShellScript" \
+            --comment "Diagnostic logs after deployment failure" \
+            --parameters commands="[
+              \"cd ~/employee-management-system/deployment\",
+              \"echo '========================================'\",
+              \"echo 'DEPLOYMENT FAILED - Diagnostic Information'\",
+              \"echo '========================================'\",
+              \"echo ''\",
+              \"echo 'Container status:'\",
+              \"docker compose -f docker-compose.prod.yml ps -a || echo 'Could not get container status'\",
+              \"echo ''\",
+              \"echo 'Backend logs (last 50 lines):'\",
+              \"docker compose -f docker-compose.prod.yml logs --tail=50 backend || echo 'Could not retrieve backend logs'\",
+              \"echo ''\",
+              \"echo 'Gateway logs (last 50 lines):'\",
+              \"docker compose -f docker-compose.prod.yml logs --tail=50 gateway || echo 'Could not retrieve gateway logs'\",
+              \"echo ''\",
+              \"echo 'All container logs (last 30 lines):'\",
+              \"docker compose -f docker-compose.prod.yml logs --tail=30 || echo 'Could not retrieve logs'\",
+              \"echo ''\",
+              \"echo 'Docker system info:'\",
+              \"docker ps -a || echo 'Could not get docker ps'\",
+              \"echo ''\",
+              \"echo 'Disk space:'\",
+              \"df -h || echo 'Could not get disk space'\",
+              \"echo '========================================'\"
+            ]" \
+            --query "Command.CommandId" \
+            --output text)
+
+          echo "Fetching diagnostic logs..."
+          aws ssm wait command-executed \
+            --command-id "$COMMAND_ID" \
+            --instance-id "$INSTANCE_ID" \
+            || true
+
+          aws ssm get-command-invocation \
+            --command-id "$COMMAND_ID" \
+            --instance-id "$INSTANCE_ID" \
+            --query "StandardOutputContent" \
+            --output text
 
       - name: Deployment summary
         if: always()
@@ -267,8 +218,6 @@ jobs:
             echo "Deployment failed!"
             echo "========================================"
             echo "Container logs have been shown above."
-            echo "If you need more details, SSH into EC2 and run:"
-            echo "  cd ~/employee-management-system/deployment"
-            echo "  docker compose -f docker-compose.prod.yml logs"
+            echo "For more details, check SSM command output above or use AWS Systems Manager console."
             exit 1
           fi
