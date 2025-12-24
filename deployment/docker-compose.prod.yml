@@ -1,24 +1,21 @@
 # Docker Compose for Production Deployment
-# This configuration uses AWS RDS for database (no local PostgreSQL container)
-# Uses pre-built images from Docker Hub (configured via DOCKER_USERNAME env var)
-# Usage: docker compose -f docker-compose.prod.yml up -d
-#
-# For local development with Docker PostgreSQL, use: docker-compose.yml
+# Secrets are injected at runtime via AWS SSM Parameter Store
+# No .env files are used in production (industry standard)
 
 services:
   backend:
-    image: ${DOCKER_USERNAME:-your-username}/ems-backend:latest
+    image: buffden/ems-backend:latest
     container_name: ems-backend
-    env_file:
-      - ../db/.env.production
     environment:
-      # All variables are loaded from env_file (.env.production)
-      # Explicitly set SPRING_PROFILE to ensure prod profile is used
-      - SPRING_PROFILE=prod
-      # Override DB_SSL_MODE to require SSL for production
-      - DB_SSL_MODE=require
-    # No port exposure - only accessible via nginx/gateway
-    # No depends_on postgres (using RDS)
+      SPRING_PROFILE: ${SPRING_PROFILE}
+      DB_HOST: ${DB_HOST}
+      DB_PORT: ${DB_PORT}
+      DB_NAME: ${DB_NAME}
+      DB_USER: ${DB_USER}
+      DB_PWD: ${DB_PWD}
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY}
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS}
+      DB_SSL_MODE: require
     networks:
       - ems-network
     restart: unless-stopped
@@ -27,25 +24,19 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 360s
+      start_period: 120s
 
   gateway:
-    image: ${DOCKER_USERNAME:-your-username}/ems-gateway:latest
+    image: buffden/ems-gateway:latest
     container_name: ems-gateway
-    env_file:
-      - ../db/.env.production
     environment:
-      # All variables loaded from env_file (.env.production)
-      # Backend connection (internal Docker service name)
-      - BACKEND_HOST=backend
-      - BACKEND_PORT=8080
-      # Enable SSL/HTTPS
-      - SSL_ENABLED=${SSL_ENABLED:-true}
+      BACKEND_HOST: backend
+      BACKEND_PORT: 8080
+      SSL_ENABLED: "true"
     ports:
       - "80:80"
       - "443:443"
     volumes:
-      # SSL certificates from certbot
       - certbot-etc:/etc/letsencrypt:ro
       - certbot-www:/var/www/certbot:ro
     depends_on:
@@ -55,9 +46,7 @@ services:
       - ems-network
     restart: unless-stopped
     healthcheck:
-      # When SSL is enabled, HTTP redirects to HTTPS, so check HTTPS directly
-      # wget with --spider follows redirects, but we check HTTPS directly for reliability
-      test: ["CMD-SHELL", "wget --quiet --tries=1 --spider --no-check-certificate https://localhost:443/health 2>/dev/null || wget --quiet --tries=1 --spider http://localhost:80/health 2>/dev/null || exit 1"]
+      test: ["CMD-SHELL", "wget --quiet --tries=1 --spider --no-check-certificate https://localhost/health || exit 1"]
       interval: 30s
       timeout: 5s
       retries: 3
@@ -68,16 +57,19 @@ services:
     volumes:
       - certbot-etc:/etc/letsencrypt
       - certbot-www:/var/www/certbot
-    entrypoint: "/bin/sh -c 'trap exit TERM; while :; do certbot renew; sleep 12h & wait $${!}; done;'"
+    entrypoint: >
+      /bin/sh -c "trap exit TERM;
+      while :;
+      do certbot renew;
+      sleep 12h & wait $${!};
+      done;"
     networks:
       - ems-network
     restart: unless-stopped
 
 volumes:
   certbot-etc:
-    driver: local
   certbot-www:
-    driver: local
 
 networks:
   ems-network:
