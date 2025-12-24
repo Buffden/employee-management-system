@@ -55,38 +55,45 @@ jobs:
           aws-region: us-east-1
 
       - name: Deploy via AWS SSM
+        shell: bash
         run: |
-          set -e
+          set -euo pipefail
+
           INSTANCE_ID="i-03a61b7b515af53b7"
+
+          echo "Sending SSM command..."
 
           COMMAND_ID=$(aws ssm send-command \
             --instance-ids "$INSTANCE_ID" \
             --document-name "AWS-RunShellScript" \
             --comment "Deploy EMS via GitHub Actions" \
             --parameters 'commands=[
+              "set -e",
               "whoami",
               "pwd",
 
-              "cd /home/ec2-user/employee-management-system/deployment || exit 10",
+              "cd /home/ec2-user/employee-management-system/deployment",
 
-              "SPRING_PROFILE=$(aws ssm get-parameter --name /ems/prod/SPRING_PROFILE --with-decryption --query Parameter.Value --output text)",
-              "DB_HOST=$(aws ssm get-parameter --name /ems/prod/DB_HOST --with-decryption --query Parameter.Value --output text)",
-              "DB_PORT=$(aws ssm get-parameter --name /ems/prod/DB_PORT --with-decryption --query Parameter.Value --output text)",
-              "DB_NAME=$(aws ssm get-parameter --name /ems/prod/DB_NAME --with-decryption --query Parameter.Value --output text)",
-              "DB_USER=$(aws ssm get-parameter --name /ems/prod/DB_USER --with-decryption --query Parameter.Value --output text)",
-              "DB_PWD=$(aws ssm get-parameter --name /ems/prod/DB_PWD --with-decryption --query Parameter.Value --output text)",
-              "JWT_SECRET_KEY=$(aws ssm get-parameter --name /ems/prod/JWT_SECRET_KEY --with-decryption --query Parameter.Value --output text)",
-              "CORS_ALLOWED_ORIGINS=$(aws ssm get-parameter --name /ems/prod/CORS_ALLOWED_ORIGINS --with-decryption --query Parameter.Value --output text)",
+              "echo Fetching secrets from SSM",
+              "export SPRING_PROFILE=$(aws ssm get-parameter --name /ems/prod/SPRING_PROFILE --with-decryption --query Parameter.Value --output text)",
+              "export DB_HOST=$(aws ssm get-parameter --name /ems/prod/DB_HOST --with-decryption --query Parameter.Value --output text)",
+              "export DB_PORT=$(aws ssm get-parameter --name /ems/prod/DB_PORT --with-decryption --query Parameter.Value --output text)",
+              "export DB_NAME=$(aws ssm get-parameter --name /ems/prod/DB_NAME --with-decryption --query Parameter.Value --output text)",
+              "export DB_USER=$(aws ssm get-parameter --name /ems/prod/DB_USER --with-decryption --query Parameter.Value --output text)",
+              "export DB_PWD=$(aws ssm get-parameter --name /ems/prod/DB_PWD --with-decryption --query Parameter.Value --output text)",
+              "export JWT_SECRET_KEY=$(aws ssm get-parameter --name /ems/prod/JWT_SECRET_KEY --with-decryption --query Parameter.Value --output text)",
+              "export CORS_ALLOWED_ORIGINS=$(aws ssm get-parameter --name /ems/prod/CORS_ALLOWED_ORIGINS --with-decryption --query Parameter.Value --output text)",
 
-              "export SPRING_PROFILE DB_HOST DB_PORT DB_NAME DB_USER DB_PWD JWT_SECRET_KEY CORS_ALLOWED_ORIGINS",
-              "docker --version || exit 20",
-              "docker-compose --version || exit 21",
+              "docker --version",
+              "docker-compose --version",
 
-              "docker pull buffden/ems-backend:latest || exit 30",
-              "docker pull buffden/ems-gateway:latest || exit 31",
+              "echo Pulling images",
+              "docker pull buffden/ems-backend:latest",
+              "docker pull buffden/ems-gateway:latest",
 
+              "echo Restarting containers",
               "docker-compose -f docker-compose.prod.yml down || true",
-              "docker-compose -f docker-compose.prod.yml up -d || exit 40",
+              "docker-compose -f docker-compose.prod.yml up -d",
 
               "docker-compose -f docker-compose.prod.yml ps"
             ]' \
@@ -94,40 +101,42 @@ jobs:
             --output text)
 
           echo "SSM Command ID: $COMMAND_ID"
-          echo "Waiting for SSM command to complete..."
+          echo "Waiting for completion..."
 
           while true; do
-          STATUS=$(aws ssm get-command-invocation \
-            --command-id "$COMMAND_ID" \
-            --instance-id "$INSTANCE_ID" \
-            --query "Status" \
-            --output text)
+            STATUS=$(aws ssm get-command-invocation \
+              --command-id "$COMMAND_ID" \
+              --instance-id "$INSTANCE_ID" \
+              --query "Status" \
+              --output text)
 
-          echo "Current SSM status: $STATUS"
+            echo "SSM Status: $STATUS"
 
-          if [ "$STATUS" = "Success" ]; then
-            break
-          fi
+            if [[ "$STATUS" == "Success" ]]; then
+              break
+            fi
 
-          if [ "$STATUS" = "Failed" ] || [ "$STATUS" = "Cancelled" ] || [ "$STATUS" = "TimedOut" ]; then
-            echo "===== STDOUT ====="
-          aws ssm get-command-invocation \
-            --command-id "$COMMAND_ID" \
-            --instance-id "$INSTANCE_ID" \
-            --query "StandardOutputContent" \
-            --output text || true
+            if [[ "$STATUS" == "Failed" || "$STATUS" == "Cancelled" || "$STATUS" == "TimedOut" ]]; then
+              echo "===== STDOUT ====="
+              aws ssm get-command-invocation \
+                --command-id "$COMMAND_ID" \
+                --instance-id "$INSTANCE_ID" \
+                --query "StandardOutputContent" \
+                --output text || true
 
-          echo "===== STDERR ====="
-          aws ssm get-command-invocation \
-            --command-id "$COMMAND_ID" \
-            --instance-id "$INSTANCE_ID" \
-            --query "StandardErrorContent" \
-            --output text || true
+              echo "===== STDERR ====="
+              aws ssm get-command-invocation \
+                --command-id "$COMMAND_ID" \
+                --instance-id "$INSTANCE_ID" \
+                --query "StandardErrorContent" \
+                --output text || true
 
-            exit 1
-          fi
-          sleep 15
+              exit 1
+            fi
+
+            sleep 10
           done
+
           echo "===== FINAL STDOUT ====="
           aws ssm get-command-invocation \
             --command-id "$COMMAND_ID" \
