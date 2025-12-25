@@ -55,11 +55,13 @@ jobs:
           set -euo pipefail
 
           INSTANCE_ID="i-03a61b7b515af53b7"
-          IMAGE_TAG="${GITHUB_SHA}"
+          # Export on the runner
+          export IMAGE_TAG="$GITHUB_SHA"
 
           REMOTE_SCRIPT=$(cat <<SSMEOF
           set -euo pipefail
-          export IMAGE_TAG="${IMAGE_TAG}"
+          # IMAGE_TAG already injected by runner
+          : "${IMAGE_TAG:?IMAGE_TAG is required}"
           cd /home/ec2-user/employee-management-system/deployment
 
           umask 077
