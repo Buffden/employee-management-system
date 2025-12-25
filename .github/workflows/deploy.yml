@@ -38,7 +38,6 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     needs: build-and-push
-
     permissions:
       id-token: write
       contents: read
@@ -54,31 +53,43 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+
           INSTANCE_ID="i-03a61b7b515af53b7"
+
+          REMOTE_SCRIPT=$(cat <<'SSMEOF'
+          set -euo pipefail
+          cd /home/ec2-user/employee-management-system/deployment
+
+          umask 077
+          cat > .env <<ENV
+SPRING_PROFILE=$(aws ssm get-parameter --name /ems/prod/SPRING_PROFILE --with-decryption --query Parameter.Value --output text)
+DB_HOST=$(aws ssm get-parameter --name /ems/prod/DB_HOST --with-decryption --query Parameter.Value --output text)
+DB_PORT=$(aws ssm get-parameter --name /ems/prod/DB_PORT --with-decryption --query Parameter.Value --output text)
+DB_NAME=$(aws ssm get-parameter --name /ems/prod/DB_NAME --with-decryption --query Parameter.Value --output text)
+DB_USER=$(aws ssm get-parameter --name /ems/prod/DB_USER --with-decryption --query Parameter.Value --output text)
+DB_PWD=$(aws ssm get-parameter --name /ems/prod/DB_PWD --with-decryption --query Parameter.Value --output text)
+JWT_SECRET_KEY=$(aws ssm get-parameter --name /ems/prod/JWT_SECRET_KEY --with-decryption --query Parameter.Value --output text)
+CORS_ALLOWED_ORIGINS=$(aws ssm get-parameter --name /ems/prod/CORS_ALLOWED_ORIGINS --with-decryption --query Parameter.Value --output text)
+FRONTEND_BASE_URL=$(aws ssm get-parameter --name /ems/prod/FRONTEND_BASE_URL --with-decryption --query Parameter.Value --output text)
+ENV
+
+          docker pull buffden/ems-backend:latest
+          docker pull buffden/ems-gateway:latest
+
+          docker compose -f docker-compose.prod.yml down || true
+          docker compose -f docker-compose.prod.yml up -d
+SSMEOF
+          )
 
           COMMAND_ID="$(aws ssm send-command \
             --instance-ids "$INSTANCE_ID" \
             --document-name "AWS-RunShellScript" \
             --comment "Deploy EMS (SSM -> .env -> Docker -> Spring)" \
-            --parameters '{"commands":[
-              "bash -lc '\''set -euo pipefail; cd /home/ec2-user/employee-management-system/deployment; umask 077; : > .env'\''",
-
-              "bash -lc '\''set -euo pipefail; cd /home/ec2-user/employee-management-system/deployment; v=$(aws ssm get-parameter --name /ems/prod/SPRING_PROFILE --with-decryption --query Parameter.Value --output text); case \"$v\" in *$'\\n'* ) exit 10;; esac; echo \"SPRING_PROFILE=$v\" >> .env'\''",
-              "bash -lc '\''set -euo pipefail; cd /home/ec2-user/employee-management-system/deployment; v=$(aws ssm get-parameter --name /ems/prod/DB_HOST --with-decryption --query Parameter.Value --output text); case \"$v\" in *$'\\n'* ) exit 10;; esac; echo \"DB_HOST=$v\" >> .env'\''",
-              "bash -lc '\''set -euo pipefail; cd /home/ec2-user/employee-management-system/deployment; v=$(aws ssm get-parameter --name /ems/prod/DB_PORT --with-decryption --query Parameter.Value --output text); case \"$v\" in *$'\\n'* ) exit 10;; esac; echo \"DB_PORT=$v\" >> .env'\''",
-              "bash -lc '\''set -euo pipefail; cd /home/ec2-user/employee-management-system/deployment; v=$(aws ssm get-parameter --name /ems/prod/DB_NAME --with-decryption --query Parameter.Value --output text); case \"$v\" in *$'\\n'* ) exit 10;; esac; echo \"DB_NAME=$v\" >> .env'\''",
-              "bash -lc '\''set -euo pipefail; cd /home/ec2-user/employee-management-system/deployment; v=$(aws ssm get-parameter --name /ems/prod/DB_USER --with-decryption --query Parameter.Value --output text); case \"$v\" in *$'\\n'* ) exit 10;; esac; echo \"DB_USER=$v\" >> .env'\''",
-              "bash -lc '\''set -euo pipefail; cd /home/ec2-user/employee-management-system/deployment; v=$(aws ssm get-parameter --name /ems/prod/DB_PWD --with-decryption --query Parameter.Value --output text); case \"$v\" in *$'\\n'* ) exit 10;; esac; echo \"DB_PWD=$v\" >> .env'\''",
-              "bash -lc '\''set -euo pipefail; cd /home/ec2-user/employee-management-system/deployment; v=$(aws ssm get-parameter --name /ems/prod/JWT_SECRET_KEY --with-decryption --query Parameter.Value --output text); case \"$v\" in *$'\\n'* ) exit 10;; esac; echo \"JWT_SECRET_KEY=$v\" >> .env'\''",
-              "bash -lc '\''set -euo pipefail; cd /home/ec2-user/employee-management-system/deployment; v=$(aws ssm get-parameter --name /ems/prod/CORS_ALLOWED_ORIGINS --with-decryption --query Parameter.Value --output text); case \"$v\" in *$'\\n'* ) exit 10;; esac; echo \"CORS_ALLOWED_ORIGINS=$v\" >> .env'\''",
-              "bash -lc '\''set -euo pipefail; cd /home/ec2-user/employee-management-system/deployment; v=$(aws ssm get-parameter --name /ems/prod/FRONTEND_BASE_URL --with-decryption --query Parameter.Value --output text); case \"$v\" in *$'\\n'* ) exit 10;; esac; echo \"FRONTEND_BASE_URL=$v\" >> .env'\''",
-
-              "bash -lc '\''set -euo pipefail; cd /home/ec2-user/employee-management-system/deployment; docker pull buffden/ems-backend:latest; docker pull buffden/ems-gateway:latest; docker compose -f docker-compose.prod.yml down || true; docker compose -f docker-compose.prod.yml up -d'\''"
-            ]}' \
+            --parameters "commands=$REMOTE_SCRIPT" \
             --query "Command.CommandId" \
             --output text)"
 
-          # Poll for completion (up to 15 minutes)
+          # Poll status up to 15 minutes (no secret output)
           DEADLINE=$((SECONDS + 900))
           while true; do
             STATUS="$(aws ssm get-command-invocation \
@@ -101,7 +112,7 @@ jobs:
             fi
 
             if (( SECONDS >= DEADLINE )); then
-              echo "SSM command is still InProgress after 15 minutes. Check AWS Systems Manager -> Run Command output for CommandId: $COMMAND_ID"
+              echo "SSM command still InProgress after 15 minutes. Check Run Command output for CommandId: $COMMAND_ID"
               exit 1
             fi
 
