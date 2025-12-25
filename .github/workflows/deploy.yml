@@ -70,7 +70,7 @@ jobs:
 
               "echo Generating .env file from AWS SSM",
 
-              "cat > .env <<EOF
+              "cat > .env <<'EOF'
                   SPRING_PROFILE=$(aws ssm get-parameter --name /ems/prod/SPRING_PROFILE --with-decryption --query Parameter.Value --output text)
                   DB_HOST=$(aws ssm get-parameter --name /ems/prod/DB_HOST --with-decryption --query Parameter.Value --output text)
                   DB_PORT=$(aws ssm get-parameter --name /ems/prod/DB_PORT --with-decryption --query Parameter.Value --output text)
