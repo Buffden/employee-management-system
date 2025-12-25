@@ -118,7 +118,7 @@ jobs:
             --instance-ids "$INSTANCE_ID" \
             --document-name "AWS-RunShellScript" \
             --comment "Deploy EMS via SSM" \
-            --parameters "commands=echo ${ENCODED_SCRIPT} | base64 --decode | IMAGE_TAG='${IMAGE_TAG}' bash" \
+            --parameters "commands=export IMAGE_TAG=${IMAGE_TAG} && echo ${ENCODED_SCRIPT} | base64 --decode | bash" \
             --query "Command.CommandId" \
             --output text)
 
