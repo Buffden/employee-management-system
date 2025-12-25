@@ -62,23 +62,23 @@ jobs:
 
           umask 077
           cat > .env <<ENV
-SPRING_PROFILE=$(aws ssm get-parameter --name /ems/prod/SPRING_PROFILE --with-decryption --query Parameter.Value --output text)
-DB_HOST=$(aws ssm get-parameter --name /ems/prod/DB_HOST --with-decryption --query Parameter.Value --output text)
-DB_PORT=$(aws ssm get-parameter --name /ems/prod/DB_PORT --with-decryption --query Parameter.Value --output text)
-DB_NAME=$(aws ssm get-parameter --name /ems/prod/DB_NAME --with-decryption --query Parameter.Value --output text)
-DB_USER=$(aws ssm get-parameter --name /ems/prod/DB_USER --with-decryption --query Parameter.Value --output text)
-DB_PWD=$(aws ssm get-parameter --name /ems/prod/DB_PWD --with-decryption --query Parameter.Value --output text)
-JWT_SECRET_KEY=$(aws ssm get-parameter --name /ems/prod/JWT_SECRET_KEY --with-decryption --query Parameter.Value --output text)
-CORS_ALLOWED_ORIGINS=$(aws ssm get-parameter --name /ems/prod/CORS_ALLOWED_ORIGINS --with-decryption --query Parameter.Value --output text)
-FRONTEND_BASE_URL=$(aws ssm get-parameter --name /ems/prod/FRONTEND_BASE_URL --with-decryption --query Parameter.Value --output text)
-ENV
+          SPRING_PROFILE=$(aws ssm get-parameter --name /ems/prod/SPRING_PROFILE --with-decryption --query Parameter.Value --output text)
+          DB_HOST=$(aws ssm get-parameter --name /ems/prod/DB_HOST --with-decryption --query Parameter.Value --output text)
+          DB_PORT=$(aws ssm get-parameter --name /ems/prod/DB_PORT --with-decryption --query Parameter.Value --output text)
+          DB_NAME=$(aws ssm get-parameter --name /ems/prod/DB_NAME --with-decryption --query Parameter.Value --output text)
+          DB_USER=$(aws ssm get-parameter --name /ems/prod/DB_USER --with-decryption --query Parameter.Value --output text)
+          DB_PWD=$(aws ssm get-parameter --name /ems/prod/DB_PWD --with-decryption --query Parameter.Value --output text)
+          JWT_SECRET_KEY=$(aws ssm get-parameter --name /ems/prod/JWT_SECRET_KEY --with-decryption --query Parameter.Value --output text)
+          CORS_ALLOWED_ORIGINS=$(aws ssm get-parameter --name /ems/prod/CORS_ALLOWED_ORIGINS --with-decryption --query Parameter.Value --output text)
+          FRONTEND_BASE_URL=$(aws ssm get-parameter --name /ems/prod/FRONTEND_BASE_URL --with-decryption --query Parameter.Value --output text)
+          ENV
 
           docker pull buffden/ems-backend:latest
           docker pull buffden/ems-gateway:latest
 
           docker compose -f docker-compose.prod.yml down || true
           docker compose -f docker-compose.prod.yml up -d
-SSMEOF
+          SSMEOF
           )
 
           COMMAND_ID="$(aws ssm send-command \
