@@ -60,12 +60,12 @@ jobs:
             --instance-ids "$INSTANCE_ID" \
             --document-name "AWS-RunShellScript" \
             --comment "Deploy EMS (SSM → .env → Docker → Spring)" \
-            --parameters 'commands=[
-set -e
-cd /home/ec2-user/employee-management-system/deployment
+            --parameters commands="$(cat <<'EOF'
+          set -e
+          cd /home/ec2-user/employee-management-system/deployment
 
-umask 077
-cat > .env <<ENV
+          umask 077
+          cat > .env <<ENV
 SPRING_PROFILE=$(aws ssm get-parameter --name /ems/prod/SPRING_PROFILE --with-decryption --query Parameter.Value --output text)
 DB_HOST=$(aws ssm get-parameter --name /ems/prod/DB_HOST --with-decryption --query Parameter.Value --output text)
 DB_PORT=$(aws ssm get-parameter --name /ems/prod/DB_PORT --with-decryption --query Parameter.Value --output text)
@@ -77,13 +77,13 @@ CORS_ALLOWED_ORIGINS=$(aws ssm get-parameter --name /ems/prod/CORS_ALLOWED_ORIGI
 FRONTEND_BASE_URL=$(aws ssm get-parameter --name /ems/prod/FRONTEND_BASE_URL --with-decryption --query Parameter.Value --output text)
 ENV
 
-docker pull buffden/ems-backend:latest
-docker pull buffden/ems-gateway:latest
+          docker pull buffden/ems-backend:latest
+          docker pull buffden/ems-gateway:latest
 
-docker compose -f docker-compose.prod.yml down || true
-docker compose -f docker-compose.prod.yml up -d
-EOF
-)" \
+          docker compose -f docker-compose.prod.yml down || true
+          docker compose -f docker-compose.prod.yml up -d
+          EOF
+          )" \
             --query "Command.CommandId" \
             --output text)
 
