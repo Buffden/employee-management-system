@@ -1,4 +1,4 @@
-import { Injectable } from '@angular/core';
+import { Injectable, inject } from '@angular/core';
 import {
   HttpRequest,
   HttpHandler,
@@ -25,10 +25,10 @@ export class AuthInterceptor implements HttpInterceptor {
     '/auth/reset-password'
   ];
 
-  constructor(
-    private readonly authService: AuthService,
-    private readonly router: Router
-  ) {}
+  private readonly authService = inject(AuthService);
+  private readonly router = inject(Router);
+
+  constructor() {}
 
   intercept(request: HttpRequest<unknown>, next: HttpHandler): Observable<HttpEvent<unknown>> {
     // Check if this is a public endpoint that doesn't require authentication
