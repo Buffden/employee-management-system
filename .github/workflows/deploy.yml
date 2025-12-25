@@ -60,7 +60,7 @@ jobs:
           #
           # Build the remote script
           #
-          REMOTE_SCRIPT=$(cat <<EOF
+          REMOTE_SCRIPT=$(cat <<'EOF'
           set -euo pipefail
 
           : "${IMAGE_TAG:?IMAGE_TAG is required}"
@@ -69,22 +69,24 @@ jobs:
           REPO_DIR="/home/ec2-user/employee-management-system"
           REPO_URL="https://github.com/Buffden/employee-management-system.git"
           
-          if [ ! -d "$REPO_DIR" ]; then
+          if [ ! -d "${REPO_DIR}" ]; then
             echo "Repository not found. Cloning..."
-            mkdir -p "$(dirname "$REPO_DIR")"
-            git clone "$REPO_URL" "$REPO_DIR"
+            REPO_PARENT_DIR=$(dirname "${REPO_DIR}")
+            mkdir -p "${REPO_PARENT_DIR}"
+            git clone "${REPO_URL}" "${REPO_DIR}"
           else
             echo "Repository exists. Pulling latest changes..."
-            cd "$REPO_DIR"
+            cd "${REPO_DIR}"
             git fetch origin
             git reset --hard origin/main
             git clean -fd
           fi
 
-          cd "$REPO_DIR/deployment"
+          cd "${REPO_DIR}/deployment"
 
           umask 077
           cat > .env <<ENV
+          IMAGE_TAG=${IMAGE_TAG}
           SPRING_PROFILE=$(aws ssm get-parameter --name /ems/prod/SPRING_PROFILE --with-decryption --query Parameter.Value --output text)
           DB_HOST=$(aws ssm get-parameter --name /ems/prod/DB_HOST --with-decryption --query Parameter.Value --output text)
           DB_PORT=$(aws ssm get-parameter --name /ems/prod/DB_PORT --with-decryption --query Parameter.Value --output text)
@@ -116,7 +118,7 @@ jobs:
             --instance-ids "$INSTANCE_ID" \
             --document-name "AWS-RunShellScript" \
             --comment "Deploy EMS via SSM" \
-            --parameters commands="echo $ENCODED_SCRIPT | base64 --decode | IMAGE_TAG=$IMAGE_TAG bash" \
+            --parameters "commands=echo ${ENCODED_SCRIPT} | base64 --decode | IMAGE_TAG='${IMAGE_TAG}' bash" \
             --query "Command.CommandId" \
             --output text)
 
