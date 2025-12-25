@@ -60,84 +60,31 @@ jobs:
 
           INSTANCE_ID="i-03a61b7b515af53b7"
 
-          COMMAND_ID=$(aws ssm send-command \
+          aws ssm send-command \
             --instance-ids "$INSTANCE_ID" \
             --document-name "AWS-RunShellScript" \
             --comment "Deploy EMS (SSM → .env → Docker → Spring)" \
-            --parameters "commands=[
-          "set -e",
-          "cd /home/ec2-user/employee-management-system/deployment",
+            --parameters commands="$(cat <<'EOF'
+          set -e
+          cd /home/ec2-user/employee-management-system/deployment
 
-          "rm -f .env",
-          "touch .env",
-          "chmod 600 .env",
+          umask 077
+          cat > .env <<ENV
+SPRING_PROFILE=$(aws ssm get-parameter --name /ems/prod/SPRING_PROFILE --with-decryption --query Parameter.Value --output text)
+DB_HOST=$(aws ssm get-parameter --name /ems/prod/DB_HOST --with-decryption --query Parameter.Value --output text)
+DB_PORT=$(aws ssm get-parameter --name /ems/prod/DB_PORT --with-decryption --query Parameter.Value --output text)
+DB_NAME=$(aws ssm get-parameter --name /ems/prod/DB_NAME --with-decryption --query Parameter.Value --output text)
+DB_USER=$(aws ssm get-parameter --name /ems/prod/DB_USER --with-decryption --query Parameter.Value --output text)
+DB_PWD=$(aws ssm get-parameter --name /ems/prod/DB_PWD --with-decryption --query Parameter.Value --output text)
+JWT_SECRET_KEY=$(aws ssm get-parameter --name /ems/prod/JWT_SECRET_KEY --with-decryption --query Parameter.Value --output text)
+CORS_ALLOWED_ORIGINS=$(aws ssm get-parameter --name /ems/prod/CORS_ALLOWED_ORIGINS --with-decryption --query Parameter.Value --output text)
+FRONTEND_BASE_URL=$(aws ssm get-parameter --name /ems/prod/FRONTEND_BASE_URL --with-decryption --query Parameter.Value --output text)
+ENV
 
-          "echo \"SPRING_PROFILE=$(aws ssm get-parameter --name /ems/prod/SPRING_PROFILE --with-decryption --query Parameter.Value --output text)\" >> .env",
+          docker pull buffden/ems-backend:latest
+          docker pull buffden/ems-gateway:latest
 
-          \"echo \\\"ADMIN_CREATE=$(aws ssm get-parameter --name /ems/prod/ADMIN_CREATE --with-decryption --query Parameter.Value --output text)\\\" >> .env\",
-          \"echo \\\"ADMIN_USERNAME=$(aws ssm get-parameter --name /ems/prod/ADMIN_USERNAME --with-decryption --query Parameter.Value --output text)\\\" >> .env\",
-          \"echo \\\"ADMIN_PASSWORD=$(aws ssm get-parameter --name /ems/prod/ADMIN_PASSWORD --with-decryption --query Parameter.Value --output text)\\\" >> .env\",
-          \"echo \\\"ADMIN_EMAIL=$(aws ssm get-parameter --name /ems/prod/ADMIN_EMAIL --with-decryption --query Parameter.Value --output text)\\\" >> .env\",
-
-          \"echo \\\"DB_HOST=$(aws ssm get-parameter --name /ems/prod/DB_HOST --with-decryption --query Parameter.Value --output text)\\\" >> .env\",
-          \"echo \\\"DB_PORT=$(aws ssm get-parameter --name /ems/prod/DB_PORT --with-decryption --query Parameter.Value --output text)\\\" >> .env\",
-          \"echo \\\"DB_NAME=$(aws ssm get-parameter --name /ems/prod/DB_NAME --with-decryption --query Parameter.Value --output text)\\\" >> .env\",
-          \"echo \\\"DB_USER=$(aws ssm get-parameter --name /ems/prod/DB_USER --with-decryption --query Parameter.Value --output text)\\\" >> .env\",
-          \"echo \\\"DB_PWD=$(aws ssm get-parameter --name /ems/prod/DB_PWD --with-decryption --query Parameter.Value --output text)\\\" >> .env\",
-          \"echo \\\"DB_SSL_MODE=$(aws ssm get-parameter --name /ems/prod/DB_SSL_MODE --with-decryption --query Parameter.Value --output text)\\\" >> .env\",
-
-          \"echo \\\"JWT_SECRET_KEY=$(aws ssm get-parameter --name /ems/prod/JWT_SECRET_KEY --with-decryption --query Parameter.Value --output text)\\\" >> .env\",
-
-          \"echo \\\"CORS_ALLOWED_ORIGINS=$(aws ssm get-parameter --name /ems/prod/CORS_ALLOWED_ORIGINS --with-decryption --query Parameter.Value --output text)\\\" >> .env\",
-          \"echo \\\"FRONTEND_BASE_URL=$(aws ssm get-parameter --name /ems/prod/FRONTEND_BASE_URL --with-decryption --query Parameter.Value --output text)\\\" >> .env\",
-
-          \"echo \\\"EMAIL_SERVICE_PROVIDER=$(aws ssm get-parameter --name /ems/prod/EMAIL_SERVICE_PROVIDER --with-decryption --query Parameter.Value --output text)\\\" >> .env\",
-          \"echo \\\"EMAIL_SENDGRID_API_KEY=$(aws ssm get-parameter --name /ems/prod/EMAIL_SENDGRID_API_KEY --with-decryption --query Parameter.Value --output text)\\\" >> .env\",
-          \"echo \\\"EMAIL_SENDGRID_FROM_EMAIL=$(aws ssm get-parameter --name /ems/prod/EMAIL_SENDGRID_FROM_EMAIL --with-decryption --query Parameter.Value --output text)\\\" >> .env\",
-
-          \"echo \\\"DOCKER_USERNAME=$(aws ssm get-parameter --name /ems/prod/DOCKER_USERNAME --with-decryption --query Parameter.Value --output text)\\\" >> .env\",
-          \"echo \\\"DOCKER_PASSWORD=$(aws ssm get-parameter --name /ems/prod/DOCKER_PASSWORD --with-decryption --query Parameter.Value --output text)\\\" >> .env\",
-
-          \"echo \\\"EC2_HOST=$(aws ssm get-parameter --name /ems/prod/EC2_HOST --with-decryption --query Parameter.Value --output text)\\\" >> .env\",
-          \"echo \\\"EC2_SSH_KEY=$(aws ssm get-parameter --name /ems/prod/EC2_SSH_KEY --with-decryption --query Parameter.Value --output text)\\\" >> .env\",
-
-          \"echo \\\"NGINX_PORT=$(aws ssm get-parameter --name /ems/prod/NGINX_PORT --with-decryption --query Parameter.Value --output text)\\\" >> .env\",
-          \"echo \\\"NGINX_SERVER_NAME=$(aws ssm get-parameter --name /ems/prod/NGINX_SERVER_NAME --with-decryption --query Parameter.Value --output text)\\\" >> .env\",
-          \"echo \\\"SSL_ENABLED=$(aws ssm get-parameter --name /ems/prod/SSL_ENABLED --with-decryption --query Parameter.Value --output text)\\\" >> .env\",
-
-          "docker pull buffden/ems-backend:latest",
-          "docker pull buffden/ems-gateway:latest",
-
-          "docker compose -f docker-compose.prod.yml down || true",
-          "docker compose -f docker-compose.prod.yml up -d",
-          "docker compose -f docker-compose.prod.yml ps"
-          ]" \
-            --query "Command.CommandId" \
-            --output text)
-
-          echo "SSM Command ID: $COMMAND_ID"
-
-          while true; do
-            STATUS=$(aws ssm get-command-invocation \
-              --command-id "$COMMAND_ID" \
-              --instance-id "$INSTANCE_ID" \
-              --query "Status" \
-              --output text)
-
-            echo "SSM Status: $STATUS"
-
-            if [[ "$STATUS" == "Success" ]]; then
-              break
-            fi
-
-            if [[ "$STATUS" == "Failed" || "$STATUS" == "Cancelled" || "$STATUS" == "TimedOut" ]]; then
-              aws ssm get-command-invocation \
-                --command-id "$COMMAND_ID" \
-                --instance-id "$INSTANCE_ID" \
-                --query "StandardErrorContent" \
-                --output text || true
-              exit 1
-            fi
-
-            sleep 10
-          done
+          docker compose -f docker-compose.prod.yml down || true
+          docker compose -f docker-compose.prod.yml up -d
+EOF
+)"
