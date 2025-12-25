@@ -116,5 +116,5 @@ jobs:
       
       - name: Build gateway Docker image
         run: |
-          docker build -f gateway/Dockerfile -t ems-gateway:test .
+          docker build -f gateway/Dockerfile --build-arg BUILD_ENV=production -t ems-gateway:test .
 

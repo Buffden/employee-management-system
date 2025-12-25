@@ -32,7 +32,7 @@ jobs:
 
       - name: Build and push gateway image
         run: |
-          docker build -f gateway/Dockerfile -t buffden/ems-gateway:${{ github.sha }} .
+          docker build -f gateway/Dockerfile --build-arg BUILD_ENV=production -t buffden/ems-gateway:${{ github.sha }} .
           docker push buffden/ems-gateway:${{ github.sha }}
 
   deploy:
@@ -55,7 +55,7 @@ jobs:
           set -euo pipefail
 
           INSTANCE_ID="i-03a61b7b515af53b7"
-          export IMAGE_TAG="$GITHUB_SHA"
+          IMAGE_TAG="${{ github.sha }}"
 
           #
           # Build the remote script
@@ -65,7 +65,23 @@ jobs:
 
           : "${IMAGE_TAG:?IMAGE_TAG is required}"
 
-          cd /home/ec2-user/employee-management-system/deployment
+          # Ensure repository exists and is up-to-date
+          REPO_DIR="/home/ec2-user/employee-management-system"
+          REPO_URL="https://github.com/Buffden/employee-management-system.git"
+          
+          if [ ! -d "$REPO_DIR" ]; then
+            echo "Repository not found. Cloning..."
+            mkdir -p "$(dirname "$REPO_DIR")"
+            git clone "$REPO_URL" "$REPO_DIR"
+          else
+            echo "Repository exists. Pulling latest changes..."
+            cd "$REPO_DIR"
+            git fetch origin
+            git reset --hard origin/main
+            git clean -fd
+          fi
+
+          cd "$REPO_DIR/deployment"
 
           umask 077
           cat > .env <<ENV
