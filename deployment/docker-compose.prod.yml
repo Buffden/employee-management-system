@@ -24,9 +24,9 @@ services:
     healthcheck:
       test: ["CMD-SHELL", "wget --quiet --tries=1 --spider http://localhost:8080/actuator/health || exit 1"]
       interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 120s
+      timeout: 5s
+      retries: 5
+      start_period: 300s
 
   gateway:
     image: buffden/ems-gateway:latest
