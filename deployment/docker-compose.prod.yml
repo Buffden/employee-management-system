@@ -4,6 +4,8 @@ services:
   backend:
     image: buffden/ems-backend:latest
     container_name: ems-backend
+
+    # Docker Compose will read variables from .env automatically
     environment:
       SPRING_PROFILE: ${SPRING_PROFILE}
       DB_HOST: ${DB_HOST}
@@ -15,9 +17,12 @@ services:
       CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS}
       FRONTEND_BASE_URL: ${FRONTEND_BASE_URL}
       DB_SSL_MODE: require
+
     networks:
       - ems-network
+
     restart: unless-stopped
+
     healthcheck:
       test: ["CMD-SHELL", "wget --quiet --tries=1 --spider http://localhost:8080/actuator/health || exit 1"]
       interval: 30s
@@ -28,35 +33,45 @@ services:
   gateway:
     image: buffden/ems-gateway:latest
     container_name: ems-gateway
+
     environment:
       BACKEND_HOST: backend
       BACKEND_PORT: "8080"
       SSL_ENABLED: "true"
+
     ports:
       - "80:80"
       - "443:443"
+
     volumes:
       - certbot-etc:/etc/letsencrypt:ro
       - certbot-www:/var/www/certbot:ro
+
     depends_on:
       backend:
         condition: service_healthy
+
     networks:
       - ems-network
+
     restart: unless-stopped
 
   certbot:
     image: certbot/certbot:latest
     container_name: ems-certbot
+
     volumes:
       - certbot-etc:/etc/letsencrypt
       - certbot-www:/var/www/certbot
+
     entrypoint: >
       /bin/sh -c "trap exit TERM;
       while :; do certbot renew;
       sleep 12h & wait $${!}; done;"
+
     networks:
       - ems-network
+
     restart: unless-stopped
 
 volumes:
