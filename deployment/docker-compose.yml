@@ -31,6 +31,7 @@ services:
       - ../db/.env
     environment:
       # Override DB_HOST and DB_PORT for Docker (use service name)
+      # These MUST override env_file values for Docker networking
       - DB_HOST=postgres
       - DB_PORT=5432
       # Use DB credentials from .env file
