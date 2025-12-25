@@ -20,25 +20,9 @@ RUN if [ -f /usr/share/nginx/html/index.csr.html ]; then \
         cp /usr/share/nginx/html/index.csr.html /usr/share/nginx/html/index.html; \
     fi
 
-# Copy both nginx configuration templates
-COPY gateway/nginx-http.conf.template /etc/nginx/templates/nginx-http.conf.template
-COPY gateway/nginx-https.conf.template /etc/nginx/templates/nginx-https.conf.template
-
-# Copy entrypoint script to select template based on SSL_ENABLED
-# Save original nginx entrypoint and use our custom one
-COPY gateway/docker-entrypoint.sh /custom-entrypoint.sh
-RUN chmod +x /custom-entrypoint.sh
-
-# Create SSL directory
-RUN mkdir -p /etc/nginx/ssl
-
-# Environment variables (must be set in docker-compose or db/.env):
-# - NGINX_PORT
-# - NGINX_SERVER_NAME
-# - BACKEND_HOST
-# - BACKEND_PORT
-# - CORS_ALLOWED_ORIGINS
-# - SSL_ENABLED (true/false) - determines which template to use
+# Copy static nginx configuration (production by default, local if BUILD_ENV=local)
+ARG BUILD_ENV=production
+COPY gateway/nginx/nginx.${BUILD_ENV}.conf /etc/nginx/conf.d/default.conf
 
 # Health check (uses port 80 for health check, works for both HTTP and HTTPS)
 HEALTHCHECK --interval=30s --timeout=5s --retries=3 \
@@ -46,6 +30,5 @@ HEALTHCHECK --interval=30s --timeout=5s --retries=3 \
 
 EXPOSE 80 443
 
-# Use custom entrypoint to select template, which then calls original nginx entrypoint
-ENTRYPOINT ["/custom-entrypoint.sh"]
+# Use default nginx entrypoint (no custom logic needed)
 CMD ["nginx", "-g", "daemon off;"]
