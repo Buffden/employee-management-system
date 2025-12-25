@@ -1,6 +1,6 @@
 services:
   backend:
-    image: buffden/ems-backend:latest
+    image: buffden/ems-backend:${IMAGE_TAG}
     container_name: ems-backend
 
     # Docker Compose will read variables from .env automatically
@@ -29,7 +29,7 @@ services:
       start_period: 300s
 
   gateway:
-    image: buffden/ems-gateway:latest
+    image: buffden/ems-gateway:${IMAGE_TAG}
     container_name: ems-gateway
 
     environment:
