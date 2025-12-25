@@ -27,13 +27,13 @@ jobs:
       - name: Build and push backend image
         working-directory: ./backend
         run: |
-          docker build -f Dockerfile.app -t buffden/ems-backend:latest .
-          docker push buffden/ems-backend:latest
+          docker build -f Dockerfile.app -t buffden/ems-backend:${{ github.sha }} .
+          docker push buffden/ems-backend:${{ github.sha }}
 
       - name: Build and push gateway image
         run: |
-          docker build -f gateway/Dockerfile -t buffden/ems-gateway:latest .
-          docker push buffden/ems-gateway:latest
+          docker build -f gateway/Dockerfile -t buffden/ems-gateway:${{ github.sha }} .
+          docker push buffden/ems-gateway:${{ github.sha }}
 
   deploy:
     runs-on: ubuntu-latest
@@ -55,9 +55,11 @@ jobs:
           set -euo pipefail
 
           INSTANCE_ID="i-03a61b7b515af53b7"
+          IMAGE_TAG="${GITHUB_SHA}"
 
-          REMOTE_SCRIPT=$(cat <<'SSMEOF'
+          REMOTE_SCRIPT=$(cat <<SSMEOF
           set -euo pipefail
+          export IMAGE_TAG="${IMAGE_TAG}"
           cd /home/ec2-user/employee-management-system/deployment
 
           umask 077
@@ -73,8 +75,8 @@ jobs:
           FRONTEND_BASE_URL=$(aws ssm get-parameter --name /ems/prod/FRONTEND_BASE_URL --with-decryption --query Parameter.Value --output text)
           ENV
 
-          docker pull buffden/ems-backend:latest
-          docker pull buffden/ems-gateway:latest
+          docker pull buffden/ems-backend:$IMAGE_TAG
+          docker pull buffden/ems-gateway:$IMAGE_TAG
 
           docker compose -f docker-compose.prod.yml down || true
           docker compose -f docker-compose.prod.yml up -d
