@@ -1,3 +1,5 @@
+version: "3.9"
+
 services:
   backend:
     image: buffden/ems-backend:latest
@@ -11,6 +13,7 @@ services:
       DB_PWD: ${DB_PWD}
       JWT_SECRET_KEY: ${JWT_SECRET_KEY}
       CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS}
+      FRONTEND_BASE_URL: ${FRONTEND_BASE_URL}
       DB_SSL_MODE: require
     networks:
       - ems-network
@@ -20,14 +23,14 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 360s
+      start_period: 120s
 
   gateway:
     image: buffden/ems-gateway:latest
     container_name: ems-gateway
     environment:
       BACKEND_HOST: backend
-      BACKEND_PORT: 8080
+      BACKEND_PORT: "8080"
       SSL_ENABLED: "true"
     ports:
       - "80:80"
