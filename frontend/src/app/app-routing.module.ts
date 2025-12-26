@@ -29,6 +29,14 @@ export const routes: Routes = [
         (m) => m.ActivateComponent
       ),
   },
+  // Reset password route (public)
+  {
+    path: 'reset',
+    loadComponent: () =>
+      import('./features/auth/components/activate/activate.component').then(
+        (m) => m.ActivateComponent
+      ),
+  },
   // Register route (System Admin only)
   {
     path: 'register',
