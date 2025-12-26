@@ -20,13 +20,13 @@ export class AppComponent implements OnInit {
   ) {}
 
   ngOnInit(): void {
-    // Fix for router URL mismatch on initial load (e.g., /activate not recognized)
+    // Fix for router URL mismatch on initial load (e.g., /activate or /reset not recognized)
     // This handles cases where the browser URL doesn't match the router's initial state
     if (isPlatformBrowser(this.platformId)) {
       const browserPath = globalThis.location.pathname;
       const browserSearch = globalThis.location.search;
-      if (browserPath === '/activate' && this.router.url === '/') {
-        // Router didn't recognize the /activate route on initial load, manually navigate
+      if ((browserPath === '/activate' || browserPath === '/reset') && this.router.url === '/') {
+        // Router didn't recognize the route on initial load, manually navigate
         this.router.navigateByUrl(browserPath + browserSearch);
       }
     }
