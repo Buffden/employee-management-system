@@ -60,29 +60,18 @@ jobs:
           #
           # Build the remote script
           #
-          REMOTE_SCRIPT=$(cat <<'EOF'
+          REMOTE_SCRIPT=$(cat <<EOF
           set -euo pipefail
 
           : "${IMAGE_TAG:?IMAGE_TAG is required}"
 
-          # Ensure repository exists and is up-to-date
-          REPO_DIR="/home/ec2-user/employee-management-system"
-          REPO_URL="https://github.com/Buffden/employee-management-system.git"
-          
-          if [ ! -d "${REPO_DIR}" ]; then
-            echo "Repository not found. Cloning..."
-            REPO_PARENT_DIR=$(dirname "${REPO_DIR}")
-            mkdir -p "${REPO_PARENT_DIR}"
-            git clone "${REPO_URL}" "${REPO_DIR}"
-          else
-            echo "Repository exists. Pulling latest changes..."
-            cd "${REPO_DIR}"
-            git fetch origin
-            git reset --hard origin/main
-            git clean -fd
-          fi
+          DEPLOY_DIR="/home/ec2-user/employee-management-system/deployment"
+          mkdir -p "$DEPLOY_DIR"
+          cd "$DEPLOY_DIR"
 
-          cd "${REPO_DIR}/deployment"
+          # Always fetch latest compose file from main
+          COMPOSE_URL="https://raw.githubusercontent.com/Buffden/employee-management-system/main/deployment/docker-compose.prod.yml"
+          curl -fsSL "$COMPOSE_URL" -o docker-compose.prod.yml
 
           umask 077
           cat > .env <<ENV
