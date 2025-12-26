@@ -64,12 +64,11 @@ jobs:
           set -euo pipefail
 
           : "${IMAGE_TAG:?IMAGE_TAG is required}"
-
-          DEPLOY_DIR="/home/ec2-user/employee-management-system/deployment"
+          DEPLOY_DIR="/opt/ems/deployment"
           mkdir -p "$DEPLOY_DIR"
+          chmod 755 /opt/ems "$DEPLOY_DIR"
           cd "$DEPLOY_DIR"
 
-          # Always fetch latest compose file from main
           COMPOSE_URL="https://raw.githubusercontent.com/Buffden/employee-management-system/main/deployment/docker-compose.prod.yml"
           curl -fsSL "$COMPOSE_URL" -o docker-compose.prod.yml
 
