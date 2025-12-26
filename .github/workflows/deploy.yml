@@ -70,7 +70,7 @@ jobs:
           cd "$DEPLOY_DIR"
 
           COMPOSE_URL="https://raw.githubusercontent.com/Buffden/employee-management-system/main/deployment/docker-compose.prod.yml"
-          curl -fsSL "${COMPOSE_URL}" -o docker-compose.prod.yml
+          curl -fsSL "$COMPOSE_URL" -o docker-compose.prod.yml
 
           # 3) Generate .env securely (root-owned, 600)
           umask 077
