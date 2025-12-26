@@ -70,8 +70,9 @@ jobs:
           cd "$DEPLOY_DIR"
 
           COMPOSE_URL="https://raw.githubusercontent.com/Buffden/employee-management-system/main/deployment/docker-compose.prod.yml"
-          curl -fsSL "$COMPOSE_URL" -o docker-compose.prod.yml
+          curl -fsSL "${COMPOSE_URL}" -o docker-compose.prod.yml
 
+          # 3) Generate .env securely (root-owned, 600)
           umask 077
           cat > .env <<ENV
           IMAGE_TAG=${IMAGE_TAG}
@@ -86,37 +87,39 @@ jobs:
           FRONTEND_BASE_URL=$(aws ssm get-parameter --name /ems/prod/FRONTEND_BASE_URL --with-decryption --query Parameter.Value --output text)
           ENV
 
-          docker pull buffden/ems-backend:$IMAGE_TAG
-          docker pull buffden/ems-gateway:$IMAGE_TAG
+          # 4) Pull exact images for this deploy (no ambiguity)
+          docker pull "${BACKEND_IMAGE}:${IMAGE_TAG}"
+          docker pull "${GATEWAY_IMAGE}:${IMAGE_TAG}"
 
+          # 5) Save current running images for quick verification / rollback visibility
+          docker compose -f docker-compose.prod.yml ps --format '{{.Service}}\t{{.Image}}' > .deploy-meta.prev 2>/dev/null || true
+
+          # 6) Deploy
           docker compose -f docker-compose.prod.yml down || true
           docker compose -f docker-compose.prod.yml up -d --pull always --force-recreate
+
+          # 7) Verify what is running now
+          echo "Running containers:"
+          docker compose -f docker-compose.prod.yml ps --format 'table {{.Name}}\t{{.Image}}\t{{.Status}}'
+
+          # 8) Cleanup old images (keep last 72h)
+          docker image prune -af --filter "until=72h"
           EOF
           )
 
-          #
-          # Encode script safely for SSM
-          #
-          ENCODED_SCRIPT=$(printf "%s" "$REMOTE_SCRIPT" | base64)
+          ENCODED_SCRIPT="$(printf "%s" "$REMOTE_SCRIPT" | base64 | tr -d '\n')"
 
-          #
-          # Send command to SSM
-          #
           COMMAND_ID=$(aws ssm send-command \
             --instance-ids "$INSTANCE_ID" \
             --document-name "AWS-RunShellScript" \
             --comment "Deploy EMS via SSM" \
-            --parameters "commands=export IMAGE_TAG=${IMAGE_TAG} && echo ${ENCODED_SCRIPT} | base64 --decode | bash" \
+            --parameters commands="export IMAGE_TAG='${IMAGE_TAG}' && echo '${ENCODED_SCRIPT}' | base64 --decode | bash" \
             --query "Command.CommandId" \
             --output text)
 
           echo "SSM Command ID: $COMMAND_ID"
 
-          #
-          # Poll for completion (15 min timeout)
-          #
           DEADLINE=$((SECONDS + 900))
-
           while true; do
             STATUS=$(aws ssm get-command-invocation \
               --command-id "$COMMAND_ID" \
