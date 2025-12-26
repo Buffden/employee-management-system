@@ -38,3 +38,12 @@ export interface ActivateAccountRequest {
   password: string; // will be hashed before sending
 }
 
+export interface ForgotPasswordRequest {
+  email: string;
+}
+
+export interface ResetPasswordRequest {
+  token: string;
+  password: string; // will be hashed before sending
+}
+

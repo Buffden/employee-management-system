@@ -5,7 +5,7 @@ import { Observable, BehaviorSubject, tap, catchError, throwError, from } from '
 import { switchMap } from 'rxjs/operators';
 import { Router } from '@angular/router';
 import { environment } from '../../../environments/environment';
-import { LoginRequest, RegisterRequest, AuthResponse, RefreshTokenRequest, User, ActivateAccountRequest } from '../../shared/models/auth.model';
+import { LoginRequest, RegisterRequest, AuthResponse, RefreshTokenRequest, User, ActivateAccountRequest, ForgotPasswordRequest, ResetPasswordRequest } from '../../shared/models/auth.model';
 import { hashPassword } from '../utils/hash.util';
 import { UserRole } from '../../shared/models/user-role.enum';
 
@@ -130,6 +130,41 @@ export class AuthService {
         return this.http.post<void>(`${this.API_URL}/activate`, request).pipe(
           catchError(error => {
             console.error('Activation error:', error);
+            return throwError(() => error);
+          })
+        );
+      })
+    );
+  }
+
+  /**
+   * Request password reset - sends reset email to user
+   * Returns void on success (generic response for security)
+   */
+  forgotPassword(email: string): Observable<void> {
+    const request: ForgotPasswordRequest = { email };
+    return this.http.post<void>(`${this.API_URL}/forgot-password`, request).pipe(
+      catchError(error => {
+        console.error('Forgot password error:', error);
+        return throwError(() => error);
+      })
+    );
+  }
+
+  /**
+   * Reset password using reset token
+   * Hashes password before sending to backend
+   */
+  resetPassword(token: string, password: string): Observable<void> {
+    return from(hashPassword(password)).pipe(
+      switchMap(hashedPassword => {
+        const request: ResetPasswordRequest = {
+          token: token,
+          password: hashedPassword
+        };
+        return this.http.post<void>(`${this.API_URL}/reset-password`, request).pipe(
+          catchError(error => {
+            console.error('Reset password error:', error);
             return throwError(() => error);
           })
         );
