@@ -60,7 +60,7 @@ jobs:
           #
           # Build the remote script
           #
-          REMOTE_SCRIPT=$(cat <<EOF
+          REMOTE_SCRIPT=$(cat <<'EOF'
           set -euo pipefail
 
           : "${IMAGE_TAG:?IMAGE_TAG is required}"
