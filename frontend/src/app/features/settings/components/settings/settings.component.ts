@@ -10,9 +10,11 @@ import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
 import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 import { ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
+import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 import { SharedModule } from '../../../../shared/shared.module';
 import { AuthService } from '../../../../core/services/auth.service';
 import { User } from '../../../../shared/models/auth.model';
+import { ForgotPasswordDialogComponent } from '../../../auth/components/forgot-password-dialog/forgot-password-dialog.component';
 
 @Component({
   selector: 'app-settings',
@@ -29,7 +31,8 @@ import { User } from '../../../../shared/models/auth.model';
     MatInputModule,
     MatSelectModule,
     MatSlideToggleModule,
-    ReactiveFormsModule
+    ReactiveFormsModule,
+    MatDialogModule
   ],
   templateUrl: './settings.component.html',
   styleUrls: ['./settings.component.css']
@@ -42,7 +45,8 @@ export class SettingsComponent implements OnInit {
 
   constructor(
     private readonly authService: AuthService,
-    private readonly formBuilder: FormBuilder
+    private readonly formBuilder: FormBuilder,
+    private readonly dialog: MatDialog
   ) {
     this.settingsForm = this.formBuilder.group({
       email: ['', [Validators.required, Validators.email]],
@@ -97,6 +101,22 @@ export class SettingsComponent implements OnInit {
 
   get userRole(): string {
     return this.currentUser?.role || '';
+  }
+
+  /**
+   * Open forgot password dialog with current user's email pre-filled
+   */
+  openChangePasswordDialog(): void {
+    const dialogRef = this.dialog.open(ForgotPasswordDialogComponent, {
+      width: '500px',
+      data: {
+        email: this.currentUser?.email || ''
+      }
+    });
+
+    dialogRef.afterClosed().subscribe(() => {
+      // Dialog closed, no action needed
+    });
   }
 }
 

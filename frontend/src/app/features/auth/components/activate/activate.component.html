@@ -2,10 +2,10 @@
   <mat-card class="activate-card">
     <mat-card-header>
       <mat-card-title>
-        <mat-icon class="activate-icon">verified_user</mat-icon>
-        Activate Your Account
+        <mat-icon class="activate-icon">{{ mode === 'reset' ? 'lock_reset' : 'verified_user' }}</mat-icon>
+        {{ mode === 'reset' ? 'Reset Your Password' : 'Activate Your Account' }}
       </mat-card-title>
-      <mat-card-subtitle>Set your password to complete account activation</mat-card-subtitle>
+      <mat-card-subtitle>{{ mode === 'reset' ? 'Enter your new password' : 'Set your password to complete account activation' }}</mat-card-subtitle>
     </mat-card-header>
 
     <mat-card-content>
@@ -79,15 +79,15 @@
           class="full-width activate-button"
           [disabled]="loading || activateForm.invalid || !token">
           <mat-spinner *ngIf="loading" diameter="20" class="button-spinner"></mat-spinner>
-          <span *ngIf="!loading">Activate Account</span>
-          <span *ngIf="loading">Activating...</span>
+          <span *ngIf="!loading">{{ mode === 'reset' ? 'Reset Password' : 'Activate Account' }}</span>
+          <span *ngIf="loading">{{ mode === 'reset' ? 'Resetting...' : 'Activating...' }}</span>
         </button>
       </form>
     </mat-card-content>
 
     <mat-card-footer>
       <div class="activate-footer">
-        <p>Already activated? <a routerLink="/login">Sign in here</a></p>
+        <p>{{ mode === 'reset' ? 'Remember your password?' : 'Already activated?' }} <a routerLink="/login">Sign in here</a></p>
       </div>
     </mat-card-footer>
   </mat-card>

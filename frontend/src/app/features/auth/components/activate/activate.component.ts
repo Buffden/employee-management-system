@@ -36,6 +36,7 @@ export class ActivateComponent implements OnInit, OnDestroy {
   hidePassword = true;
   hideConfirmPassword = true;
   token: string | null = null;
+  mode: 'activate' | 'reset' = 'activate'; // Detect mode from route
   private redirectSubscription?: Subscription;
 
   constructor(
@@ -53,16 +54,24 @@ export class ActivateComponent implements OnInit, OnDestroy {
   }
 
   ngOnInit(): void {
+    // Detect mode from route path
+    const routePath = this.route.snapshot.routeConfig?.path || this.router.url;
+    this.mode = routePath === 'reset' || routePath?.includes('reset') ? 'reset' : 'activate';
+    
     // Get token from query parameter
     this.token = this.route.snapshot.queryParams['token'];
     
     if (!this.token) {
-      this.errorMessage = 'Invalid activation link. No token provided.';
+      const errorMsg = this.mode === 'reset' 
+        ? 'Invalid reset link. No token provided.' 
+        : 'Invalid activation link. No token provided.';
+      this.errorMessage = errorMsg;
       this.activateForm.disable();
     }
 
-    // If already logged in, redirect to dashboard
-    if (this.authService.isAuthenticated()) {
+    // Only redirect authenticated users for activation, not for password reset
+    // Users should be able to reset password even if logged in
+    if (this.mode === 'activate' && this.authService.isAuthenticated()) {
       this.router.navigate(['/dashboard']);
     }
   }
@@ -100,25 +109,45 @@ export class ActivateComponent implements OnInit, OnDestroy {
 
     const password = this.activateForm.get('password')?.value;
 
-    this.authService.activateAccount(this.token, password).subscribe({
+    // Use different API call based on mode
+    const apiCall = this.mode === 'reset' 
+      ? this.authService.resetPassword(this.token, password)
+      : this.authService.activateAccount(this.token, password);
+
+    apiCall.subscribe({
       next: () => {
         this.loading = false;
-        this.successMessage = 'Account activated successfully! Redirecting to login...';
+        const successMsg = this.mode === 'reset'
+          ? 'Password reset successfully! Redirecting to login...'
+          : 'Account activated successfully! Redirecting to login...';
+        this.successMessage = successMsg;
+        
+        // If resetting password and user is logged in, logout first (security best practice)
+        // This ensures old tokens are invalidated and user must login with new password
+        if (this.mode === 'reset' && this.authService.isAuthenticated()) {
+          this.authService.logout();
+        }
+        
         // Redirect to login after 2 seconds using RxJS timer for better testability
         this.redirectSubscription = timer(2000).subscribe(() => {
-          this.router.navigate(['/login'], {
-            queryParams: { activated: 'true' }
-          });
+          const queryParam = this.mode === 'reset' ? { reset: 'success' } : { activated: 'true' };
+          this.router.navigate(['/login'], { queryParams: queryParam });
         });
       },
       error: (error) => {
         this.loading = false;
         if (error.status === 400) {
-          this.errorMessage = error.error?.message || 'Invalid or expired token. Please request a new activation link.';
+          const errorMsg = this.mode === 'reset'
+            ? error.error?.message || 'Invalid or expired reset link. Please request a new one.'
+            : error.error?.message || 'Invalid or expired token. Please request a new activation link.';
+          this.errorMessage = errorMsg;
         } else if (error.status === 0) {
           this.errorMessage = 'Unable to connect to server. Please check your connection.';
         } else {
-          this.errorMessage = 'An error occurred during activation. Please try again.';
+          const errorMsg = this.mode === 'reset'
+            ? 'An error occurred during password reset. Please try again.'
+            : 'An error occurred during activation. Please try again.';
+          this.errorMessage = errorMsg;
         }
       }
     });

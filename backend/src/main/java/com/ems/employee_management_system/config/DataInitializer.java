@@ -67,14 +67,27 @@ public class DataInitializer {
             // Check if admin user already exists (by username)
             userRepository.findByUsername(adminUsername.trim()).ifPresentOrElse(
                 existingAdmin -> {
-                    // Admin exists - update password to use new double-hashing method
-                    logger.info("Admin user '{}' exists. Updating password...", adminUsername);
-                    existingAdmin.setPassword(doubleHashedPassword);
-                    userRepository.save(existingAdmin);
-                    logger.info("Admin user password updated successfully!");
+                    // Admin exists - only update email if it changed, do NOT update password
+                    // Password updates should be done through password reset flow, not on every restart
+                    logger.info("Admin user '{}' already exists. Skipping creation.", adminUsername);
+                    
+                    boolean emailUpdated = false;
+                    String trimmedEmail = adminEmail != null && !adminEmail.trim().isEmpty() ? adminEmail.trim() : "ems.buffden@gmail.com";
+                    if (!trimmedEmail.equals(existingAdmin.getEmail())) {
+                        logger.info("Updating admin email from '{}' to '{}'...", existingAdmin.getEmail(), trimmedEmail);
+                        existingAdmin.setEmail(trimmedEmail);
+                        emailUpdated = true;
+                    }
+                    
+                    if (emailUpdated) {
+                        userRepository.save(existingAdmin);
+                        logger.info("Admin user email updated successfully!");
+                    }
+                    
                     logger.info("   Username: {}", adminUsername);
+                    logger.info("   Email: {}", existingAdmin.getEmail());
                     logger.info("   Role: SYSTEM_ADMIN");
-                    logger.warn("   SECURITY WARNING: Admin password has been updated. Ensure this is intentional.");
+                    logger.info("   Note: Password was NOT updated. Use password reset if needed.");
                 },
                 () -> {
                     // Admin doesn't exist - create new one

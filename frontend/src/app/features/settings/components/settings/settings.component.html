@@ -31,6 +31,16 @@
             <span class="value">{{ currentUser?.email || 'N/A' }}</span>
           </div>
         </div>
+        <div class="account-actions">
+          <button 
+            mat-raised-button 
+            color="primary" 
+            (click)="openChangePasswordDialog()"
+            class="change-password-button">
+            <mat-icon>lock_reset</mat-icon>
+            Change Password
+          </button>
+        </div>
       </mat-card-content>
     </mat-card>
 
