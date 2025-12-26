@@ -50,6 +50,25 @@ mat-card-subtitle {
   width: 100%;
 }
 
+.forgot-password-link {
+  text-align: right;
+  margin-top: -10px;
+  margin-bottom: 10px;
+}
+
+.forgot-password-anchor {
+  color: #667eea;
+  text-decoration: none;
+  font-size: 14px;
+  cursor: pointer;
+  transition: color 0.2s;
+}
+
+.forgot-password-anchor:hover {
+  color: #764ba2;
+  text-decoration: underline;
+}
+
 .login-button {
   height: 48px;
   font-size: 16px;

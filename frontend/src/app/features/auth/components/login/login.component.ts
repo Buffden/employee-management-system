@@ -8,7 +8,9 @@ import { MatInputModule } from '@angular/material/input';
 import { MatButtonModule } from '@angular/material/button';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatIconModule } from '@angular/material/icon';
+import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 import { AuthService } from '../../../../core/services/auth.service';
+import { ForgotPasswordDialogComponent } from '../forgot-password-dialog/forgot-password-dialog.component';
 
 @Component({
   selector: 'app-login',
@@ -21,7 +23,8 @@ import { AuthService } from '../../../../core/services/auth.service';
     MatInputModule,
     MatButtonModule,
     MatProgressSpinnerModule,
-    MatIconModule
+    MatIconModule,
+    MatDialogModule
   ],
   templateUrl: './login.component.html',
   styleUrls: ['./login.component.css']
@@ -37,7 +40,8 @@ export class LoginComponent implements OnInit {
     private formBuilder: FormBuilder,
     private authService: AuthService,
     private router: Router,
-    private route: ActivatedRoute
+    private route: ActivatedRoute,
+    private dialog: MatDialog
   ) {
     this.loginForm = this.formBuilder.group({
       username: ['', [Validators.required]],
@@ -139,6 +143,20 @@ export class LoginComponent implements OnInit {
   hasFieldError(fieldName: string): boolean {
     const control = this.loginForm.get(fieldName);
     return !!(control && control.invalid && (control.dirty || control.touched));
+  }
+
+  /**
+   * Open forgot password dialog
+   */
+  openForgotPasswordDialog(): void {
+    const dialogRef = this.dialog.open(ForgotPasswordDialogComponent, {
+      width: '500px',
+      data: {} // No pre-filled email from login page
+    });
+
+    dialogRef.afterClosed().subscribe(result => {
+      // Dialog closed, no action needed
+    });
   }
 }
 

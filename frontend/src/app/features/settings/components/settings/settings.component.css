@@ -95,6 +95,18 @@
   font-weight: 500;
 }
 
+.account-actions {
+  margin-top: 1.5rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid #e0e0e0;
+}
+
+.change-password-button {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
 .settings-form {
   display: flex;
   flex-direction: column;

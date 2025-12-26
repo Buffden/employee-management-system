@@ -44,6 +44,13 @@
           </mat-error>
         </mat-form-field>
 
+        <!-- Forgot Password Link -->
+        <div class="forgot-password-link">
+          <a (click)="openForgotPasswordDialog()" class="forgot-password-anchor">
+            Forgot Password?
+          </a>
+        </div>
+
         <!-- Error Message -->
         <div *ngIf="errorMessage" class="error-message">
           <mat-icon>error</mat-icon>
