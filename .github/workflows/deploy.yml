@@ -88,8 +88,8 @@ jobs:
           ENV
 
           # 4) Pull exact images for this deploy (no ambiguity)
-          docker pull "${BACKEND_IMAGE}:${IMAGE_TAG}"
-          docker pull "${GATEWAY_IMAGE}:${IMAGE_TAG}"
+          docker pull buffden/ems-backend:$IMAGE_TAG
+          docker pull buffden/ems-gateway:$IMAGE_TAG
 
           # 5) Save current running images for quick verification / rollback visibility
           docker compose -f docker-compose.prod.yml ps --format '{{.Service}}\t{{.Image}}' > .deploy-meta.prev 2>/dev/null || true
@@ -113,7 +113,7 @@ jobs:
             --instance-ids "$INSTANCE_ID" \
             --document-name "AWS-RunShellScript" \
             --comment "Deploy EMS via SSM" \
-            --parameters commands="export IMAGE_TAG='${IMAGE_TAG}' && echo '${ENCODED_SCRIPT}' | base64 --decode | bash" \
+            --parameters "commands=export IMAGE_TAG=${IMAGE_TAG} && echo ${ENCODED_SCRIPT} | base64 --decode | bash" \
             --query "Command.CommandId" \
             --output text)
 
