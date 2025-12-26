@@ -65,20 +65,12 @@ jobs:
 
           : "${IMAGE_TAG:?IMAGE_TAG is required}"
           DEPLOY_DIR="/opt/ems/deployment"
-          BACKEND_IMAGE="buffden/ems-backend"
-          GATEWAY_IMAGE="buffden/ems-gateway"
+          mkdir -p "$DEPLOY_DIR"
+          chmod 755 /opt/ems "$DEPLOY_DIR"
+          cd "$DEPLOY_DIR"
 
-          echo "Starting deployment for IMAGE_TAG=${IMAGE_TAG}"
-
-          # 1) Ensure base dirs exist, then lock down perms
-          mkdir -p /opt/ems
-          mkdir -p "${DEPLOY_DIR}"
-          chmod 755 /opt/ems "${DEPLOY_DIR}"
-          cd "${DEPLOY_DIR}"
-
-          # 2) Fetch latest compose file (single source of truth)
           COMPOSE_URL="https://raw.githubusercontent.com/Buffden/employee-management-system/main/deployment/docker-compose.prod.yml"
-          curl -fsSL "${COMPOSE_URL}" -o docker-compose.prod.yml
+          curl -fsSL "$COMPOSE_URL" -o docker-compose.prod.yml
 
           # 3) Generate .env securely (root-owned, 600)
           umask 077
@@ -96,8 +88,8 @@ jobs:
           ENV
 
           # 4) Pull exact images for this deploy (no ambiguity)
-          docker pull "${BACKEND_IMAGE}:${IMAGE_TAG}"
-          docker pull "${GATEWAY_IMAGE}:${IMAGE_TAG}"
+          docker pull buffden/ems-backend:$IMAGE_TAG
+          docker pull buffden/ems-gateway:$IMAGE_TAG
 
           # 5) Save current running images for quick verification / rollback visibility
           docker compose -f docker-compose.prod.yml ps --format '{{.Service}}\t{{.Image}}' > .deploy-meta.prev 2>/dev/null || true
@@ -121,7 +113,7 @@ jobs:
             --instance-ids "$INSTANCE_ID" \
             --document-name "AWS-RunShellScript" \
             --comment "Deploy EMS via SSM" \
-            --parameters commands="export IMAGE_TAG='${IMAGE_TAG}' && echo '${ENCODED_SCRIPT}' | base64 --decode | bash" \
+            --parameters "commands=export IMAGE_TAG=${IMAGE_TAG} && echo ${ENCODED_SCRIPT} | base64 --decode | bash" \
             --query "Command.CommandId" \
             --output text)
 
