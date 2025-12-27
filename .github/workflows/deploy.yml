@@ -85,6 +85,18 @@ jobs:
           JWT_SECRET_KEY=$(aws ssm get-parameter --name /ems/prod/JWT_SECRET_KEY --with-decryption --query Parameter.Value --output text)
           CORS_ALLOWED_ORIGINS=$(aws ssm get-parameter --name /ems/prod/CORS_ALLOWED_ORIGINS --with-decryption --query Parameter.Value --output text)
           FRONTEND_BASE_URL=$(aws ssm get-parameter --name /ems/prod/FRONTEND_BASE_URL --with-decryption --query Parameter.Value --output text)
+          ADMIN_CREATE=$(aws ssm get-parameter --name /ems/prod/ADMIN_CREATE --with-decryption --query Parameter.Value --output text)
+          ADMIN_USERNAME=$(aws ssm get-parameter --name /ems/prod/ADMIN_USERNAME --with-decryption --query Parameter.Value --output text)
+          ADMIN_PASSWORD=$(aws ssm get-parameter --name /ems/prod/ADMIN_PASSWORD --with-decryption --query Parameter.Value --output text)
+          ADMIN_EMAIL=$(aws ssm get-parameter --name /ems/prod/ADMIN_EMAIL --with-decryption --query Parameter.Value --output text)
+          DB_SSL_MODE=$(aws ssm get-parameter --name /ems/prod/DB_SSL_MODE --with-decryption --query Parameter.Value --output text)
+          EMAIL_SERVICE_PROVIDER=$(aws ssm get-parameter --name /ems/prod/EMAIL_SERVICE_PROVIDER --with-decryption --query Parameter.Value --output text)
+          EMAIL_SENDGRID_API_KEY=$(aws ssm get-parameter --name /ems/prod/EMAIL_SENDGRID_API_KEY --with-decryption --query Parameter.Value --output text)
+          EMAIL_SENDGRID_FROM_EMAIL=$(aws ssm get-parameter --name /ems/prod/EMAIL_SENDGRID_FROM_EMAIL --with-decryption --query Parameter.Value --output text)
+          EC2_HOST=$(aws ssm get-parameter --name /ems/prod/EC2_HOST --with-decryption --query Parameter.Value --output text)
+          NGINX_PORT=$(aws ssm get-parameter --name /ems/prod/NGINX_PORT --with-decryption --query Parameter.Value --output text)
+          NGINX_SERVER_NAME=$(aws ssm get-parameter --name /ems/prod/NGINX_SERVER_NAME --with-decryption --query Parameter.Value --output text)
+          SSL_ENABLED=$(aws ssm get-parameter --name /ems/prod/SSL_ENABLED --with-decryption --query Parameter.Value --output text)
           ENV
 
           # 4) Pull exact images for this deploy (no ambiguity)
