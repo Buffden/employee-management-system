@@ -1,9 +1,25 @@
 @startuml Database ER Diagram
-' Workflow test - updated
+' Comprehensive ER Diagram for Employee Management System
+' Includes all entities, relationships, and attributes from the database
+
 skinparam linetype ortho
 skinparam roundcorner 10
+skinparam shadowing false
+skinparam defaultFontSize 10
+skinparam entity {
+    BackgroundColor #E1F5FF
+    BorderColor #0066CC
+}
+skinparam relationship {
+    ArrowColor #0066CC
+    LineThickness 2
+}
 
-title Employee Management System - Database ER Diagram
+title Employee Management System - Complete Database ER Diagram
+
+' ============================================
+' CORE BUSINESS ENTITIES
+' ============================================
 
 entity "location" as Location {
   * id : UUID <<PK>>
@@ -12,8 +28,13 @@ entity "location" as Location {
   address : VARCHAR(255)
   * city : VARCHAR(100)
   * state : VARCHAR(100)
-  * country : VARCHAR(100)
+  * country : VARCHAR(100) <<default:'USA'>>
   postal_code : VARCHAR(20)
+  --
+  ** Indexes:**
+  - name (unique)
+  - city
+  - state
 }
 
 entity "employee" as Employee {
@@ -25,14 +46,20 @@ entity "employee" as Employee {
   phone : VARCHAR(20)
   address : VARCHAR(255)
   * designation : VARCHAR(100)
-  * salary : DECIMAL(10,2)
+  * salary : DECIMAL(10,2) <<default:0.0>>
   * joining_date : DATE
   performance_rating : DECIMAL(3,2)
-  work_location : VARCHAR(100)
+  * work_location : VARCHAR(100)
   experience_years : INTEGER
   * department_id : UUID <<FK>>
   * location_id : UUID <<FK>>
   manager_id : UUID <<FK>>
+  --
+  ** Indexes:**
+  - email (unique)
+  - department_id
+  - location_id
+  - manager_id
 }
 
 entity "department" as Department {
@@ -40,13 +67,18 @@ entity "department" as Department {
   --
   * name : VARCHAR(100) <<unique>>
   description : TEXT
-  budget : DECIMAL(15,2)
+  budget : DECIMAL(15,2) <<default:0.0>>
   budget_utilization : DECIMAL(5,2)
   performance_metric : DECIMAL(5,2)
   * created_at : DATE
-  location_name : VARCHAR(100)
+  location_name : VARCHAR(100) <<denormalized>>
   location_id : UUID <<FK>>
   department_head_id : UUID <<FK>>
+  --
+  ** Indexes:**
+  - name (unique)
+  - location_id
+  - department_head_id
 }
 
 entity "project" as Project {
@@ -57,9 +89,15 @@ entity "project" as Project {
   * start_date : DATE
   end_date : DATE
   * status : VARCHAR(50)
-  budget : DECIMAL(15,2)
+  budget : DECIMAL(15,2) <<default:0.0>>
   * department_id : UUID <<FK>>
-  project_manager_id : UUID <<FK>>
+  * project_manager_id : UUID <<FK>>
+  --
+  ** Indexes:**
+  - name (unique)
+  - department_id
+  - project_manager_id
+  - status
 }
 
 entity "task" as Task {
@@ -74,6 +112,12 @@ entity "task" as Task {
   completed_date : DATE
   * project_id : UUID <<FK>>
   assigned_to_id : UUID <<FK>>
+  --
+  ** Indexes:**
+  - project_id
+  - assigned_to_id
+  - status
+  - priority
 }
 
 entity "employee_project" as EmployeeProject {
@@ -82,74 +126,187 @@ entity "employee_project" as EmployeeProject {
   --
   role : VARCHAR(100)
   assigned_date : DATE
+  --
+  ** Composite Primary Key:**
+  - (employee_id, project_id)
 }
+
+' ============================================
+' AUTHENTICATION & AUTHORIZATION ENTITIES
+' ============================================
 
 entity "users" as User {
   * id : UUID <<PK>>
   --
   * username : VARCHAR(100) <<unique>>
-  * password : VARCHAR(255)
-  email : VARCHAR(255)
+  password : VARCHAR(255) <<nullable, BCrypt>>
+  * email : VARCHAR(255) <<unique>>
   * role : VARCHAR(50)
-  employee_id : UUID <<FK>>
+  * status : VARCHAR(20) <<enum:ACTIVE,INVITED>>
+  employee_id : UUID <<FK, nullable>>
   * created_at : TIMESTAMP
   last_login : TIMESTAMP
+  --
+  ** Roles:**
+  - SYSTEM_ADMIN
+  - HR_MANAGER
+  - DEPARTMENT_MANAGER
+  - EMPLOYEE
+  --
+  ** Indexes:**
+  - username (unique)
+  - email (unique)
+  - employee_id
 }
 
-' Relationships
-Location ||--o{ Employee : "has employees"
-Location ||--o{ Department : "has departments"
-Department ||--o{ Employee : "employs"
-Employee ||--o{ Employee : "manages (self-ref)"
-Department ||--o| Employee : "headed by"
-Department ||--o{ Project : "has projects"
-Project ||--o| Employee : "managed by"
-Project ||--o{ Task : "has tasks"
-Task ||--o| Employee : "assigned to"
-Employee ||--o{ EmployeeProject : "works on"
-Project ||--o{ EmployeeProject : "has employees"
-User ||--o| Employee : "linked to (optional)"
+entity "invite_tokens" as InviteToken {
+  * id : UUID <<PK>>
+  --
+  * user_id : UUID <<FK>>
+  * token_hash : VARCHAR(128)
+  * expires_at : TIMESTAMP
+  used_at : TIMESTAMP <<nullable>>
+  * created_at : TIMESTAMP
+  --
+  ** Indexes:**
+  - user_id
+  - token_hash
+  - expires_at
+}
 
-note right of User
-  **RBAC Table:**
-  - Stores user accounts for authentication
-  - Role: SYSTEM_ADMIN, HR_MANAGER, 
-    DEPARTMENT_MANAGER, EMPLOYEE
-  - Links to Employee (for Department Manager/Employee roles)
-  - Used for JWT token generation
-  - See: docs/security/roles-and-permissions.md
+entity "reset_tokens" as PasswordResetToken {
+  * id : UUID <<PK>>
+  --
+  * user_id : UUID <<FK>>
+  * token_hash : VARCHAR(128)
+  * expires_at : TIMESTAMP
+  used_at : TIMESTAMP <<nullable>>
+  * created_at : TIMESTAMP
+  --
+  ** Indexes:**
+  - user_id
+  - token_hash
+  - expires_at
+}
+
+' ============================================
+' RELATIONSHIPS
+' ============================================
+
+' Location Relationships
+Location ||--o{ Employee : "has employees\n(location_id)"
+Location ||--o{ Department : "has departments\n(location_id)"
+
+' Department Relationships
+Department ||--o{ Employee : "employs\n(department_id)"
+Department ||--o| Employee : "headed by\n(department_head_id)"
+Department ||--o{ Project : "has projects\n(department_id)"
+
+' Employee Relationships
+Employee ||--o{ Employee : "manages\n(manager_id)\n[self-referential]"
+Employee ||--o{ Project : "manages as PM\n(project_manager_id)"
+Employee ||--o{ Task : "assigned to\n(assigned_to_id)"
+Employee ||--o{ EmployeeProject : "works on\n(employee_id)"
+
+' Project Relationships
+Project ||--o{ Task : "has tasks\n(project_id)"
+Project ||--o{ EmployeeProject : "has employees\n(project_id)"
+
+' User Relationships
+User ||--o| Employee : "linked to\n(employee_id)\n[optional]"
+User ||--o{ InviteToken : "has invite tokens\n(user_id)"
+User ||--o{ PasswordResetToken : "has reset tokens\n(user_id)"
+
+' ============================================
+' NOTES & DOCUMENTATION
+' ============================================
+
+note right of Location
+  **Reference Data Entity**
+  - Stores physical office locations
+  - Referenced by Employee and Department
+  - Default country: USA
 end note
 
 note right of Employee
-  **Indexes:**
-  - email (unique)
-  - department_id
-  - location_id
-  - manager_id
+  **Core Domain Entity**
+  - Represents employees in the organization
+  - Self-referential relationship for manager hierarchy
+  - Links to Department and Location
+  - Performance metrics and experience tracking
 end note
 
 note right of Department
-  **Indexes:**
-  - name (unique)
-  - location_id
-  - department_head_id
+  **Core Domain Entity**
+  - Organizational departments
+  - Budget and performance tracking
+  - Denormalized location_name for display
+  - Has a department head (Employee)
 end note
 
 note right of Project
-  **Indexes:**
-  - name (unique)
-  - department_id
-  - project_manager_id
-  - status
+  **Core Domain Entity**
+  - Projects within departments
+  - Status tracking (e.g., PLANNING, IN_PROGRESS, COMPLETED)
+  - Budget management
+  - Managed by a Project Manager (Employee)
 end note
 
 note right of Task
-  **Indexes:**
-  - project_id
-  - assigned_to_id
-  - status
-  - priority
+  **Core Domain Entity**
+  - Tasks within projects
+  - Status and priority tracking
+  - Assigned to employees
+  - Date tracking (start, due, completed)
+end note
+
+note right of EmployeeProject
+  **Association Entity (Join Table)**
+  - Many-to-Many: Employee ↔ Project
+  - Composite primary key
+  - Tracks role and assignment date
+  - Allows employees to work on multiple projects
+end note
+
+note right of User
+  **Security/Authentication Entity**
+  - RBAC (Role-Based Access Control)
+  - JWT token generation
+  - Optional link to Employee record
+  - Status: ACTIVE or INVITED
+  - Password nullable for INVITED users
+  - See: docs/security/roles-and-permissions.md
+end note
+
+note right of InviteToken
+  **Token Entity**
+  - User invitation/activation tokens
+  - SHA-256 hashed tokens
+  - Expires after configured hours
+  - Single-use (marked with used_at)
+  - Cascade delete on user deletion
+end note
+
+note right of PasswordResetToken
+  **Token Entity**
+  - Password reset tokens
+  - SHA-256 hashed tokens
+  - Expires after configured hours
+  - Single-use (marked with used_at)
+  - Cascade delete on user deletion
+end note
+
+note bottom of Employee
+  **Self-Referential Relationship:**
+  Employee.manager_id → Employee.id
+  Allows hierarchical manager structure
+end note
+
+note bottom of User
+  **User Status Flow:**
+  1. INVITED: User created, no password set
+  2. ACTIVE: User activated via invite token
+  3. Password reset uses reset tokens
 end note
 
 @enduml
-
