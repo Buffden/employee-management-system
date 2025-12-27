@@ -52,7 +52,7 @@
             <!-- Name Column -->
             <ng-container matColumnDef="name">
               <th mat-header-cell *matHeaderCellDef>Name</th>
-              <td mat-cell *matCellDef="let employee" (click)="onEmployeeClick()" class="clickable employee-name" tabindex="0" role="button">
+              <td mat-cell *matCellDef="let employee" [routerLink]="['/employees', employee.id]" class="clickable employee-name" tabindex="0" role="button">
                 {{ employee.firstName }} {{ employee.lastName }}
               </td>
             </ng-container>
@@ -219,7 +219,12 @@
         <div class="sidebar-item">
           <span class="sidebar-label">Location</span>
           <div class="sidebar-value">
-            {{ department.locationName || 'Not specified' }}
+            <a *ngIf="department.locationId" 
+               [routerLink]="['/locations', department.locationId]" 
+               class="clickable-link">
+              {{ department.locationName || 'Not specified' }}
+            </a>
+            <span *ngIf="!department.locationId">{{ department.locationName || 'Not specified' }}</span>
           </div>
         </div>
 
@@ -227,7 +232,12 @@
         <div class="sidebar-item">
           <span class="sidebar-label">Department Manager</span>
           <div class="sidebar-value">
-            {{ department.departmentHeadName || 'Not assigned' }}
+            <a *ngIf="department.departmentHeadId" 
+               [routerLink]="['/employees', department.departmentHeadId]" 
+               class="clickable-link">
+              {{ department.departmentHeadName || 'Not assigned' }}
+            </a>
+            <span *ngIf="!department.departmentHeadId">{{ department.departmentHeadName || 'Not assigned' }}</span>
           </div>
         </div>
 
