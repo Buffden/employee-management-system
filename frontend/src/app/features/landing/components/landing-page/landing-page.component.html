@@ -10,13 +10,11 @@
         Your all-in-one solution for employee management, department organization, and project tracking. Built for modern organizations that value efficiency and collaboration.
       </p>
       <div class="hero-buttons" *ngIf="!isAuthenticated">
-        <button mat-raised-button color="primary" class="cta-button" (click)="navigateToLoginAsDemoEmployee()">
+        <button mat-stroked-button class="cta-button" (click)="navigateToLoginAsDemoEmployee()">
           <mat-icon>login</mat-icon>
           login as Demo Employee
         </button>
-      </div>
-      <div class="hero-buttons" *ngIf="!isAuthenticated">
-        <button mat-raised-button color="primary" class="cta-button" (click)="navigateToLogin()">
+        <button mat-stroked-button class="cta-button" (click)="navigateToLogin()">
           <mat-icon>login</mat-icon>
           Sign In
         </button>
