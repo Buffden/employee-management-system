@@ -72,9 +72,7 @@ public class DepartmentController {
     }
 
     @GetMapping("/{id}")
-    @PreAuthorize("hasAnyRole('" + RoleConstants.SYSTEM_ADMIN + "', '" + RoleConstants.HR_MANAGER + "', '" + RoleConstants.DEPARTMENT_MANAGER + "', '" + RoleConstants.EMPLOYEE + "') and " +
-                  "(@securityService.hasRole('" + RoleConstants.SYSTEM_ADMIN + "') or @securityService.hasRole('" + RoleConstants.HR_MANAGER + "') or " +
-                  "@securityService.isOwnDepartment(#id))")
+    @PreAuthorize("hasAnyRole('" + RoleConstants.SYSTEM_ADMIN + "', '" + RoleConstants.HR_MANAGER + "', '" + RoleConstants.DEPARTMENT_MANAGER + "', '" + RoleConstants.EMPLOYEE + "')")
     public ResponseEntity<DepartmentResponseDTO> getById(@PathVariable UUID id) {
         logger.debug("Fetching department with id: {}", id);
         Department department = departmentService.getById(id);
