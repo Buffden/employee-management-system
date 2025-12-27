@@ -99,22 +99,25 @@ jobs:
           SSL_ENABLED=$(aws ssm get-parameter --name /ems/prod/SSL_ENABLED --with-decryption --query Parameter.Value --output text)
           ENV
 
-          # 4) Pull exact images for this deploy (no ambiguity)
+          # 4) Login to Docker Hub using credentials from SSM (password not stored in variable)
+          aws ssm get-parameter --name /ems/prod/DOCKER_PASSWORD --with-decryption --query Parameter.Value --output text | docker login -u buffden --password-stdin
+
+          # 5) Pull exact images for this deploy (no ambiguity)
           docker pull buffden/ems-backend:$IMAGE_TAG
           docker pull buffden/ems-gateway:$IMAGE_TAG
 
-          # 5) Save current running images for quick verification / rollback visibility
+          # 6) Save current running images for quick verification / rollback visibility
           docker compose -f docker-compose.prod.yml ps --format '{{.Service}}\t{{.Image}}' > .deploy-meta.prev 2>/dev/null || true
 
-          # 6) Deploy
+          # 7) Deploy
           docker compose -f docker-compose.prod.yml down || true
           docker compose -f docker-compose.prod.yml up -d --pull always --force-recreate
 
-          # 7) Verify what is running now
+          # 8) Verify what is running now
           echo "Running containers:"
           docker compose -f docker-compose.prod.yml ps --format 'table {{.Name}}\t{{.Image}}\t{{.Status}}'
 
-          # 8) Cleanup old images (keep last 72h)
+          # 9) Cleanup old images (keep last 72h)
           docker image prune -af --filter "until=72h"
           EOF
           )
