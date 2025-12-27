@@ -52,6 +52,7 @@ export class TableComponent implements OnChanges, AfterViewInit, OnDestroy {
   private destroy$ = new Subject<void>();
   private paginatorSubscription?: Subscription;
   private sortSubscription?: Subscription;
+  private currentSortState: { active: string; direction: 'asc' | 'desc' } | null = null;
 
   constructor(
     public matDialog: MatDialog,
@@ -79,6 +80,23 @@ export class TableComponent implements OnChanges, AfterViewInit, OnDestroy {
     
     // Use setTimeout to ensure ViewChild is fully initialized after change detection
     setTimeout(() => {
+      // Connect sort to dataSource (required for sortChange events to fire)
+      // Even though we use backend sorting, MatSort needs to be connected for events
+      // Disable actual sorting on dataSource to prevent local sorting (we use backend sorting)
+      if (this.sort && this.dataSource) {
+        this.dataSource.sort = this.sort;
+        // Disable sorting function to prevent local sorting while keeping events
+        // This prevents MatSort from actually sorting the dataSource, but keeps sortChange events working
+        this.dataSource.sortingDataAccessor = (data: any, sortHeaderId: string) => {
+          // Return a constant value to prevent actual sorting
+          // MatSort will still emit sortChange events, but won't reorder the data
+          return 0;
+        };
+      }
+      if (this.paginator && this.dataSource && !this.useBackendPagination) {
+        this.dataSource.paginator = this.paginator;
+      }
+      
       this.setupSortAndPagination();
       
       // Initialize default sorting from config if available (for visual indicators only)
@@ -116,12 +134,48 @@ export class TableComponent implements OnChanges, AfterViewInit, OnDestroy {
           return;
         }
         
+        // Ignore empty direction (shouldn't happen with disableClear=true, but handle it)
+        if (!sort.direction || sort.direction.trim() === '') {
+          return;
+        }
+        
         // Emit sort event to parent for backend sorting
         const column = this.tableConfig.columns?.find(col => col.key === sort.active);
         if (column && column.sortable !== false) {
+          // Convert Material sort direction ('asc'/'desc') to backend format ('ASC'/'DESC')
+          // Material MatSort returns: 'asc', 'desc', or '' (empty)
+          // Normalize to lowercase first to handle any case variations
+          const normalizedDirection = (sort.direction || '').toLowerCase().trim();
+          
+          // Determine direction: toggle if same column, otherwise use MatSort's direction
+          let direction: 'ASC' | 'DESC';
+          if (this.currentSortState && this.currentSortState.active === sort.active) {
+            // Same column clicked - toggle the direction
+            direction = this.currentSortState.direction === 'asc' ? 'DESC' : 'ASC';
+          } else {
+            // New column or first click - use MatSort's direction (should be 'asc' on first click)
+            direction = normalizedDirection === 'desc' ? 'DESC' : 'ASC';
+          }
+          
+          // Update tracked sort state
+          this.currentSortState = {
+            active: sort.active,
+            direction: direction === 'DESC' ? 'desc' : 'asc'
+          };
+          
+          // Debug log to verify direction (remove in production)
+          console.log('Sort change:', { 
+            active: sort.active, 
+            rawDirection: sort.direction, 
+            normalized: normalizedDirection,
+            previousState: this.currentSortState,
+            finalDirection: direction,
+            sortObject: sort
+          });
+          
           this.sortChange.emit({
             active: sort.active,
-            direction: sort.direction.toUpperCase()
+            direction: direction
           });
         }
       });
@@ -196,7 +250,25 @@ export class TableComponent implements OnChanges, AfterViewInit, OnDestroy {
         return data;
       }
     });
+    
+    // Preserve current sort state before recreating dataSource
+    const currentSortActive = this.sort?.active || null;
+    const currentSortDirection = this.sort?.direction || null;
+    
     this.dataSource = new MatTableDataSource<TableCellData>(genTableData);
+    
+    // Connect sort and paginator to dataSource (required for events to fire)
+    // Even though we use backend sorting, MatSort needs to be connected for sortChange events
+    if (this.sort) {
+      this.dataSource.sort = this.sort;
+      // Restore sort state if it existed
+      if (currentSortActive && currentSortDirection) {
+        this.sort.sort({ id: currentSortActive, start: currentSortDirection as 'asc' | 'desc', disableClear: true });
+      }
+    }
+    if (this.paginator && !this.useBackendPagination) {
+      this.dataSource.paginator = this.paginator;
+    }
     
     // Trigger change detection and use setTimeout to ensure ViewChild is available after data change
     this.cdr.detectChanges();
