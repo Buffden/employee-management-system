@@ -25,10 +25,10 @@ export class AuthInterceptor implements HttpInterceptor {
     '/auth/reset-password'
   ];
 
-  private readonly authService = inject(AuthService);
-  private readonly router = inject(Router);
-
-  constructor() {}
+  constructor(
+    private readonly authService: AuthService,
+    private readonly router: Router
+  ) {}
 
   intercept(request: HttpRequest<unknown>, next: HttpHandler): Observable<HttpEvent<unknown>> {
     // Check if this is a public endpoint that doesn't require authentication

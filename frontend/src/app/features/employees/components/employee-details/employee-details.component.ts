@@ -1,4 +1,4 @@
-import { Component, OnInit, Input } from '@angular/core';
+import { Component, OnInit, OnDestroy, Input } from '@angular/core';
 import { ActivatedRoute, Router, RouterModule } from '@angular/router';
 import { Employee } from '../../../../shared/models/employee.model';
 import { Department } from '../../../../shared/models/department.model';
@@ -15,7 +15,8 @@ import { OverlayDialogComponent } from '../../../../shared/components/overlay-di
 import { ConfirmationDialogComponent } from '../../../../shared/components/confirmation-dialog/confirmation-dialog.component';
 import { DialogData, overlayType } from '../../../../shared/models/dialog';
 import { TableCellData, FormMode } from '../../../../shared/models/table';
-import { filter } from 'rxjs/operators';
+import { filter, takeUntil } from 'rxjs/operators';
+import { Subject } from 'rxjs';
 import { AuthService } from '../../../../core/services/auth.service';
 
 @Component({
@@ -31,7 +32,7 @@ import { AuthService } from '../../../../core/services/auth.service';
     MatMenuModule
   ]
 })
-export class EmployeeDetailsComponent implements OnInit {
+export class EmployeeDetailsComponent implements OnInit, OnDestroy {
   @Input() item: Employee | null = null;
 
   employee: Employee | null = null;
@@ -40,6 +41,7 @@ export class EmployeeDetailsComponent implements OnInit {
   manager: Employee | null = null;
   loading = true;
   errorMessage: string | null = null;
+  private readonly destroy$ = new Subject<void>();
 
   constructor(
     private readonly route: ActivatedRoute,
@@ -52,10 +54,20 @@ export class EmployeeDetailsComponent implements OnInit {
   ) {}
 
   ngOnInit(): void {
-    const employeeId = this.route.snapshot.paramMap.get('employeeId') || this.route.snapshot.paramMap.get('id');
-    if (employeeId) {
-      this.loadEmployee(employeeId);
-    }
+    // Subscribe to route parameter changes to reload when navigating between employees
+    this.route.paramMap.pipe(
+      takeUntil(this.destroy$)
+    ).subscribe(params => {
+      const employeeId = params.get('employeeId') || params.get('id');
+      if (employeeId) {
+        this.loadEmployee(employeeId);
+      }
+    });
+  }
+
+  ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
   }
 
   loadEmployee(id: string): void {
