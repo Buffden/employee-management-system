@@ -24,8 +24,16 @@ public class DepartmentMapper {
         dto.setDescription(department.getDescription());
         if (department.getLocation() != null) {
             dto.setLocationId(department.getLocation().getId());
+            // Use location name from relationship if available, fallback to denormalized field
+            String locationName = department.getLocation().getName();
+            if (locationName == null || locationName.isEmpty()) {
+                locationName = department.getLocationName();
+            }
+            dto.setLocationName(locationName);
+        } else {
+            // If location relationship is not loaded, use denormalized field
+            dto.setLocationName(department.getLocationName());
         }
-        dto.setLocationName(department.getLocationName());
         dto.setCreatedAt(department.getCreatedAt());
         dto.setBudget(department.getBudget());
         dto.setBudgetUtilization(department.getBudgetUtilization());
