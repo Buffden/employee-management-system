@@ -15,7 +15,6 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.beans.factory.annotation.Value;
 
-import java.util.HashMap;
 import java.util.Map;
 
 import jakarta.servlet.http.HttpServletRequest;
@@ -32,6 +31,8 @@ import com.ems.employee_management_system.services.AuthService;
 import com.ems.employee_management_system.services.AccountProvisioningService;
 import com.ems.employee_management_system.constants.RoleConstants;
 import com.ems.employee_management_system.auth.JWTManager;
+import com.ems.employee_management_system.ratelimit.RateLimiterService;
+import com.ems.employee_management_system.ratelimit.RateLimitPolicy;
 
 import jakarta.validation.Valid;
 
@@ -46,6 +47,7 @@ public class AuthController {
     private final AuthService authService;
     private final AccountProvisioningService accountProvisioningService;
     private final JWTManager jwtManager;
+    private final RateLimiterService rateLimiterService;
 
     @Value("${app.cookies.secure:true}")
     private boolean secureCookies;
@@ -64,10 +66,12 @@ public class AuthController {
     
     public AuthController(AuthService authService,
                           AccountProvisioningService accountProvisioningService,
-                          JWTManager jwtManager) {
+                          JWTManager jwtManager,
+                          RateLimiterService rateLimiterService) {
         this.authService = authService;
         this.accountProvisioningService = accountProvisioningService;
         this.jwtManager = jwtManager;
+        this.rateLimiterService = rateLimiterService;
     }
     
     /**
@@ -109,6 +113,18 @@ public class AuthController {
     public ResponseEntity<AuthResponseDTO> login(@Valid @RequestBody AuthRequestDTO request,
                                                  HttpServletRequest httpRequest,
                                                  HttpServletResponse response) {
+        // Apply rate limiting
+        String clientIp = getClientIp(httpRequest);
+        String rateLimitKey = "login:" + clientIp;
+        
+        if (!rateLimiterService.allowRequest(rateLimitKey, RateLimitPolicy.AUTH_LOGIN)) {
+            logger.warn("Rate limit exceeded for login from IP: {}", clientIp);
+            return ResponseEntity.status(429)
+                .body(AuthResponseDTO.builder()
+                    .message("Too many login attempts. Please try again later.")
+                    .build());
+        }
+        
         logger.info("Login request for username: {}", request.getUsername());
         
         try {
@@ -198,7 +214,19 @@ public class AuthController {
      * Forgot password - create reset token
      */
     @PostMapping("/forgot-password")
-    public ResponseEntity<Map<String, String>> forgotPassword(@Valid @RequestBody ForgotPasswordRequestDTO request) {
+    public ResponseEntity<Map<String, String>> forgotPassword(@Valid @RequestBody ForgotPasswordRequestDTO request,
+                                                               HttpServletRequest httpRequest) {
+        // Apply rate limiting - stricter for password reset
+        String rateLimitKey = "forgot:" + request.getEmail();
+        
+        if (!rateLimiterService.allowRequest(rateLimitKey, RateLimitPolicy.AUTH_FORGOT_PASSWORD)) {
+            logger.warn("Rate limit exceeded for forgot password: {}", request.getEmail());
+            // Return generic response to avoid email enumeration
+            Map<String, String> body = new java.util.HashMap<>();
+            body.put("message", "If the email exists, a reset link will be sent.");
+            return ResponseEntity.status(HttpStatus.OK).body(body);
+        }
+        
         String token = accountProvisioningService.createResetToken(request.getEmail());
         Map<String, String> body = new java.util.HashMap<>();
         body.put("resetToken", token); // Returned for demo mode
@@ -266,6 +294,21 @@ public class AuthController {
         }
 
         return null;
+    }
+
+    private String getClientIp(HttpServletRequest request) {
+        String ip = request.getHeader("X-Forwarded-For");
+        if (ip == null || ip.isEmpty() || "unknown".equalsIgnoreCase(ip)) {
+            ip = request.getHeader("X-Real-IP");
+        }
+        if (ip == null || ip.isEmpty() || "unknown".equalsIgnoreCase(ip)) {
+            ip = request.getRemoteAddr();
+        }
+        // Take first IP if multiple are present (proxy chain)
+        if (ip != null && ip.contains(",")) {
+            ip = ip.split(",")[0].trim();
+        }
+        return ip;
     }
 
     private void maybeStripTokens(HttpServletRequest request, AuthResponseDTO responseBody) {
