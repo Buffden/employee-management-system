@@ -50,9 +50,14 @@ services:
       - EMAIL_SENDGRID_API_KEY=${EMAIL_SENDGRID_API_KEY:-}
       - EMAIL_SENDGRID_FROM_EMAIL=${EMAIL_SENDGRID_FROM_EMAIL:-}
       - EMAIL_SENDGRID_FROM_NAME=${EMAIL_SENDGRID_FROM_NAME:-Employee Management System}
+      # Redis configuration
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
     # No port exposure - only accessible via nginx/gateway
     depends_on:
       postgres:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     networks:
       - ems-network
@@ -63,6 +68,21 @@ services:
       timeout: 10s
       retries: 3
       start_period: 40s
+
+  redis:
+    image: redis:7-alpine
+    container_name: ems-redis
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    volumes:
+      - redis_data:/data
+    networks:
+      - ems-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
 
   gateway:
     build:
@@ -87,6 +107,8 @@ services:
 
 volumes:
   postgres_data:
+    driver: local
+  redis_data:
     driver: local
 
 networks:

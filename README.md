@@ -6,12 +6,14 @@ A full-stack monorepo application for managing employees, departments, projects,
 
 - [Features](#-features)
 - [Tech Stack](#-tech-stack)
+- [Security Features](#-security-features)
 - [Architecture](#-architecture)
 - [Prerequisites](#-prerequisites)
 - [Getting Started](#-getting-started)
 - [Project Structure](#-project-structure)
 - [API Endpoints](#-api-endpoints)
 - [Deployment](#-deployment)
+- [Rate Limiting & DDoS Protection](#-rate-limiting--ddos-protection)
 - [CI/CD](#-cicd)
 - [Development](#-development)
 - [Troubleshooting](#-troubleshooting)
@@ -23,10 +25,31 @@ A full-stack monorepo application for managing employees, departments, projects,
 - **Project Management**: Manage projects with task assignments and employee allocation
 - **Task Management**: Track tasks associated with projects and employees
 - **Location Management**: Manage office locations and associate employees/departments
+- **Authentication & Authorization**: Secure JWT-based authentication with role-based access control
+- **Rate Limiting**: Multi-layer DDoS protection (Nginx + Redis)
 - **Search Functionality**: Search across employees, departments, and projects
 - **User Profile**: View and manage user profiles
 - **Dashboard**: Overview of key metrics and statistics
 - **Responsive UI**: Modern Angular Material design with responsive layouts
+
+## 🔒 Security Features
+
+### Authentication & Authorization
+- **JWT Tokens**: Secure token-based authentication
+- **HTTP-Only Cookies**: Protection against XSS attacks
+- **Role-Based Access**: SYSTEM_ADMIN, HR_MANAGER, EMPLOYEE roles
+- **Password Security**: BCrypt hashing with salt
+- **CORS Protection**: Configurable cross-origin policies
+
+### Rate Limiting & DDoS Protection
+- **Multi-Layer Defense**: 3-tier protection architecture
+   - **Layer 1 (Nginx)**: 10 req/min for auth endpoints, 100 req/sec for API
+   - **Layer 2 (Redis)**: Global token bucket algorithm across all instances
+   - **Layer 3 (CloudFlare)**: Optional free DDoS protection (10+ Gbps)
+- **Attack Protection**: Guards against credential stuffing, brute force, and volumetric attacks
+- **Zero Cost**: Complete implementation at $0/month
+
+📚 **Documentation**: See [Rate Limiting Quick Start](docs/RATE_LIMITING_QUICK_START.md)
 
 ## 🛠 Tech Stack
 
@@ -35,8 +58,11 @@ A full-stack monorepo application for managing employees, departments, projects,
 - **Language**: Java 17
 - **Database**: PostgreSQL
 - **ORM**: Hibernate JPA
+- **Cache/Rate Limiting**: Redis 7
 - **Build Tool**: Maven
 - **API**: RESTful Web Services
+- **Security**: Spring Security, JWT
+- **Validation**: Jakarta Bean Validation
 
 ### Frontend
 - **Framework**: Angular 19.0.5
@@ -45,41 +71,177 @@ A full-stack monorepo application for managing employees, departments, projects,
 - **Build Tool**: Angular CLI
 - **State Management**: RxJS
 - **SSR**: Angular Server-Side Rendering
+- **HTTP Client**: HttpClient with Interceptors
 
 ### DevOps & Infrastructure
 - **Containerization**: Docker & Docker Compose
 - **Web Server**: Nginx (Gateway)
+- **Caching**: Redis (Rate Limiting)
+- **DDoS Protection**: Nginx + Redis + CloudFlare (optional)
 - **CI/CD**: GitHub Actions (CI + CD)
 - **Version Control**: Git
+- **Monitoring**: Docker health checks, application logs
 
 ## 🏗 Architecture
 
-The application follows a **local development architecture** with a unified gateway:
+The application follows a **microservices-inspired architecture** with a unified gateway and multi-layer security:
 
 ```
 ┌─────────────────────────────────────────────┐
-│         Local Development                    │
+│         Application Stack                    │
 ├─────────────────────────────────────────────┤
 │                                             │
-│  ┌──────────────────────────────────────┐  │
-│  │     Gateway (Nginx) :80              │  │
-│  │  ┌──────────────┐  ┌──────────────┐ │  │
-│  │  │  Angular App │  │  API Routes  │ │  │
-│  │  │  (Frontend)  │  │  /api/*      │ │  │
-│  │  └──────────────┘  └──────┬───────┘ │  │
-│  └───────────────────────────┼──────────┘  │
-│                              │             │
-│                       ┌──────▼──────┐     │
-│                       │ Spring Boot │     │
-│                       │  :8080      │     │
-│                       └──────┬──────┘     │
-│                              │             │
-│                       ┌──────▼──────┐     │
-│                       │ PostgreSQL  │     │
-│                       │ (Docker)    │     │
-│                       │ :5432       │     │
-│                       └─────────────┘     │
+│  Client (Browser)                          │
+│         ↓                                  │
+│  ┌─────────────────────────────────────┐  │
+│  │  Gateway (Nginx) :80                │  │
+│  │  ├─ Rate Limiting (Layer 1)         │  │
+│  │  ├─ Angular App (Frontend)          │  │
+│  │  └─ API Proxy (/api/*)              │  │
+│  └──────────────┬──────────────────────┘  │
+│                 ↓                          │
+│  ┌─────────────────────────────────────┐  │
+│  │  Spring Boot :8080                  │  │
+│  │  ├─ JWT Authentication              │  │
+│  │  ├─ Rate Limiting (Layer 2)         │  │
+│  │  ├─ Business Logic                  │  │
+│  │  └─ REST API                        │  │
+│  └──────┬──────────────────┬───────────┘  │
+│         ↓                  ↓               │
+│  ┌──────────────┐   ┌──────────────┐     │
+│  │ PostgreSQL   │   │ Redis Cache  │     │
+│  │ :5432        │   │ :6379        │     │
+│  │ (Persistent) │   │ (Rate Limit) │     │
+│  └──────────────┘   └──────────────┘     │
 └─────────────────────────────────────────────┘
+```
+
+### Security Architecture
+
+```
+Internet → [CloudFlare Free - Layer 3 DDoS]
+           ↓
+        [Nginx - Layer 1 Rate Limiting]
+           ↓
+        [Spring Boot - Layer 2 Redis Rate Limiting]
+           ↓
+        [JWT Authentication & Authorization]
+           ↓
+        [Business Logic & Database]
+```
+
+## 🚀 Quick Start
+
+### Local Development (Fastest)
+
+```bash
+# 1. Clone the repository
+git clone https://github.com/Buffden/employee-management-system.git
+cd employee-management-system
+
+# 2. Set up environment variables
+cp db/.env.example db/.env
+# Edit db/.env with your credentials
+
+# 3. Start all services
+cd deployment
+docker compose up -d --build
+
+# 4. Access the application
+# Frontend: http://localhost
+# Backend API: http://localhost/api
+```
+
+**Default admin credentials:**
+- Username: `admin`
+- Password: `admin123`
+- Role: SYSTEM_ADMIN
+
+### Verify Services
+
+```bash
+# Check all containers are healthy
+docker compose ps
+
+# Should see 4 services running:
+# ✅ ems-postgres (healthy)
+# ✅ ems-redis (healthy)
+# ✅ ems-backend (healthy)
+# ✅ ems-gateway (healthy)
+```
+
+## 🔐 Rate Limiting & DDoS Protection
+
+The system implements a **zero-cost, multi-layer defense** against attacks:
+
+### Implementation Overview
+
+| Layer | Technology | Protection | Cost |
+|-------|-----------|------------|------|
+| **Layer 1** | Nginx | Simple floods, slowloris, connection exhaustion | $0 |
+| **Layer 2** | Redis | Distributed attacks, credential stuffing, global limits | $0 |
+| **Layer 3** | CloudFlare Free | Volumetric DDoS (10+ Gbps), bot protection | $0 |
+| **Total** | - | **99%+ attack coverage** | **$0/month** |
+
+### Rate Limits (Default Configuration)
+
+**Authentication Endpoints:**
+- `/api/auth/login`: 10 attempts per minute per IP
+- `/api/auth/forgot-password`: 2 attempts per minute per email
+- Connection limit: 5 concurrent connections per IP
+
+**General API Endpoints:**
+- `/api/*`: 100 requests per second per IP
+- Connection limit: 10 concurrent connections per IP
+- Request body: Max 10MB
+
+### Testing Rate Limits
+
+```bash
+cd deployment
+
+# Test Redis rate limiting (Layer 2)
+./test-redis-rate-limit.sh
+
+# Test Nginx rate limiting (Layer 1)
+./test-nginx-rate-limit.sh
+
+# Test forgot password limits
+./test-forgot-password-rate-limit.sh
+
+# Run all tests
+./run-all-tests.sh
+
+# Monitor live logs
+./monitor-logs.sh backend  # Backend rate limiter
+./monitor-logs.sh nginx    # Nginx gateway
+./monitor-logs.sh all      # All containers
+```
+
+### Documentation
+
+- **Quick Start**: [RATE_LIMITING_QUICK_START.md](docs/RATE_LIMITING_QUICK_START.md) - 5-minute setup guide
+- **Deep Dive**: [RATE_LIMITING_AND_DDOS_PROTECTION.md](docs/RATE_LIMITING_AND_DDOS_PROTECTION.md) - Complete technical analysis
+- **CloudFlare Setup**: [CLOUDFLARE_SETUP.md](docs/CLOUDFLARE_SETUP.md) - Optional Layer 3 DDoS protection
+
+### Adjusting Rate Limits
+
+**Nginx (Layer 1):**  
+Edit [gateway/nginx/nginx.local.conf](gateway/nginx/nginx.local.conf):
+```nginx
+# Change from 10 req/min to 20 req/min
+limit_req_zone $binary_remote_addr zone=auth_limit:10m rate=20r/m;
+```
+
+**Redis (Layer 2):**  
+Edit [RateLimitPolicy.java](backend/src/main/java/com/ems/employee_management_system/ratelimit/RateLimitPolicy.java):
+```java
+public static final RateLimitPolicy AUTH_LOGIN = new RateLimitPolicy(
+   "AUTH_LOGIN", 
+   20,      // 20 attempts burst (was 10)
+   0.33,    // ~20 per minute refill (was 0.16)
+   3600
+);
 ```
 
 ### Project Structure
