@@ -41,7 +41,7 @@ public class AccountProvisioningService {
                                       PasswordResetTokenRepository resetTokenRepository,
                                       PasswordEncoder passwordEncoder,
                                       EmailService emailService,
-                                      @Value("${app.demo-mode:true}") boolean demoMode,
+                                      @Value("${app.demo-mode:false}") boolean demoMode,
                                       @Value("${app.frontend.base-url}") String frontendBaseUrl) {
         this.userRepository = userRepository;
         this.inviteTokenRepository = inviteTokenRepository;

@@ -38,19 +38,29 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                                    HttpServletResponse response, 
                                    FilterChain filterChain) throws ServletException, IOException {
         
+        String token = null;
         String authHeader = request.getHeader("Authorization");
-        
-        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
-            logger.debug("No Authorization header found for request: {}", request.getRequestURI());
+
+        if (authHeader != null && authHeader.startsWith("Bearer ")) {
+            token = authHeader.substring(7);
+        } else if (request.getCookies() != null) {
+            for (var cookie : request.getCookies()) {
+                if ("access_token".equals(cookie.getName())) {
+                    token = cookie.getValue();
+                    break;
+                }
+            }
+        }
+
+        if (token == null || token.isBlank()) {
+            logger.debug("No Authorization header or access_token cookie found for request: {}", request.getRequestURI());
             filterChain.doFilter(request, response);
             return;
         }
         
-        logger.debug("Authorization header found for request: {}", request.getRequestURI());
+        logger.debug("JWT token found for request: {}", request.getRequestURI());
         
         try {
-            String token = authHeader.substring(7);
-            
             // Check if token is expired before validation
             if (jwtManager.isTokenExpired(token)) {
                 logger.warn("JWT token expired for request: {}", request.getRequestURI());
@@ -113,4 +123,3 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         filterChain.doFilter(request, response);
     }
 }
-
