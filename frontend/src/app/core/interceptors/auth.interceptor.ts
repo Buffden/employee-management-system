@@ -1,4 +1,4 @@
-import { Injectable, inject } from '@angular/core';
+import { Injectable } from '@angular/core';
 import {
   HttpRequest,
   HttpHandler,
@@ -9,12 +9,11 @@ import {
 import { Observable, throwError, BehaviorSubject } from 'rxjs';
 import { catchError, switchMap, filter, take } from 'rxjs/operators';
 import { AuthService } from '../services/auth.service';
-import { Router } from '@angular/router';
 
 @Injectable()
 export class AuthInterceptor implements HttpInterceptor {
   private isRefreshing = false;
-  private readonly refreshTokenSubject: BehaviorSubject<string | null> = new BehaviorSubject<string | null>(null);
+  private readonly refreshTokenSubject: BehaviorSubject<boolean | null> = new BehaviorSubject<boolean | null>(null);
   
   // Public endpoints that don't require authentication
   private readonly publicEndpoints = [
@@ -26,24 +25,14 @@ export class AuthInterceptor implements HttpInterceptor {
   ];
 
   constructor(
-    private readonly authService: AuthService,
-    private readonly router: Router
+    private readonly authService: AuthService
   ) {}
 
   intercept(request: HttpRequest<unknown>, next: HttpHandler): Observable<HttpEvent<unknown>> {
     // Check if this is a public endpoint that doesn't require authentication
     const isPublicEndpoint = this.publicEndpoints.some(endpoint => request.url.includes(endpoint));
 
-    // Skip adding token for public endpoints
-    if (isPublicEndpoint) {
-      return next.handle(request);
-    }
-
-    // Add token to request
-    const token = this.authService.getToken();
-    if (token) {
-      request = this.addTokenToRequest(request, token);
-    }
+    request = this.addCredentialsToRequest(request);
 
     return next.handle(request).pipe(
       catchError((error: HttpErrorResponse) => {
@@ -57,15 +46,8 @@ export class AuthInterceptor implements HttpInterceptor {
     );
   }
 
-  /**
-   * Add Authorization header with Bearer token
-   */
-  private addTokenToRequest(request: HttpRequest<unknown>, token: string): HttpRequest<unknown> {
-    return request.clone({
-      setHeaders: {
-        Authorization: `Bearer ${token}`
-      }
-    });
+  private addCredentialsToRequest(request: HttpRequest<unknown>): HttpRequest<unknown> {
+    return request.clone({ withCredentials: true });
   }
 
   /**
@@ -90,34 +72,25 @@ export class AuthInterceptor implements HttpInterceptor {
       this.isRefreshing = true;
       this.refreshTokenSubject.next(null);
 
-      const refreshToken = this.authService.getRefreshToken();
-      if (refreshToken) {
-        return this.authService.refreshToken().pipe(
-          switchMap((authResponse) => {
-            this.isRefreshing = false;
-            this.refreshTokenSubject.next(authResponse.token);
-            return next.handle(this.addTokenToRequest(request, authResponse.token));
-          }),
-          catchError((error) => {
-            this.isRefreshing = false;
-            this.authService.logout();
-            return throwError(() => error);
-          })
-        );
-      } else {
-        // No refresh token available
-        this.isRefreshing = false;
-        console.error('No refresh token available, logging out');
-        this.authService.logout();
-        return throwError(() => new Error('Session expired. Please login again.'));
-      }
+      return this.authService.refreshToken().pipe(
+        switchMap(() => {
+          this.isRefreshing = false;
+          this.refreshTokenSubject.next(true);
+          return next.handle(this.addCredentialsToRequest(request));
+        }),
+        catchError((error) => {
+          this.isRefreshing = false;
+          this.authService.logout();
+          return throwError(() => error);
+        })
+      );
     }
 
     // If refresh is in progress, wait for it to complete
     return this.refreshTokenSubject.pipe(
-      filter(token => token !== null),
+      filter(state => state !== null),
       take(1),
-      switchMap((token) => next.handle(this.addTokenToRequest(request, token))),
+      switchMap(() => next.handle(this.addCredentialsToRequest(request))),
       catchError(() => {
         // If waiting for refresh fails, return error
         return throwError(() => new Error('Token refresh failed'));
@@ -125,4 +98,3 @@ export class AuthInterceptor implements HttpInterceptor {
     );
   }
 }
-
