@@ -12,14 +12,15 @@ import com.ems.employee_management_system.auth.JWTManager;
 import com.ems.employee_management_system.dtos.AuthRequestDTO;
 import com.ems.employee_management_system.dtos.AuthResponseDTO;
 import com.ems.employee_management_system.dtos.RegisterRequestDTO;
-import com.ems.employee_management_system.dtos.RefreshTokenRequestDTO;
 import com.ems.employee_management_system.dtos.UserDTO;
 import com.ems.employee_management_system.mappers.UserMapper;
 import com.ems.employee_management_system.models.User;
+import com.ems.employee_management_system.repositories.RefreshTokenRepository;
 import com.ems.employee_management_system.repositories.UserRepository;
 import com.ems.employee_management_system.utils.HashUtil;
 import com.ems.employee_management_system.enums.UserRole;
 import com.ems.employee_management_system.enums.UserStatus;
+import com.ems.employee_management_system.models.RefreshToken;
 
 @Service
 public class AuthService {
@@ -27,15 +28,18 @@ public class AuthService {
     private static final Logger logger = LoggerFactory.getLogger(AuthService.class);
     
     private final UserRepository userRepository;
+    private final RefreshTokenRepository refreshTokenRepository;
     private final JWTManager jwtManager;
     private final UserMapper userMapper;
     private final PasswordEncoder passwordEncoder;
     
     public AuthService(UserRepository userRepository,
+                      RefreshTokenRepository refreshTokenRepository,
                       JWTManager jwtManager,
                       UserMapper userMapper,
                       PasswordEncoder passwordEncoder) {
         this.userRepository = userRepository;
+        this.refreshTokenRepository = refreshTokenRepository;
         this.jwtManager = jwtManager;
         this.userMapper = userMapper;
         this.passwordEncoder = passwordEncoder;
@@ -94,18 +98,14 @@ public class AuthService {
         user = userRepository.save(user);
         logger.info("User registered successfully: {}", user.getUsername());
         
-        // Generate tokens
-        String accessToken = jwtManager.generateToken(user);
-        String refreshToken = jwtManager.generateRefreshToken(user);
-        
         // Build response
         UserDTO userDTO = userMapper.toDTO(user);
         
         return AuthResponseDTO.builder()
-                .token(accessToken)
-                .refreshToken(refreshToken)
+                .token(null)
+                .refreshToken(null)
                 .user(userDTO)
-                .expiresIn(86400L) // 24 hours in seconds
+                .expiresIn(0L)
                 .build();
     }
     
@@ -149,7 +149,7 @@ public class AuthService {
         
         // Generate tokens
         String accessToken = jwtManager.generateToken(user);
-        String refreshToken = jwtManager.generateRefreshToken(user);
+        String refreshToken = createAndStoreRefreshToken(user);
         
         // Build response
         UserDTO userDTO = userMapper.toDTO(user);
@@ -168,20 +168,33 @@ public class AuthService {
      * Refresh access token using refresh token
      */
     @Transactional
-    public AuthResponseDTO refreshToken(RefreshTokenRequestDTO request) {
+    public AuthResponseDTO refreshToken(String refreshToken) {
         logger.info("Refreshing token");
         
         // Validate refresh token
-        var claims = jwtManager.validateRefreshToken(request.getRefreshToken());
+        var claims = jwtManager.validateRefreshToken(refreshToken);
         String userId = claims.get("userId", String.class);
+
+        String tokenHash = HashUtil.hashSHA256(refreshToken);
+        RefreshToken storedToken = refreshTokenRepository
+            .findByTokenHashAndRevokedAtIsNullAndExpiresAtAfter(tokenHash, LocalDateTime.now())
+            .orElseThrow(() -> new RuntimeException("Invalid or expired refresh token"));
         
         // Load user
         User user = userRepository.findById(java.util.UUID.fromString(userId))
             .orElseThrow(() -> new RuntimeException("User not found"));
+
+        if (!storedToken.getUser().getId().equals(user.getId())) {
+            throw new RuntimeException("Refresh token does not match user");
+        }
         
         // Generate new tokens
         String accessToken = jwtManager.generateToken(user);
-        String refreshToken = jwtManager.generateRefreshToken(user);
+        String newRefreshToken = createAndStoreRefreshToken(user);
+
+        storedToken.setRevokedAt(LocalDateTime.now());
+        storedToken.setReplacedByTokenHash(HashUtil.hashSHA256(newRefreshToken));
+        refreshTokenRepository.save(storedToken);
         
         // Build response
         UserDTO userDTO = userMapper.toDTO(user);
@@ -190,7 +203,7 @@ public class AuthService {
         
         return AuthResponseDTO.builder()
                 .token(accessToken)
-                .refreshToken(refreshToken)
+                .refreshToken(newRefreshToken)
                 .user(userDTO)
                 .expiresIn(86400L) // 24 hours in seconds
                 .build();
@@ -199,10 +212,33 @@ public class AuthService {
     /**
      * Logout user (token invalidation - future: implement token blacklist)
      */
-    public void logout(String token) {
+    public void logout(String refreshToken) {
         logger.info("User logout requested");
-        // Future: Add token to blacklist
-        // For now, client should discard the token
+        if (refreshToken == null || refreshToken.isBlank()) {
+            return;
+        }
+
+        String tokenHash = HashUtil.hashSHA256(refreshToken);
+        refreshTokenRepository
+            .findByTokenHashAndRevokedAtIsNullAndExpiresAtAfter(tokenHash, LocalDateTime.now())
+            .ifPresent(token -> {
+                token.setRevokedAt(LocalDateTime.now());
+                refreshTokenRepository.save(token);
+            });
+    }
+
+    private String createAndStoreRefreshToken(User user) {
+        String refreshToken = jwtManager.generateRefreshToken(user);
+        String tokenHash = HashUtil.hashSHA256(refreshToken);
+
+        RefreshToken token = new RefreshToken();
+        token.setUser(user);
+        token.setTokenHash(tokenHash);
+        token.setExpiresAt(jwtManager.extractExpiration(refreshToken).toInstant()
+            .atZone(java.time.ZoneId.systemDefault())
+            .toLocalDateTime());
+
+        refreshTokenRepository.save(token);
+        return refreshToken;
     }
 }
-
