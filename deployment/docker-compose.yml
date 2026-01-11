@@ -67,7 +67,7 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 40s
+      start_period: 60s
 
   redis:
     image: redis:7-alpine
@@ -104,6 +104,7 @@ services:
       interval: 30s
       timeout: 5s
       retries: 3
+      start_period: 30s
 
 volumes:
   postgres_data:
