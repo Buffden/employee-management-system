@@ -69,10 +69,8 @@ export class RegisterComponent implements OnInit {
       return;
     }
     
-    // Verify token exists
-    const token = this.authService.getToken();
     const user = this.authService.getCurrentUser();
-    console.log('Register page - User:', user?.username, 'Role:', user?.role, 'Token exists:', !!token);
+    console.log('Register page - User:', user?.username, 'Role:', user?.role);
   }
 
   /**
@@ -188,4 +186,3 @@ export class RegisterComponent implements OnInit {
     return !!(control && control.invalid && (control.dirty || control.touched));
   }
 }
-
