@@ -5,7 +5,7 @@ import { Observable, BehaviorSubject, tap, catchError, throwError, from } from '
 import { switchMap } from 'rxjs/operators';
 import { Router } from '@angular/router';
 import { environment } from '../../../environments/environment';
-import { LoginRequest, RegisterRequest, AuthResponse, RefreshTokenRequest, User, ActivateAccountRequest, ForgotPasswordRequest, ResetPasswordRequest } from '../../shared/models/auth.model';
+import { LoginRequest, RegisterRequest, AuthResponse, User, ActivateAccountRequest, ForgotPasswordRequest, ResetPasswordRequest } from '../../shared/models/auth.model';
 import { hashPassword } from '../utils/hash.util';
 import { UserRole } from '../../shared/models/user-role.enum';
 
@@ -13,8 +13,6 @@ import { UserRole } from '../../shared/models/user-role.enum';
   providedIn: 'root'
 })
 export class AuthService {
-  private readonly TOKEN_KEY = 'access_token';
-  private readonly REFRESH_TOKEN_KEY = 'refresh_token';
   private readonly USER_KEY = 'user';
   private readonly API_URL = `${environment.apibaseurl}/auth`;
   private readonly isBrowser: boolean;
@@ -34,10 +32,15 @@ export class AuthService {
     
     // Only initialize from localStorage if in browser
     if (this.isBrowser) {
-      this.currentUserSubject.next(this.getStoredUser());
-      this.isAuthenticatedSubject.next(this.hasValidToken());
-      // Check token expiration on service initialization
-      this.checkTokenExpiration();
+      const storedUser = this.getStoredUser();
+      this.currentUserSubject.next(storedUser);
+      this.isAuthenticatedSubject.next(!!storedUser);
+      // Only attempt refresh when a local session exists to avoid noisy 401s after logout
+      if (storedUser) {
+        this.refreshToken().subscribe({
+          error: () => this.logout(false)
+        });
+      }
     }
   }
 
@@ -55,7 +58,7 @@ export class AuthService {
           // username stays as plain text
         };
         
-        return this.http.post<AuthResponse>(`${this.API_URL}/register`, hashedData).pipe(
+        return this.http.post<AuthResponse>(`${this.API_URL}/register`, hashedData, { withCredentials: true }).pipe(
           tap(response => {
             // Don't auto-login after creating a user - keep current admin session
             console.log('User created successfully:', response.user.username);
@@ -94,12 +97,10 @@ export class AuthService {
         console.log('Making HTTP POST to:', `${this.API_URL}/login`);
         console.log('Request payload:', { username: hashedCredentials.username, password: '***' });
         
-        return this.http.post<AuthResponse>(`${this.API_URL}/login`, hashedCredentials).pipe(
+        return this.http.post<AuthResponse>(`${this.API_URL}/login`, hashedCredentials, { withCredentials: true }).pipe(
           tap(response => {
             console.log('Login response received:', response);
-            this.setAuthData(response);
-            this.currentUserSubject.next(response.user);
-            this.isAuthenticatedSubject.next(true);
+            this.setUser(response.user);
           }),
           catchError(error => {
             console.error('Login HTTP error:', error);
@@ -127,7 +128,7 @@ export class AuthService {
           token: token,
           password: hashedPassword
         };
-        return this.http.post<void>(`${this.API_URL}/activate`, request).pipe(
+        return this.http.post<void>(`${this.API_URL}/activate`, request, { withCredentials: true }).pipe(
           catchError(error => {
             console.error('Activation error:', error);
             return throwError(() => error);
@@ -143,7 +144,7 @@ export class AuthService {
    */
   forgotPassword(email: string): Observable<void> {
     const request: ForgotPasswordRequest = { email };
-    return this.http.post<void>(`${this.API_URL}/forgot-password`, request).pipe(
+    return this.http.post<void>(`${this.API_URL}/forgot-password`, request, { withCredentials: true }).pipe(
       catchError(error => {
         console.error('Forgot password error:', error);
         return throwError(() => error);
@@ -162,7 +163,7 @@ export class AuthService {
           token: token,
           password: hashedPassword
         };
-        return this.http.post<void>(`${this.API_URL}/reset-password`, request).pipe(
+        return this.http.post<void>(`${this.API_URL}/reset-password`, request, { withCredentials: true }).pipe(
           catchError(error => {
             console.error('Reset password error:', error);
             return throwError(() => error);
@@ -175,25 +176,20 @@ export class AuthService {
   /**
    * Logout user and clear all stored data
    */
-  logout(): void {
+  logout(redirectToLogin: boolean = true): void {
     if (this.isBrowser) {
-      const token = this.getToken();
-      if (token) {
-        // Call logout endpoint (fire and forget)
-        this.http.post(`${this.API_URL}/logout`, {}, {
-          headers: { 'Authorization': `Bearer ${token}` }
-        }).subscribe({
-          error: (err) => console.error('Logout API call failed:', err)
-        });
-      }
+      // Call logout endpoint (fire and forget) to clear cookies server-side
+      this.http.post(`${this.API_URL}/logout`, {}, { withCredentials: true }).subscribe({
+        error: (err) => console.error('Logout API call failed:', err)
+      });
     }
 
-    this.clearAuthData();
-    this.currentUserSubject.next(null);
-    this.isAuthenticatedSubject.next(false);
+    this.clearUser();
     
     if (this.isBrowser) {
-      this.router.navigate(['/login']);
+      if (redirectToLogin) {
+        this.router.navigate(['/login']);
+      }
     }
   }
 
@@ -201,41 +197,17 @@ export class AuthService {
    * Refresh access token using refresh token
    */
   refreshToken(): Observable<AuthResponse> {
-    const refreshToken = this.getRefreshToken();
-    if (!refreshToken) {
-      return throwError(() => new Error('No refresh token available'));
-    }
-
-    const request: RefreshTokenRequest = { refreshToken };
-    return this.http.post<AuthResponse>(`${this.API_URL}/refresh`, request).pipe(
+    return this.http.post<AuthResponse>(`${this.API_URL}/refresh`, {}, { withCredentials: true }).pipe(
       tap(response => {
-        this.setAuthData(response);
-        this.currentUserSubject.next(response.user);
-        this.isAuthenticatedSubject.next(true);
+        this.setUser(response.user);
       }),
       catchError(error => {
         console.error('Token refresh error:', error);
         // If refresh fails, logout user
-        this.logout();
+        this.logout(false);
         return throwError(() => error);
       })
     );
-  }
-
-  /**
-   * Get current access token
-   */
-  getToken(): string | null {
-    if (!this.isBrowser) return null;
-    return localStorage.getItem(this.TOKEN_KEY);
-  }
-
-  /**
-   * Get current refresh token
-   */
-  getRefreshToken(): string | null {
-    if (!this.isBrowser) return null;
-    return localStorage.getItem(this.REFRESH_TOKEN_KEY);
   }
 
   /**
@@ -296,24 +268,18 @@ export class AuthService {
     return user ? roles.includes(user.role) : false;
   }
 
-  /**
-   * Store authentication data in localStorage
-   */
-  private setAuthData(response: AuthResponse): void {
+  private setUser(user: User): void {
     if (!this.isBrowser) return;
-    localStorage.setItem(this.TOKEN_KEY, response.token);
-    localStorage.setItem(this.REFRESH_TOKEN_KEY, response.refreshToken);
-    localStorage.setItem(this.USER_KEY, JSON.stringify(response.user));
+    localStorage.setItem(this.USER_KEY, JSON.stringify(user));
+    this.currentUserSubject.next(user);
+    this.isAuthenticatedSubject.next(true);
   }
 
-  /**
-   * Clear all authentication data from localStorage
-   */
-  private clearAuthData(): void {
+  private clearUser(): void {
     if (!this.isBrowser) return;
-    localStorage.removeItem(this.TOKEN_KEY);
-    localStorage.removeItem(this.REFRESH_TOKEN_KEY);
     localStorage.removeItem(this.USER_KEY);
+    this.currentUserSubject.next(null);
+    this.isAuthenticatedSubject.next(false);
   }
 
   /**
@@ -324,51 +290,4 @@ export class AuthService {
     const userStr = localStorage.getItem(this.USER_KEY);
     return userStr ? JSON.parse(userStr) : null;
   }
-
-  /**
-   * Check if there's a valid token stored
-   */
-  private hasValidToken(): boolean {
-    const token = this.getToken();
-    if (!token) return false;
-
-    // Check if token is expired
-    try {
-      const payload = JSON.parse(atob(token.split('.')[1]));
-      const expiration = payload.exp * 1000; // Convert to milliseconds
-      return Date.now() < expiration;
-    } catch {
-      return false;
-    }
-  }
-
-  /**
-   * Check token expiration and refresh if needed
-   */
-  private checkTokenExpiration(): void {
-    if (!this.isBrowser) return;
-    
-    const token = this.getToken();
-    if (!token) {
-      this.logout();
-      return;
-    }
-
-    try {
-      const payload = JSON.parse(atob(token.split('.')[1]));
-      const expiration = payload.exp * 1000;
-      const now = Date.now();
-      const timeUntilExpiry = expiration - now;
-
-      // If token expires in less than 5 minutes or already expired, refresh it
-      if (timeUntilExpiry < 5 * 60 * 1000) {
-        this.refreshToken().subscribe({
-          error: () => this.logout()
-        });
-      }
-    } catch {
-      this.logout();
-    }
-  }
 }
-
