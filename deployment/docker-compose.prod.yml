@@ -23,8 +23,8 @@ services:
       EMAIL_SENDGRID_API_KEY: ${EMAIL_SENDGRID_API_KEY}
       EMAIL_SENDGRID_FROM_EMAIL: ${EMAIL_SENDGRID_FROM_EMAIL}
       EMAIL_SENDGRID_FROM_NAME: ${EMAIL_SENDGRID_FROM_NAME:-Employee Management System}
-      REDIS_HOST: ${REDIS_HOST}
-      REDIS_PORT: ${REDIS_PORT}
+      REDIS_HOST: ${REDIS_HOST:-redis}
+      REDIS_PORT: ${REDIS_PORT:-6379}
       EC2_HOST: ${EC2_HOST}
       NGINX_PORT: ${NGINX_PORT}
       NGINX_SERVER_NAME: ${NGINX_SERVER_NAME}
@@ -41,6 +41,21 @@ services:
       timeout: 5s
       retries: 5
       start_period: 300s
+
+  redis:
+    image: redis:7-alpine
+    container_name: ems-redis
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    volumes:
+      - redis_data:/data
+    networks:
+      - ems-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
 
   gateway:
     image: buffden/ems-gateway:${IMAGE_TAG}
@@ -84,6 +99,7 @@ services:
 volumes:
   certbot-etc:
   certbot-www:
+  redis_data:
 
 networks:
   ems-network:
