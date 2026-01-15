@@ -21,10 +21,10 @@ export class DepartmentService {
         // Optionally, handle the error with a user-friendly message
     }
 
-    // POST query departments with pagination
-    queryDepartments(page = 0, size = 20, sortBy?: string, sortDir = 'ASC'): Observable<PaginatedResponse<Department>> {
+    // POST query departments with pagination and optional filters
+    queryDepartments(page = 0, size = 20, sortBy?: string, sortDir = 'ASC', filters?: any[]): Observable<PaginatedResponse<Department>> {
         // Build query request - only include sortBy if it has a value
-        const queryRequest: Record<string, string | number> = {
+        const queryRequest: Record<string, any> = {
             page: page,
             size: size,
             sortDir: sortDir || 'ASC'
@@ -33,6 +33,11 @@ export class DepartmentService {
         // Only include sortBy if it's provided and not empty
         if (sortBy && sortBy.trim().length > 0) {
             queryRequest['sortBy'] = sortBy.trim();
+        }
+
+        // Include filters if provided
+        if (filters && filters.length > 0) {
+            queryRequest['filters'] = filters;
         }
 
         return this.http.post<PaginatedResponse<Department>>(this.apiUrl, queryRequest).pipe(

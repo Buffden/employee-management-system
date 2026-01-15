@@ -1,5 +1,6 @@
 import { Component, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { FormsModule } from '@angular/forms';
 import { SharedModule } from '../../../../shared/shared.module';
 import { TableComponent } from '../../../../shared/components/table/table.component';
 import { TableCellData, FormMode, ColumnType } from '../../../../shared/models/table';
@@ -19,7 +20,7 @@ import { ConfirmationDialogComponent } from '../../../../shared/components/confi
 @Component({
   selector: 'app-department-list',
   standalone: true,
-  imports: [CommonModule, SharedModule, TableComponent],
+  imports: [CommonModule, SharedModule, TableComponent, FormsModule],
   providers: [DepartmentService, HttpClient],
   templateUrl: './department-list.component.html',
   styleUrls: ['./department-list.component.css'],
@@ -35,6 +36,10 @@ export class DepartmentListComponent implements OnInit, OnDestroy {
   currentSortColumn = '';
   currentSortDirection = 'ASC';
   filters: Record<string, FilterOption[]> = {}; // Store filters from paginated response
+  activeFilters: { field: string; operator: string; values: string[] }[] = []; // Track applied filters
+  selectedFilterField = ''; // Track selected filter field for UI
+  selectedFilterOperator = 'equals'; // Track selected filter operator for UI
+  selectedFilterValues: string[] = []; // Track selected filter values for UI
   loading = false; // Loading state for table spinner
   private isRefreshing = false; // Guard to prevent duplicate refresh calls
   private departmentAddedHandler?: () => void; // Store handler reference for cleanup
@@ -135,7 +140,8 @@ export class DepartmentListComponent implements OnInit, OnDestroy {
 
   loadDepartments(page = 0, size = 10, sortBy?: string, sortDir = 'ASC'): void {
     this.loading = true;
-    this.departmentService.queryDepartments(page, size, sortBy, sortDir).subscribe({
+    // Pass activeFilters to the service
+    this.departmentService.queryDepartments(page, size, sortBy, sortDir, this.activeFilters).subscribe({
       next: (response: PaginatedResponse<Department>) => {
         console.log('Department query response:', response);
         this.departments = response.content || [];
@@ -233,5 +239,171 @@ export class DepartmentListComponent implements OnInit, OnDestroy {
   onDeleteAction = (row: TableCellData): void => {
     const department = row as unknown as Department;
     this.openDeleteDialog(department);
+  }
+
+  // Filter-related methods
+  applyFilter(): void {
+    // Validate filter inputs
+    if (!this.selectedFilterField || !this.selectedFilterOperator || this.selectedFilterValues.length === 0) {
+      alert('Please select a filter field, operator, and at least one value');
+      return;
+    }
+
+    // Map selected filter values (which are option labels) to their filter objects with id+label
+    const filterObjects = this.mapValuesToFilterObjects(this.selectedFilterField, this.selectedFilterValues);
+    const operator = this.selectedFilterValues.length > 1 ? 'in' : this.selectedFilterOperator;
+    const properFieldPath = this.getProperFieldPath(this.selectedFilterField);
+    
+    // Check if filter for this field already exists and update it, otherwise add new
+    const existingFilterIndex = this.activeFilters.findIndex(f => f.field === properFieldPath);
+    const newFilter = {
+      field: properFieldPath,
+      operator: operator,
+      values: filterObjects as any,  // Send objects with id and label for better logging
+      displayField: this.selectedFilterField  // Store original field name for display
+    };
+
+    if (existingFilterIndex >= 0) {
+      // Replace existing filter for same field
+      this.activeFilters[existingFilterIndex] = newFilter;
+    } else {
+      // Add new filter
+      this.activeFilters.push(newFilter);
+    }
+
+    // Reset to first page and reload
+    this.currentPage = 0;
+    this.loadDepartments(0, this.pageSize, this.currentSortColumn, this.currentSortDirection);
+
+    console.log('Applied filters:', this.activeFilters);
+  }
+
+  clearFilters(): void {
+    // Reset all filter states
+    this.activeFilters = [];
+    this.selectedFilterField = '';
+    this.selectedFilterOperator = 'equals';
+    this.selectedFilterValues = [];
+    
+    // Reset to first page and reload
+    this.currentPage = 0;
+    this.loadDepartments(0, this.pageSize, this.currentSortColumn, this.currentSortDirection);
+    
+    console.log('Filters cleared');
+  }
+
+  /**
+   * Remove a specific filter by field name
+   */
+  removeFilter(fieldPath: string): void {
+    this.activeFilters = this.activeFilters.filter(f => f.field !== fieldPath);
+    
+    // Reset to first page and reload
+    this.currentPage = 0;
+    this.loadDepartments(0, this.pageSize, this.currentSortColumn, this.currentSortDirection);
+    
+    console.log('Filter removed:', fieldPath);
+  }
+
+  /**
+   * Get display labels for filter values
+   * Extracts labels from filter objects
+   */
+  getFilterLabels(filterValues: any[]): string[] {
+    return filterValues.map(v => {
+      if (typeof v === 'string') {
+        return v;
+      } else if (v && typeof v === 'object' && v.label) {
+        return v.label;
+      }
+      return String(v);
+    });
+  }
+
+  /**
+   * Get color class for filter chip based on field type
+   * Different colors for different filter types
+   */
+  getFilterChipColorClass(field: string): string {
+    const colorMap: Record<string, string> = {
+      'location.id': 'chip-color-location',
+      'location': 'chip-color-location',
+      'name': 'chip-color-name',
+      'status': 'chip-color-status',
+      'department': 'chip-color-department'
+    };
+    return colorMap[field] || 'chip-color-default';
+  }
+
+  getAvailableOperators(): string[] {
+    // Return common operators - can be extended based on field type
+    return ['equals', 'in', 'like', 'starts_with', 'ends_with', 'range', 'gt', 'lt', 'exists', 'not_equals', 'not_in', 'not_like'];
+  }
+
+  getAvailableFilterFields(): string[] {
+    // Get available filter fields from the filters object keys
+    return Object.keys(this.filters) || ['name', 'location', 'status'];
+  }
+
+  onFilterFieldChange(): void {
+    // Clear selected values when field changes
+    this.selectedFilterValues = [];
+    console.log('Filter field changed to:', this.selectedFilterField);
+  }
+
+  toggleFilterValue(value: string): void {
+    // Toggle value in selected filter values array
+    const index = this.selectedFilterValues.indexOf(value);
+    if (index > -1) {
+      this.selectedFilterValues.splice(index, 1);
+    } else {
+      this.selectedFilterValues.push(value);
+    }
+    console.log('Selected filter values:', this.selectedFilterValues);
+  }
+
+  isFilterValueSelected(value: string): boolean {
+    return this.selectedFilterValues.includes(value);
+  }
+
+  hasActiveFilters(): boolean {
+    return this.activeFilters.length > 0;
+  }
+
+  /**
+   * Map selected filter values (option labels) to their filter objects with id+label
+   * Returns array of objects: { id: "uuid", label: "Name" } for better backend logging
+   */
+  private mapValuesToFilterObjects(fieldName: string, labels: string[]): Array<{ id: string; label: string }> {
+    const filterOptions = this.filters[fieldName];
+    if (!filterOptions) {
+      console.warn(`No filter options found for field: ${fieldName}`);
+      // Fallback: return objects with label as id
+      return labels.map(label => ({ id: label, label: label }));
+    }
+
+    return labels.map(label => {
+      const option = filterOptions.find(opt => opt.label === label || opt.value === label);
+      return {
+        id: option ? option.id : label,
+        label: label
+      };
+    });
+  }
+
+  /**
+   * Get the proper field path for backend filtering
+   * Maps user-friendly field names to database field paths
+   * e.g., 'locations' -> 'location.id'
+   */
+  private getProperFieldPath(fieldName: string): string {
+    const fieldMapping: Record<string, string> = {
+      'locations': 'location.id',
+      'location': 'location.id',
+      'location.id': 'location.id',
+      'location.name': 'location.name',
+      'name': 'name'
+    };
+    return fieldMapping[fieldName] || fieldName;
   }
 }
