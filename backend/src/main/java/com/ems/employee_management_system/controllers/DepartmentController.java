@@ -86,21 +86,23 @@ public class DepartmentController {
     @PostMapping
     @PreAuthorize("hasAnyRole('" + RoleConstants.SYSTEM_ADMIN + "', '" + RoleConstants.HR_MANAGER + "', '" + RoleConstants.DEPARTMENT_MANAGER + "', '" + RoleConstants.EMPLOYEE + "')")
     public ResponseEntity<PaginatedResponseDTO<DepartmentResponseDTO>> query(@RequestBody DepartmentQueryRequestDTO queryRequest) {
-        logger.debug("Querying departments with pagination: page={}, size={}, sortBy={}, sortDir={}", 
-                queryRequest.getPage(), queryRequest.getSize(), queryRequest.getSortBy(), queryRequest.getSortDir());
+        logger.debug("Querying departments with pagination: page={}, size={}, sortBy={}, sortDir={}, filterCount={}", 
+                queryRequest.getPage(), queryRequest.getSize(), queryRequest.getSortBy(), queryRequest.getSortDir(),
+                queryRequest.getFilters() != null ? queryRequest.getFilters().size() : 0);
         
         Pageable pageable = PaginationUtils.createPageable(
                 queryRequest.getPage(), 
                 queryRequest.getSize(), 
                 queryRequest.getSortBy(), 
                 queryRequest.getSortDir());
-        Page<Department> departmentPage = departmentService.getAll(pageable);
         
-        // Build filters array with locations for reusable table filtering
-        // IMPORTANT: Filters should ALWAYS contain ALL possible values, independent of pagination
-        // Filters only narrow down when other filters are applied (future filtering implementation)
+        // Fetch departments with applied filters
+        Page<Department> departmentPage = departmentService.getAll(pageable, queryRequest.getFilters());
+        
+        // Build filter OPTIONS array with locations for reusable table filtering
+        // IMPORTANT: Filter OPTIONS should ALWAYS contain ALL possible values, independent of applied filters
         // This ensures filter dropdowns always show complete options regardless of current page
-        Map<String, List<FilterOptionDTO>> filters = new HashMap<>();
+        Map<String, List<FilterOptionDTO>> filterOptions = new HashMap<>();
         List<Location> allLocations = locationService.getAll(); // Fetches ALL locations, not paginated
         List<FilterOptionDTO> locationFilters = allLocations.stream()
                 .map(location -> new FilterOptionDTO(
@@ -109,9 +111,9 @@ public class DepartmentController {
                         location.getCity() + ", " + location.getState() // Additional display info
                 ))
                 .collect(Collectors.toList());
-        filters.put("locations", locationFilters);
+        filterOptions.put("locations", locationFilters);
         
-        return ResponseEntity.ok(PaginationUtils.toPaginatedResponse(departmentPage, DepartmentMapper::toResponseDTO, filters));
+        return ResponseEntity.ok(PaginationUtils.toPaginatedResponse(departmentPage, DepartmentMapper::toResponseDTO, filterOptions));
     }
 
     @PostMapping("/create")
