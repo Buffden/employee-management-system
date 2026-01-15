@@ -1,0 +1,252 @@
+.filter-card {
+  background-color: white;
+  border-radius: 8px;
+  padding: 20px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* Buttons styling - matches table.component.css */
+.buttons {
+  padding: 5px 10px;
+  background-color: #F0F0F0;
+  border-color: white;
+  border-radius: 8px;
+  font-weight: 500;
+  cursor: pointer;
+  border: 1px solid white;
+  transition: background-color 0.2s, border-color 0.2s;
+}
+
+.buttons:hover {
+  background-color: #e0e0e0;
+}
+
+.buttons:active {
+  background-color: #d0d0d0;
+}
+
+.buttons--disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.filter-title {
+  margin: 0 0 15px 0;
+  color: #333;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.filter-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.filter-control-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.filter-control-group label {
+  font-weight: 500;
+  color: #555;
+  font-size: 14px;
+}
+
+.filter-select {
+  padding: 10px 12px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 14px;
+  background-color: white;
+  cursor: pointer;
+  transition: border-color 0.2s;
+}
+
+.filter-select:hover {
+  border-color: #bbb;
+}
+
+.filter-select:focus {
+  outline: none;
+  border-color: #1976d2;
+  box-shadow: 0 0 0 3px rgba(25, 118, 210, 0.1);
+}
+
+.filter-values {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 10px;
+  max-height: 200px;
+  overflow-y: auto;
+  padding: 10px;
+  background-color: #fafafa;
+  border-radius: 4px;
+}
+
+.filter-value-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px;
+  border-radius: 4px;
+  background-color: white;
+}
+
+.filter-checkbox {
+  cursor: pointer;
+  width: 18px;
+  height: 18px;
+  accent-color: #1976d2;
+}
+
+.filter-value-label {
+  font-size: 14px;
+  color: #555;
+  cursor: pointer;
+  user-select: none;
+}
+
+.filter-value-label:hover {
+  color: #333;
+}
+
+.filter-actions {
+  display: flex;
+  gap: 10px;
+  padding: 10px 0;
+  border-top: 1px solid #eee;
+  margin-top: 10px;
+}
+
+.btn {
+  padding: 10px 20px;
+  border: none;
+  border-radius: 4px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-primary {
+  background-color: #1976d2;
+  color: white;
+}
+
+.btn-primary:hover:not(:disabled) {
+  background-color: #1565c0;
+  box-shadow: 0 2px 8px rgba(25, 118, 210, 0.3);
+}
+
+.btn-primary:disabled {
+  background-color: #ccc;
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.btn-secondary {
+  background-color: #757575;
+  color: white;
+}
+
+.btn-secondary:hover {
+  background-color: #616161;
+  box-shadow: 0 2px 8px rgba(117, 117, 117, 0.3);
+}
+
+/* Active Filter Chips */
+.active-filters {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding: 8px 0;
+}
+
+.filter-chips-container {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.active-filter-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 500;
+  white-space: nowrap;
+  border: 1px solid transparent;
+}
+
+.chip-label {
+  color: inherit;
+  word-break: break-word;
+}
+
+.close-filter {
+  background: none;
+  border: none;
+  font-size: 16px;
+  cursor: pointer;
+  padding: 0;
+  margin-left: 4px;
+  transition: transform 0.2s;
+  color: inherit;
+  line-height: 1;
+}
+
+.close-filter:hover {
+  transform: scale(1.15);
+}
+
+/* Color Classes for Different Filter Types */
+.chip-color-location {
+  background-color: #bbdefb;
+  color: #01579b;
+  border-color: #90caf9;
+}
+
+.chip-color-name {
+  background-color: #c8e6c9;
+  color: #1b5e20;
+  border-color: #81c784;
+}
+
+.chip-color-status {
+  background-color: #ffe0b2;
+  color: #e65100;
+  border-color: #ffb74d;
+}
+
+.chip-color-department {
+  background-color: #e1bee7;
+  color: #4a148c;
+  border-color: #ce93d8;
+}
+
+.chip-color-default {
+  background-color: #eeeeee;
+  color: #212121;
+  border-color: #bdbdbd;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .filter-values {
+    grid-template-columns: 1fr;
+  }
+
+  .filter-actions {
+    flex-direction: column;
+  }
+
+  .btn {
+    width: 100%;
+  }
+}

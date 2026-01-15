@@ -1,0 +1,6 @@
+<app-filter [availableFilters]="filters || {}"
+            [activeFilters]="activeFilters"
+            (applyFilter)="onApplyFilter($event)"
+            (clearFilters)="onClearFilters()"
+            (removeFilter)="onRemoveFilter($event)">
+</app-filter>
