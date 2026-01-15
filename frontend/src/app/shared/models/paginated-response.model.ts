@@ -1,7 +1,8 @@
 export interface FilterOption {
   id: string;
   label: string;
-  value?: string; // Optional: for additional display information
+  value: string;
+  count: number;
 }
 
 export interface PaginatedResponse<T> {
