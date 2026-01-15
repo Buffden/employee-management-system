@@ -1,7 +1,10 @@
 <!-- Filter Button to trigger dialog -->
-<button class="buttons"
+<button class="action-button"
         *ngIf="true"
-        (click)="openFilterDialog(filterDialog)">Filters</button>
+        (click)="openFilterDialog(filterDialog)">
+    <span class="button-icon">🔍</span>
+    <span class="button-text">Filters</span>
+</button>
 
 <ng-template #filterDialog>
   <div class="filter-card">

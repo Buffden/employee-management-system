@@ -8,8 +8,11 @@
             <div *ngIf="tableConfig.allowGenericButtons"
                  class="generic-buttons">
                 <div [ngClass]="{'left-generic-buttons': true, 'generic-buttons--no-data': noData()}">
-                    <button class="buttons"
-                            *ngIf="tableConfig.allowCustomize">Customize Table**</button>
+                    <button class="action-button"
+                            *ngIf="tableConfig.allowCustomize">
+                        <span class="button-icon">⚙️</span>
+                        <span class="button-text">Customize Table</span>
+                    </button>
                     <app-filter-dialog *ngIf="tableConfig.allowFiltering"
                                 [filters]="filters"
                                 [activeFilters]="activeFilters"
@@ -19,16 +22,22 @@
                     </app-filter-dialog>
                 </div>
                 <div class="right-generic-buttons">
-                    <button class="buttons"
+                    <button class="action-button action-button--add"
                             *ngIf="tableConfig.allowAddButton"
                             [disabled]="!canAddItem()"
                             [matTooltip]="getAddButtonTooltip()"
                             [matTooltipDisabled]="canAddItem()"
-                            [ngClass]="{'buttons--disabled': !canAddItem()}"
-                            (click)="onAddClick()">{{tableConfig.additionCardTitle}} + </button>
-                    <button class="buttons"
-                            [ngClass]="{'generic-buttons--no-data': noData()}"
-                            *ngIf="tableConfig.allowExport">Export Table</button>
+                            [ngClass]="{'action-button--disabled': !canAddItem()}"
+                            (click)="onAddClick()">
+                        <span class="button-icon">➕</span>
+                        <span class="button-text">{{tableConfig.additionCardTitle}}</span>
+                    </button>
+                    <button class="action-button"
+                            [ngClass]="{'action-button--disabled': noData()}"
+                            *ngIf="tableConfig.allowExport">
+                        <span class="button-icon">📥</span>
+                        <span class="button-text">Export</span>
+                    </button>
                 </div>
             </div>
             <!-- Loading Spinner -->
