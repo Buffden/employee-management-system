@@ -3,6 +3,7 @@ package com.ems.employee_management_system.dtos;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
+import java.util.List;
 
 public class DepartmentQueryRequestDTO {
     @Min(value = 0, message = "Page number must be non-negative")
@@ -16,6 +17,8 @@ public class DepartmentQueryRequestDTO {
 
     @Pattern(regexp = "ASC|DESC", message = "Sort direction must be 'ASC' or 'DESC'")
     private String sortDir = "ASC";
+
+    private List<FilterCriteria> filters;  // NEW - applied filters
 
     // Getters and setters
     public int getPage() {
@@ -48,6 +51,14 @@ public class DepartmentQueryRequestDTO {
 
     public void setSortDir(String sortDir) {
         this.sortDir = sortDir;
+    }
+
+    public List<FilterCriteria> getFilters() {
+        return filters;
+    }
+
+    public void setFilters(List<FilterCriteria> filters) {
+        this.filters = filters;
     }
 }
 
