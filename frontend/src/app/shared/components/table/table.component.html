@@ -10,8 +10,10 @@
                 <div [ngClass]="{'left-generic-buttons': true, 'generic-buttons--no-data': noData()}">
                     <button class="action-button"
                             *ngIf="tableConfig.allowCustomize">
-                        <span class="button-icon">⚙️</span>
-                        <span class="button-text">Customize Table</span>
+                        <span class="button-icon">
+                            <mat-icon fontIcon="tune"></mat-icon>
+                        </span>
+                        <span class="button-text">Customize Columns</span>
                     </button>
                     <app-filter-dialog
 
@@ -31,13 +33,17 @@
                             [matTooltipDisabled]="canAddItem()"
                             [ngClass]="{'action-button--disabled': !canAddItem()}"
                             (click)="onAddClick()">
-                        <span class="button-icon">➕</span>
+                        <span class="button-icon">
+                            <mat-icon fontIcon="add"></mat-icon>
+                        </span>
                         <span class="button-text">{{tableConfig.additionCardTitle}}</span>
                     </button>
                     <button class="action-button"
-                            [ngClass]="{'action-button--disabled': noData()}"
-                            *ngIf="tableConfig.allowExport">
-                        <span class="button-icon">📥</span>
+                            [ngClass]="{'action-button--disabled': noData()}">
+                        <span class="button-icon">
+                            <mat-icon *ngIf="tableConfig.allowExport && !noData()" fontIcon="file_download"></mat-icon>
+                            <mat-icon *ngIf="!tableConfig.allowExport || noData()" fontIcon="file_download_off"></mat-icon>
+                        </span>
                         <span class="button-text">Export</span>
                     </button>
                 </div>
