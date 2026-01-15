@@ -41,7 +41,7 @@ services:
       # Database SSL mode (default: disable for dev, require for production)
       - DB_SSL_MODE=${DB_SSL_MODE:-disable}
       # Spring profile (default: dev for local development)
-      - SPRING_PROFILE=${SPRING_PROFILE:-dev}
+      - SPRING_PROFILES_ACTIVE=${SPRING_PROFILE:-dev}
       # Application configuration from .env (REQUIRED - no defaults)
       - JWT_SECRET_KEY=${JWT_SECRET_KEY}
       - CORS_ALLOWED_ORIGINS=${CORS_ALLOWED_ORIGINS}
