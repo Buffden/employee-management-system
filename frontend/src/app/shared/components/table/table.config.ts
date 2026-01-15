@@ -23,5 +23,6 @@ export const defaultTableConfig: TableConfig = {
     mode: FormMode.VIEW,
     viewController: overlayType.NODATA,
     additionController: overlayType.NODATA,
-    editController: overlayType.NODATA
+    editController: overlayType.NODATA,
+    allowFiltering: false,
 };

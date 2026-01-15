@@ -1,0 +1,91 @@
+<!-- Filter Button to trigger dialog -->
+<button class="action-button"
+        [disabled]="!allowFiltering"
+        [ngClass]="{'action-button--disabled': !allowFiltering}"
+        (click)="openFilterDialog(filterDialog)">
+  <span class="button-icon">
+    <mat-icon *ngIf="allowFiltering" aria-label="Filter enabled" fontIcon="filter_alt"></mat-icon>
+    <mat-icon *ngIf="!allowFiltering" aria-label="Filter disabled" fontIcon="filter_alt_off"></mat-icon>
+  </span>
+  <span class="button-text">Filters</span>
+</button>
+
+<ng-template #filterDialog>
+  <div class="filter-card">
+    <h3 class="filter-title">Filters</h3>
+    <div class="filter-controls">
+      <!-- Filter Field Selector -->
+      <div class="filter-control-group">
+        <label for="filterField">Filter by:</label>
+        <select 
+          id="filterField"
+          [(ngModel)]="selectedFilterField"
+          (change)="onFilterFieldChange()"
+          class="filter-select">
+          <option value="">-- Select a field --</option>
+          <option *ngFor="let field of getAvailableFilterFields()" [value]="field">
+            {{ field | titlecase }}
+          </option>
+        </select>
+      </div>
+
+      <!-- Filter Operator Selector -->
+      <div class="filter-control-group" *ngIf="selectedFilterField">
+        <label for="filterOperator">Operator:</label>
+        <select 
+          id="filterOperator"
+          [(ngModel)]="selectedFilterOperator"
+          class="filter-select">
+          <option *ngFor="let op of getAvailableOperators()" [value]="op">
+            {{ op | titlecase }}
+          </option>
+        </select>
+      </div>
+
+      <!-- Filter Values Selector -->
+      <div class="filter-control-group" *ngIf="selectedFilterField && availableFilters[selectedFilterField]">
+        <div class="filter-values">
+          <div *ngFor="let option of availableFilters[selectedFilterField]" class="filter-value-item">
+            <input 
+              type="checkbox"
+              [id]="'filter-' + option.label"
+              [checked]="isFilterValueSelected(option.label)"
+              (change)="toggleFilterValue(option.label)"
+              class="filter-checkbox">
+            <label [for]="'filter-' + option.label" class="filter-value-label">
+              {{ option.label }}
+            </label>
+          </div>
+        </div>
+      </div>
+
+      <!-- Filter Action Buttons -->
+      <div class="filter-actions">
+        <button 
+          (click)="applyFilterAndClose()"
+          [disabled]="!selectedFilterField || selectedFilterValues.length === 0"
+          class="btn btn-primary">
+          Apply Filter
+        </button>
+        <button 
+          *ngIf="activeFilters.length > 0"
+          (click)="clearFiltersAndClose()"
+          class="btn btn-secondary">
+          Clear Filters
+        </button>
+      </div>
+    </div>
+  </div>
+</ng-template>
+
+<!-- Active Filter Chips -->
+<div class="active-filters" *ngIf="activeFilters?.length">
+  <div class="filter-chips-container">
+    <span *ngFor="let filter of activeFilters" 
+          [ngClass]="getFilterChipColorClass(filter.field)"
+          class="active-filter-tag">
+      <span class="chip-label">{{ getFilterLabels(filter.values).join(', ') }}</span>
+      <button (click)="onRemoveFilter(filter.field)" class="close-filter" title="Remove filter">×</button>
+    </span>
+  </div>
+</div>
