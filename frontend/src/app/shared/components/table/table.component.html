@@ -13,9 +13,11 @@
                         <span class="button-icon">⚙️</span>
                         <span class="button-text">Customize Table</span>
                     </button>
-                    <app-filter-dialog *ngIf="tableConfig.allowFiltering"
+                    <app-filter-dialog
+
                                 [filters]="filters"
                                 [activeFilters]="activeFilters"
+                                [allowFiltering]="tableConfig.allowFiltering ?? false"
                                 (applyFilter)="onApplyFilter($event)"
                                 (clearFilters)="onClearFilters()"
                                 (removeFilter)="onRemoveFilter($event)"> 

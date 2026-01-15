@@ -12,6 +12,7 @@ import { FilterOption } from '../../../../models/paginated-response.model';
 export class FilterDialogComponent {
   @Input() filters: Record<string, FilterOption[]> = {};
   @Input() activeFilters: ActiveFilters[] = [];
+  @Input() allowFiltering = false;
   
   @Output() applyFilter = new EventEmitter<FilterEvent>();
   @Output() clearFilters = new EventEmitter<void>();

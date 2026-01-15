@@ -1,9 +1,13 @@
 <!-- Filter Button to trigger dialog -->
 <button class="action-button"
-        *ngIf="true"
+        [disabled]="!allowFiltering"
+        [ngClass]="{'action-button--disabled': !allowFiltering}"
         (click)="openFilterDialog(filterDialog)">
-    <span class="button-icon">🔍</span>
-    <span class="button-text">Filters</span>
+  <span class="button-icon">
+    <mat-icon *ngIf="allowFiltering" aria-label="Filter enabled" fontIcon="filter_alt"></mat-icon>
+    <mat-icon *ngIf="!allowFiltering" aria-label="Filter disabled" fontIcon="filter_alt_off"></mat-icon>
+  </span>
+  <span class="button-text">Filters</span>
 </button>
 
 <ng-template #filterDialog>

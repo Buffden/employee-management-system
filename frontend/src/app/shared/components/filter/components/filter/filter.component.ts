@@ -4,17 +4,19 @@ import { FormsModule } from '@angular/forms';
 import { MatDialog, MatDialogRef } from '@angular/material/dialog';
 import { FilterOption } from '../../../../models/paginated-response.model';
 import { ActiveFilters, FilterEvent, FilterValue } from '../../../../types/filter';
+import { MatIcon } from '@angular/material/icon';
 
 @Component({
   selector: 'app-filter',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, MatIcon],
   templateUrl: './filter.component.html',
   styleUrls: ['./filter.component.css']
 })
 export class FilterComponent {
   @Input() availableFilters: Record<string, FilterOption[]> = {};
   @Input() activeFilters: ActiveFilters[] = [];
+  @Input() allowFiltering = true;
 
   @Output() applyFilter = new EventEmitter<FilterEvent>();
   @Output() clearFilters = new EventEmitter<void>();
