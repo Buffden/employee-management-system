@@ -3,10 +3,14 @@ package com.ems.employee_management_system.services;
 import java.util.List;
 import java.util.UUID;
 
+import com.ems.employee_management_system.dtos.FilterCriteria;
+import com.ems.employee_management_system.models.Department;
+import com.ems.employee_management_system.utils.FilterBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -44,43 +48,33 @@ public class EmployeeService {
         this.securityService = securityService;
     }
 
-    public Page<Employee> getAll(Pageable pageable) {
+    public Page<Employee> getAll(Pageable pageable, List<FilterCriteria> filters) {
         logger.debug("Fetching employees with pagination: page={}, size={}", pageable.getPageNumber(), pageable.getPageSize());
         String role = securityService.getCurrentUserRole();
         UUID departmentId = securityService.getCurrentUserDepartmentId();
         UUID userId = securityService.getCurrentUserEmployeeId();
         
         logger.debug("Role-based filtering - role: {}, departmentId: {}, userId: {}", role, departmentId, userId);
-        
+
+        Specification<Employee> spec = Specification.where(null);
+
+        if (filters != null && !filters.isEmpty()) {
+            for (FilterCriteria filter : filters) {
+                spec = spec.and(FilterBuilder.buildSpecification(filter));
+            }
+            logger.debug("Applied {} user-provided filters", filters.size());
+        }
+
         // If role is null, default to empty result (should not happen due to @PreAuthorize, but defensive coding)
         if (role == null) {
             logger.warn("User role is null, returning empty page");
             return org.springframework.data.domain.Page.empty(pageable);
         }
         
-        try {
-            // For SYSTEM_ADMIN, HR_MANAGER, and EMPLOYEE, use findAllWithRelationships to eagerly load relationships
-            // This ensures department, location, and manager are available for mapping to DTOs
-            // Employees can view all employees (view-only access, edit/delete still restricted)
-            if ("SYSTEM_ADMIN".equals(role) || "HR_MANAGER".equals(role) || "EMPLOYEE".equals(role)) {
-                logger.debug("Using findAllWithRelationships() for {} role", role);
-                return employeeRepository.findAllWithRelationships(pageable);
-            }
-            
-            // For other roles, use role-based filtering with relationships
-            return employeeRepository.findAllFilteredByRole(role, departmentId, userId, pageable);
-        } catch (Exception e) {
-            logger.error("Error fetching employees with role-based filtering: {}", e.getMessage(), e);
-            logger.error("Stack trace: ", e);
-            // Fallback to findAllWithRelationships if role-based query fails (for debugging)
-            logger.warn("Falling back to findAllWithRelationships() due to error");
-            try {
-                return employeeRepository.findAllWithRelationships(pageable);
-            } catch (Exception fallbackError) {
-                logger.error("Fallback findAllWithRelationships() also failed: {}", fallbackError.getMessage(), fallbackError);
-                throw new RuntimeException("Failed to fetch employees: " + e.getMessage(), e);
-            }
-        }
+        // Apply role-based access control
+        // All authorized roles can view all employees - filters are user-applied only
+        logger.debug("Applying filter spec for {} role - using only user-applied filters", role);
+        return employeeRepository.findAll(spec, pageable);
     }
 
     public List<Employee> getAll() {
