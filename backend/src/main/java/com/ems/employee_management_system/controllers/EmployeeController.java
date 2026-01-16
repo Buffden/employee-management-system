@@ -72,7 +72,7 @@ public class EmployeeController {
                     queryRequest.getSize(), 
                     queryRequest.getSortBy(), 
                     queryRequest.getSortDir());
-            Page<Employee> employeePage = employeeService.getAll(pageable);
+            Page<Employee> employeePage = employeeService.getAll(pageable, queryRequest.getFilters());
             
             // Build filters array with departments, locations, and designations for reusable table filtering
             // IMPORTANT: Filters should ALWAYS contain ALL possible values, independent of pagination

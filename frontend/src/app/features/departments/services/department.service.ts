@@ -5,7 +5,6 @@ import { Department } from "../../../shared/models/department.model";
 import { PaginatedResponse } from "../../../shared/models/paginated-response.model";
 import { Injectable } from "@angular/core";
 import { environment } from "../../../../environments/environment";
-import { DepartmentQueryRequest } from "../../../shared/models/department-query-request.model";
 
 @Injectable({
     providedIn: 'root',
@@ -22,9 +21,9 @@ export class DepartmentService {
     }
 
     // POST query departments with pagination and optional filters
-    queryDepartments(page = 0, size = 20, sortBy?: string, sortDir = 'ASC', filters?: any[]): Observable<PaginatedResponse<Department>> {
+    queryDepartments(page = 0, size = 20, sortBy?: string, sortDir = 'ASC', filters?: unknown[]): Observable<PaginatedResponse<Department>> {
         // Build query request - only include sortBy if it has a value
-        const queryRequest: Record<string, any> = {
+        const queryRequest: Record<string, unknown> = {
             page: page,
             size: size,
             sortDir: sortDir || 'ASC'

@@ -30,7 +30,7 @@ export const employeeListConfig: TableConfig = {
     allowedRolesForAdd: ['SYSTEM_ADMIN', 'HR_MANAGER'],
     addButtonTooltip: 'This feature is only available for System Admins and HR Managers',
     allowCustomize: true,
-    allowFiltering: false,
+    allowFiltering: true,
     defaultSortColumn: 'firstName',
     defaultSortDirection: SortDirection.ASC,
     noDataInfo: {
