@@ -173,9 +173,10 @@ export class FilterComponent {
     const fieldMapping: Record<string, string> = {
       'locations': 'location.id',
       'location': 'location.id',
-      'location.id': 'location.id',
-      'location.name': 'location.name',
-      'name': 'name'
+      'departments': 'department.id',
+      'department': 'department.id',
+      'designations': 'designation',
+      'designation': 'designation'
     };
     return fieldMapping[fieldName] || fieldName;
   }
