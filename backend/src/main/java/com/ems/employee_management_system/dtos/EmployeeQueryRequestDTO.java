@@ -4,6 +4,8 @@ import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 
+import java.util.List;
+
 /**
  * DTO for employee query requests with pagination and sorting
  * Used for POST /api/employees endpoint
@@ -20,6 +22,8 @@ public class EmployeeQueryRequestDTO {
 
     @Pattern(regexp = "ASC|DESC", message = "Sort direction must be 'ASC' or 'DESC'")
     private String sortDir = "ASC";
+
+    private List<FilterCriteria> filters;  // NEW - applied filters
 
     // Getters and setters
     public int getPage() {
@@ -52,6 +56,14 @@ public class EmployeeQueryRequestDTO {
 
     public void setSortDir(String sortDir) {
         this.sortDir = sortDir;
+    }
+
+    public List<FilterCriteria> getFilters() {
+        return filters;
+    }
+
+    public void setFilters(List<FilterCriteria> filters) {
+        this.filters = filters;
     }
 }
 
