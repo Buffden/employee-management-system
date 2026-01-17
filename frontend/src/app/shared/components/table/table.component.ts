@@ -15,7 +15,7 @@ import { DialogData } from '../../models/dialog';
 import { FilterOption } from '../../models/paginated-response.model';
 import { AuthService } from '../../../core/services/auth.service';
 import { FilterDialogComponent } from '../filter/components/filter-dialog/filter-dialog.component';
-import { ActiveFilters, FilterEvent } from '../../types/filter';
+import { ActiveFilters, FilterEvent, RemoveFilterEvent } from '../../types/filter';
 
 @Component({
   selector: 'app-table',
@@ -44,7 +44,7 @@ export class TableComponent implements OnChanges, AfterViewInit, OnDestroy {
   @Output() pageChange = new EventEmitter<PageEvent>();
   @Output() applyFilter = new EventEmitter<FilterEvent>();
   @Output() clearFilters = new EventEmitter<void>();
-  @Output() removeFilter = new EventEmitter<string>();
+  @Output() removeFilter = new EventEmitter<RemoveFilterEvent>();
 
   displayedColumns: string[] = [];
   dataSource!: MatTableDataSource<TableCellData>;
@@ -393,7 +393,7 @@ export class TableComponent implements OnChanges, AfterViewInit, OnDestroy {
     this.clearFilters.emit();
   }
 
-  onRemoveFilter(field: string): void {
-    this.removeFilter.emit(field);
+  onRemoveFilter(event: RemoveFilterEvent): void {
+    this.removeFilter.emit(event);
   }
 }

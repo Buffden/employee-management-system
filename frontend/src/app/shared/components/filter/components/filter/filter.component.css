@@ -1,3 +1,10 @@
+.filter-wrapper {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 12px;
+}
+
 .filter-card {
   background-color: white;
   border-radius: 8px;

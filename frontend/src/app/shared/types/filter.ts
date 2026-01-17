@@ -6,16 +6,19 @@ export interface FilterValue {
 
 export interface ActiveFilters {
   field: string;
-  operator?: string;
   values: unknown[];
   displayField?: string;
 }
 
 export interface FilterEvent {
   field: string;
-  operator: string;
   values: unknown[];
   displayField: string;
+}
+
+export interface RemoveFilterEvent {
+  field: string;
+  value?: unknown;
 }
 
 export interface AppliedFilters {

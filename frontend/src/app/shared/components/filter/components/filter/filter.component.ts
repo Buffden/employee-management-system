@@ -3,7 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { MatDialog, MatDialogRef } from '@angular/material/dialog';
 import { FilterOption } from '../../../../models/paginated-response.model';
-import { ActiveFilters, FilterEvent, FilterValue } from '../../../../types/filter';
+import { ActiveFilters, FilterEvent, FilterValue, RemoveFilterEvent } from '../../../../types/filter';
 import { MatIcon } from '@angular/material/icon';
 
 @Component({
@@ -20,10 +20,9 @@ export class FilterComponent {
 
   @Output() applyFilter = new EventEmitter<FilterEvent>();
   @Output() clearFilters = new EventEmitter<void>();
-  @Output() removeFilter = new EventEmitter<string>();
+  @Output() removeFilter = new EventEmitter<RemoveFilterEvent>();
 
   selectedFilterField = '';
-  selectedFilterOperator = 'equals';
   selectedFilterValues: string[] = [];
   private filterDialogRef?: MatDialogRef<unknown>;
 
@@ -43,17 +42,15 @@ export class FilterComponent {
    * Apply filter and close dialog
    */
   applyFilterAndClose(): void {
-    if (!this.selectedFilterField || !this.selectedFilterOperator || this.selectedFilterValues.length === 0) {
-      alert('Please select a filter field, operator, and at least one value');
+    if (!this.selectedFilterField || this.selectedFilterValues.length === 0) {
+      alert('Please select a filter field and at least one value');
       return;
     }
 
     const filterObjects = this.mapValuesToFilterObjects(this.selectedFilterField, this.selectedFilterValues);
-    const operator = this.selectedFilterValues.length > 1 ? 'in' : this.selectedFilterOperator;
 
     this.applyFilter.emit({
       field: this.getProperFieldPath(this.selectedFilterField),
-      operator: operator,
       values: filterObjects,
       displayField: this.selectedFilterField
     });
@@ -67,7 +64,6 @@ export class FilterComponent {
   clearFiltersAndClose(): void {
     this.clearFilters.emit();
     this.selectedFilterField = '';
-    this.selectedFilterOperator = 'equals';
     this.selectedFilterValues = [];
     this.filterDialogRef?.close();
   }
@@ -75,8 +71,8 @@ export class FilterComponent {
   /**
    * Remove a specific filter by field
    */
-  onRemoveFilter(field: string): void {
-    this.removeFilter.emit(field);
+  onRemoveFilter(field: string, value: unknown): void {
+    this.removeFilter.emit({ field, value });
   }
 
   /**
@@ -98,12 +94,7 @@ export class FilterComponent {
     return this.selectedFilterValues.includes(value);
   }
 
-  /**
-   * Get available operators
-   */
-  getAvailableOperators(): string[] {
-    return ['equals', 'in', 'like', 'starts_with', 'ends_with', 'range', 'gt', 'lt', 'exists', 'not_equals', 'not_in', 'not_like'];
-  }
+
 
   /**
    * Get available filter fields
@@ -120,31 +111,18 @@ export class FilterComponent {
   }
 
   /**
-   * Get display labels for filter values
+   * Get display label for a single filter value
    */
-  getFilterLabels(filterValues: unknown[]): string[] {
-    return filterValues.map(v => {
-      if (typeof v === 'string') {
-        return v;
-      } else if (v && typeof v === 'object' && 'label' in v) {
-        return (v as unknown as { label: string }).label;
-      }
-      return String(v);
-    });
-  }
+  getFilterLabel(filterValue: unknown): string {
+    if (typeof filterValue === 'string') {
+      return filterValue;
+    }
 
-  /**
-   * Get color class for filter chip
-   */
-  getFilterChipColorClass(field: string): string {
-    const colorMap: Record<string, string> = {
-      'location.id': 'chip-color-location',
-      'location': 'chip-color-location',
-      'name': 'chip-color-name',
-      'status': 'chip-color-status',
-      'department': 'chip-color-department'
-    };
-    return colorMap[field] || 'chip-color-default';
+    if (filterValue && typeof filterValue === 'object' && 'label' in filterValue) {
+      return (filterValue as { label: string }).label;
+    }
+
+    return String(filterValue);
   }
 
   /**
