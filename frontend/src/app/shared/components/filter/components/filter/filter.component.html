@@ -22,7 +22,8 @@
     <div class="filter-chips-container">
       <ng-container *ngFor="let filter of activeFilters">
         <span *ngFor="let value of filter.values"
-              class="active-filter-tag">
+              class="active-filter-tag"
+              [ngClass]="getChipColorClass(filter.displayField || filter.field)">
           <span class="filter-name">{{ (filter.displayField || filter.field) | titlecase }}:</span>
           <span class="chip-label">{{ getFilterLabel(value) }}</span>
           <button (click)="onRemoveFilter(filter.field, value)"

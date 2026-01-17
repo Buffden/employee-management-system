@@ -198,70 +198,196 @@
   display: flex;
   gap: 8px;
   flex-wrap: wrap;
+  align-items: center;
+  width: 100%;
 }
 
 .active-filter-tag {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   padding: 6px 12px;
-  border-radius: 20px;
+  border-radius: 16px;
   font-size: 13px;
   font-weight: 500;
   white-space: nowrap;
-  border: 1px solid transparent;
+  background-color: #e3f2fd;
+  color: #1565c0;
+  border: 1px solid #90caf9;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+  transition: all 0.2s ease;
+}
+
+.active-filter-tag:hover {
+  background-color: #bbdefb;
+  border-color: #64b5f6;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
+}
+
+.filter-name {
+  font-weight: 600;
+  color: #1565c0;
 }
 
 .chip-label {
-  color: inherit;
+  color: #1565c0;
   word-break: break-word;
+  flex: 1;
 }
 
 .close-filter {
   background: none;
   border: none;
-  font-size: 16px;
+  font-size: 18px;
   cursor: pointer;
   padding: 0;
   margin-left: 4px;
-  transition: transform 0.2s;
-  color: inherit;
+  width: 20px;
+  height: 20px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  transition: all 0.2s ease;
+  color: #1565c0;
   line-height: 1;
+  font-weight: bold;
 }
 
 .close-filter:hover {
-  transform: scale(1.15);
+  background-color: rgba(21, 101, 192, 0.1);
+  color: #0d47a1;
+  transform: scale(1.1);
+}
+
+.close-filter:active {
+  transform: scale(0.95);
 }
 
 /* Color Classes for Different Filter Types */
 .chip-color-location {
-  background-color: #bbdefb;
-  color: #01579b;
-  border-color: #90caf9;
+  background-color: #bbdefb !important;
+  color: #01579b !important;
+  border-color: #90caf9 !important;
+}
+
+.chip-color-location:hover {
+  background-color: #90caf9 !important;
+  border-color: #64b5f6 !important;
+}
+
+.chip-color-location .filter-name,
+.chip-color-location .chip-label {
+  color: #01579b !important;
+}
+
+.chip-color-location .close-filter {
+  color: #01579b !important;
+}
+
+.chip-color-location .close-filter:hover {
+  background-color: rgba(1, 87, 155, 0.1) !important;
+  color: #012c5a !important;
 }
 
 .chip-color-name {
-  background-color: #c8e6c9;
-  color: #1b5e20;
-  border-color: #81c784;
+  background-color: #c8e6c9 !important;
+  color: #1b5e20 !important;
+  border-color: #81c784 !important;
+}
+
+.chip-color-name:hover {
+  background-color: #a5d6a7 !important;
+  border-color: #66bb6a !important;
+}
+
+.chip-color-name .filter-name,
+.chip-color-name .chip-label {
+  color: #1b5e20 !important;
+}
+
+.chip-color-name .close-filter {
+  color: #1b5e20 !important;
+}
+
+.chip-color-name .close-filter:hover {
+  background-color: rgba(27, 94, 32, 0.1) !important;
+  color: #0d3f14 !important;
 }
 
 .chip-color-status {
-  background-color: #ffe0b2;
-  color: #e65100;
-  border-color: #ffb74d;
+  background-color: #ffe0b2 !important;
+  color: #e65100 !important;
+  border-color: #ffb74d !important;
+}
+
+.chip-color-status:hover {
+  background-color: #ffcc80 !important;
+  border-color: #ffa726 !important;
+}
+
+.chip-color-status .filter-name,
+.chip-color-status .chip-label {
+  color: #e65100 !important;
+}
+
+.chip-color-status .close-filter {
+  color: #e65100 !important;
+}
+
+.chip-color-status .close-filter:hover {
+  background-color: rgba(230, 81, 0, 0.1) !important;
+  color: #b33d00 !important;
 }
 
 .chip-color-department {
-  background-color: #e1bee7;
-  color: #4a148c;
-  border-color: #ce93d8;
+  background-color: #e1bee7 !important;
+  color: #4a148c !important;
+  border-color: #ce93d8 !important;
+}
+
+.chip-color-department:hover {
+  background-color: #ce93d8 !important;
+  border-color: #ba68c8 !important;
+}
+
+.chip-color-department .filter-name,
+.chip-color-department .chip-label {
+  color: #4a148c !important;
+}
+
+.chip-color-department .close-filter {
+  color: #4a148c !important;
+}
+
+.chip-color-department .close-filter:hover {
+  background-color: rgba(74, 20, 140, 0.1) !important;
+  color: #2d0a56 !important;
 }
 
 .chip-color-default {
-  background-color: #eeeeee;
-  color: #212121;
-  border-color: #bdbdbd;
+  background-color: #eeeeee !important;
+  color: #212121 !important;
+  border-color: #bdbdbd !important;
+}
+
+.chip-color-default:hover {
+  background-color: #e0e0e0 !important;
+  border-color: #9e9e9e !important;
+}
+
+.chip-color-default .filter-name,
+.chip-color-default .chip-label {
+  color: #212121 !important;
+}
+
+.chip-color-default .close-filter {
+  color: #212121 !important;
+}
+
+.chip-color-default .close-filter:hover {
+  background-color: rgba(33, 33, 33, 0.1) !important;
+  color: #000000 !important;
 }
 
 /* Responsive Design */

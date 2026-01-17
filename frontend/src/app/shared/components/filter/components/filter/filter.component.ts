@@ -126,6 +126,33 @@ export class FilterComponent {
   }
 
   /**
+   * Get chip color class based on filter field name
+   */
+  getChipColorClass(filterField: string): string {
+    const fieldName = filterField.toLowerCase();
+    
+    // Map filter fields to color classes
+    if (fieldName.includes('location') || fieldName === 'locations') {
+      return 'chip-color-location';
+    }
+    if (fieldName.includes('department') || fieldName === 'departments') {
+      return 'chip-color-department';
+    }
+    if (fieldName.includes('status') || fieldName === 'statuses') {
+      return 'chip-color-status';
+    }
+    if (fieldName.includes('name') || fieldName === 'names') {
+      return 'chip-color-name';
+    }
+    if (fieldName.includes('country') || fieldName === 'countries') {
+      return 'chip-color-location'; // Use location color for countries
+    }
+    
+    // Default color
+    return 'chip-color-default';
+  }
+
+  /**
    * Map selected filter values to filter objects with id+label
    */
   private mapValuesToFilterObjects(fieldName: string, labels: string[]): FilterValue[] {
@@ -154,7 +181,9 @@ export class FilterComponent {
       'departments': 'department.id',
       'department': 'department.id',
       'designations': 'designation',
-      'designation': 'designation'
+      'designation': 'designation',
+      'countries': 'country',
+      'country': 'country'
     };
     return fieldMapping[fieldName] || fieldName;
   }
