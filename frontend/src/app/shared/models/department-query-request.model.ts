@@ -1,6 +1,5 @@
 export interface FilterCriteria {
     field: string;
-    operator: string;
     values: string[];
 }
 
