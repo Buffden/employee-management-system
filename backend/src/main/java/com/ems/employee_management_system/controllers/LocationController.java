@@ -1,11 +1,16 @@
 package com.ems.employee_management_system.controllers;
 
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -14,18 +19,18 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.ems.employee_management_system.constants.RoleConstants;
+import com.ems.employee_management_system.dtos.FilterOptionDTO;
+import com.ems.employee_management_system.dtos.LocationQueryRequestDTO;
 import com.ems.employee_management_system.dtos.LocationRequestDTO;
 import com.ems.employee_management_system.dtos.LocationResponseDTO;
-import com.ems.employee_management_system.dtos.LocationQueryRequestDTO;
 import com.ems.employee_management_system.dtos.PaginatedResponseDTO;
 import com.ems.employee_management_system.mappers.LocationMapper;
 import com.ems.employee_management_system.models.Location;
 import com.ems.employee_management_system.services.LocationService;
 import com.ems.employee_management_system.utils.PaginationUtils;
-import com.ems.employee_management_system.constants.RoleConstants;
 
 import jakarta.validation.Valid;
 
@@ -74,14 +79,35 @@ public class LocationController {
         logger.debug("Querying locations with pagination: page={}, size={}, sortBy={}, sortDir={}", 
                 queryRequest.getPage(), queryRequest.getSize(), queryRequest.getSortBy(), queryRequest.getSortDir());
         
-        Pageable pageable = PaginationUtils.createPageable(
-                queryRequest.getPage(), 
-                queryRequest.getSize(), 
-                queryRequest.getSortBy(), 
-                queryRequest.getSortDir());
-        Page<Location> locationPage = locationService.getAll(pageable);
-        
-        return ResponseEntity.ok(PaginationUtils.toPaginatedResponse(locationPage, LocationMapper::toResponseDTO));
+        try {
+            Pageable pageable = PaginationUtils.createPageable(
+                    queryRequest.getPage(), 
+                    queryRequest.getSize(), 
+                    queryRequest.getSortBy(), 
+                    queryRequest.getSortDir());
+
+            Page<Location> locationPage = locationService.getAll(pageable, queryRequest.getFilters());
+
+            // IMPORTANT: Filters should ALWAYS contain ALL possible values, independent of pagination
+            Map<String, List<FilterOptionDTO>> filters = new HashMap<>();
+            
+            // Get all unique countries from all locations (for filter dropdown)
+            // IMPORTANT: Get ALL locations (not just current page) to show all possible filter values
+            List<Location> allLocations = locationService.getAll();
+            List<FilterOptionDTO> countryFilters = allLocations.stream()
+                    .map(Location::getCountry)
+                    .filter(country -> country != null && !country.isEmpty())
+                    .distinct()
+                    .sorted()
+                    .map(country -> new FilterOptionDTO(country, country))
+                    .collect(Collectors.toList());
+            filters.put("countries", countryFilters);
+
+            return ResponseEntity.ok(PaginationUtils.toPaginatedResponse(locationPage, LocationMapper::toResponseDTO, filters));
+        } catch (Exception e) {
+            logger.error("Error querying locations: {}", e.getMessage(), e);
+            throw new RuntimeException("Failed to query locations: " + e.getMessage(), e);
+        }
     }
 
     @PostMapping("/create")
