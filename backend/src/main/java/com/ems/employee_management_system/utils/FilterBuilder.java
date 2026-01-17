@@ -33,8 +33,8 @@ public class FilterBuilder {
             }
 
             String field = filter.getField();
-            String operator = filter.getOperator() != null ? filter.getOperator().toLowerCase() : "equals";
             List<?> rawValues = filter.getValues();
+            String operator = deriveOperator(rawValues);
             
             // Convert raw values to strings for processing, extracting id/label info for logging
             List<String> values = convertRawValuesToStrings(rawValues);
@@ -92,6 +92,13 @@ public class FilterBuilder {
                 return cb.conjunction();
             }
         };
+    }
+
+    private static String deriveOperator(List<?> rawValues) {
+        if (rawValues == null || rawValues.isEmpty()) {
+            return "equals";
+        }
+        return rawValues.size() > 1 ? "in" : "equals";
     }
 
     /**
