@@ -16,6 +16,7 @@ import { AuthService } from '../../../../core/services/auth.service';
 import { filter, take } from 'rxjs/operators';
 import { ProjectSelectionService } from '../../services/project-selection.service';
 import { ConfirmationDialogComponent } from '../../../../shared/components/confirmation-dialog/confirmation-dialog.component';
+import { ActiveFilters, FilterEvent, RemoveFilterEvent } from '../../../../shared/types/filter';
 
 @Component({
   selector: 'app-project-list',
@@ -36,6 +37,7 @@ export class ProjectListComponent implements OnInit, OnDestroy {
   currentSortColumn = '';
   currentSortDirection = 'ASC';
   filters: Record<string, FilterOption[]> = {}; // Store filters from paginated response
+  activeFilters: ActiveFilters[] = [];  
   loading = false; // Loading state for table spinner
   private isRefreshing = false; // Guard to prevent duplicate refresh calls
   private projectAddedHandler?: () => void; // Store handler reference for cleanup
@@ -150,7 +152,7 @@ export class ProjectListComponent implements OnInit, OnDestroy {
 
   loadProjects(page = 0, size = 10, sortBy?: string, sortDir = 'ASC'): void {
     this.loading = true;
-    this.projectService.queryProjects(page, size, sortBy, sortDir).subscribe({
+    this.projectService.queryProjects(page, size, sortBy, sortDir, this.activeFilters).subscribe({
       next: (response: PaginatedResponse<Project>) => {
         console.log('Project query response:', response);
         this.projects = response.content || [];
@@ -216,6 +218,52 @@ export class ProjectListComponent implements OnInit, OnDestroy {
     this.pageSize = event.pageSize;
     // Use current sort settings when loading
     this.loadProjects(this.currentPage, this.pageSize, this.currentSortColumn, this.currentSortDirection);
+  }
+
+  onApplyFilter(filterEvent: FilterEvent): void {
+    const existingFilterIndex = this.activeFilters.findIndex(f => f.field === filterEvent.field);
+
+    if (existingFilterIndex >= 0) {
+      this.activeFilters[existingFilterIndex] = filterEvent;
+    } else {
+      this.activeFilters.push(filterEvent);
+    }
+
+    this.currentPage = 0;
+    this.loadProjects(0, this.pageSize, this.currentSortColumn, this.currentSortDirection);
+  }
+
+  onClearFilters(): void {
+    this.activeFilters = [] as ActiveFilters[];
+    this.currentPage = 0;
+    this.loadProjects(0, this.pageSize, this.currentSortColumn, this.currentSortDirection);
+  }
+
+  onRemoveFilter(event: RemoveFilterEvent): void {
+    this.activeFilters = this.activeFilters
+      .map(f => {
+        if (f.field !== event.field) {
+          return f;
+        }
+
+        if (event.value === undefined) {
+          return null;
+        }
+
+        const remainingValues = f.values.filter(v => !this.isSameFilterValue(v, event.value));
+        return remainingValues.length ? { ...f, values: remainingValues } : null;
+      })
+      .filter((f): f is ActiveFilters => Boolean(f));
+
+    this.currentPage = 0;
+    this.loadProjects(0, this.pageSize, this.currentSortColumn, this.currentSortDirection);
+  }
+
+  private isSameFilterValue(a: unknown, b: unknown): boolean {
+    if (a && b && typeof a === 'object' && typeof b === 'object' && 'id' in a && 'id' in b) {
+      return (a as { id: unknown }).id === (b as { id: unknown }).id;
+    }
+    return a === b;
   }
 
   openDeleteDialog(project: Project): void {

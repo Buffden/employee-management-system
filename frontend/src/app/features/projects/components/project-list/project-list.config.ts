@@ -27,7 +27,7 @@ export const projectListConfig: TableConfig = {
   allowedRolesForAdd: ['SYSTEM_ADMIN', 'HR_MANAGER', 'DEPARTMENT_MANAGER'],
   addButtonTooltip: 'This feature is only available for System Admins, HR Managers, and Department Managers',
   allowCustomize: true,
-  allowFiltering: false, // Allow filtering on project table
+  allowFiltering: true, // Allow filtering on project table
   defaultSortColumn: 'name', // Default sort by project name
   defaultSortDirection: SortDirection.ASC, // Default sort direction
   noDataInfo: {

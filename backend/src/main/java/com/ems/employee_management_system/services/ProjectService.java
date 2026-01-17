@@ -8,15 +8,18 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.ems.employee_management_system.constants.Constants;
+import com.ems.employee_management_system.dtos.FilterCriteria;
 import com.ems.employee_management_system.models.Project;
 import com.ems.employee_management_system.repositories.EmployeeProjectRepository;
 import com.ems.employee_management_system.repositories.ProjectRepository;
 import com.ems.employee_management_system.repositories.TaskRepository;
 import com.ems.employee_management_system.security.SecurityService;
+import com.ems.employee_management_system.utils.FilterBuilder;
 
 @Service
 public class ProjectService {
@@ -45,6 +48,32 @@ public class ProjectService {
         // This ensures department and projectManager are available for mapping to DTOs
         logger.debug("Returning all projects for all users");
             return projectRepository.findAllWithRelationships(pageable);
+    }
+
+    /**
+     * Get projects with filters applied
+     * Applies user-provided filters
+     * 
+     * @param pageable Pagination info
+     * @param filters List of FilterCriteria to apply
+     * @return Page of projects matching filters
+     */
+    public Page<Project> getAll(Pageable pageable, List<FilterCriteria> filters) {
+        logger.debug("Fetching projects with filters and pagination: page={}, size={}, filterCount={}", 
+                pageable.getPageNumber(), pageable.getPageSize(), filters != null ? filters.size() : 0);
+
+        // Build specification from filters
+        Specification<Project> spec = Specification.where(null);
+        
+        // Apply user-provided filters
+        if (filters != null && !filters.isEmpty()) {
+            for (FilterCriteria filter : filters) {
+                spec = spec.and(FilterBuilder.buildSpecification(filter));
+            }
+            logger.debug("Applied {} user-provided filters", filters.size());
+        }
+
+        return projectRepository.findAll(spec, pageable);
     }
 
     public List<Project> getAll() {

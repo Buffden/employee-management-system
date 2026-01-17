@@ -1,6 +1,6 @@
 import { Component, EventEmitter, Input, Output, ViewChild } from '@angular/core';
 import { FilterComponent } from '../filter/filter.component';
-import { ActiveFilters, FilterEvent } from '../../../../types/filter';
+import { ActiveFilters, FilterEvent, RemoveFilterEvent } from '../../../../types/filter';
 import { FilterOption } from '../../../../models/paginated-response.model';
 
 @Component({
@@ -16,7 +16,7 @@ export class FilterDialogComponent {
   
   @Output() applyFilter = new EventEmitter<FilterEvent>();
   @Output() clearFilters = new EventEmitter<void>();
-  @Output() removeFilter = new EventEmitter<string>();
+  @Output() removeFilter = new EventEmitter<RemoveFilterEvent>();
 
   @ViewChild(FilterComponent) filterComponent!: FilterComponent;
 
@@ -32,8 +32,8 @@ export class FilterDialogComponent {
   }
 
   // Method to handle remove filter from child filter component
-  onRemoveFilter(field: string): void {
-    this.removeFilter.emit(field);
+  onRemoveFilter(event: RemoveFilterEvent): void {
+    this.removeFilter.emit(event);
   }
 
   // Method to handle clear filters from child filter component

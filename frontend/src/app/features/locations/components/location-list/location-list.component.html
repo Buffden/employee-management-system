@@ -13,8 +13,13 @@
     [editActionHandler]="onEditAction"
     [deleteActionHandler]="onDeleteAction"
     [returnToPage]="'locations'"
+    [filters]="filters"
+    [activeFilters]="activeFilters"
     (sortChange)="onSortChange($event)"
-    (pageChange)="onPageChange($event)">
+    (pageChange)="onPageChange($event)"
+    (applyFilter)="onApplyFilter($event)"
+    (clearFilters)="onClearFilters()"
+    (removeFilter)="onRemoveFilter($event)">
   </app-table>
 </div>
 

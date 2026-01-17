@@ -17,7 +17,7 @@ import { departmentListConfig } from './department-list.config';
 import { DialogData, overlayType } from '../../../../shared/models/dialog';
 import { AuthService } from '../../../../core/services/auth.service';
 import { PaginatedResponse, FilterOption } from '../../../../shared/models/paginated-response.model';
-import { ActiveFilters, FilterEvent } from '../../../../shared/types/filter';
+import { ActiveFilters, FilterEvent, RemoveFilterEvent } from '../../../../shared/types/filter';
 
 @Component({
   selector: 'app-department-list',
@@ -234,9 +234,30 @@ export class DepartmentListComponent implements OnInit, OnDestroy {
     this.loadDepartments(0, this.pageSize, this.currentSortColumn, this.currentSortDirection);
   }
 
-  onRemoveFilter(fieldPath: string): void {
-    this.activeFilters = this.activeFilters.filter(f => f.field !== fieldPath);
+  onRemoveFilter(event: RemoveFilterEvent): void {
+    this.activeFilters = this.activeFilters
+      .map(f => {
+        if (f.field !== event.field) {
+          return f;
+        }
+
+        if (event.value === undefined) {
+          return null;
+        }
+
+        const remainingValues = f.values.filter(v => !this.isSameFilterValue(v, event.value));
+        return remainingValues.length ? { ...f, values: remainingValues } : null;
+      })
+      .filter((f): f is ActiveFilters => Boolean(f));
+
     this.currentPage = 0;
     this.loadDepartments(0, this.pageSize, this.currentSortColumn, this.currentSortDirection);
+  }
+
+  private isSameFilterValue(a: unknown, b: unknown): boolean {
+    if (a && b && typeof a === 'object' && typeof b === 'object' && 'id' in a && 'id' in b) {
+      return (a as { id: unknown }).id === (b as { id: unknown }).id;
+    }
+    return a === b;
   }
 }

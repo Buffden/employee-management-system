@@ -3,10 +3,11 @@ package com.ems.employee_management_system.dtos;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
+import java.util.List;
 
 /**
  * DTO for project query requests with pagination and sorting
- * Used for POST /api/projects/query endpoint
+ * Used for POST /api/projects endpoint
  */
 public class ProjectQueryRequestDTO {
     @Min(value = 0, message = "Page number must be non-negative")
@@ -20,6 +21,8 @@ public class ProjectQueryRequestDTO {
 
     @Pattern(regexp = "ASC|DESC", message = "Sort direction must be 'ASC' or 'DESC'")
     private String sortDir = "ASC";
+
+    private java.util.List<FilterCriteria> filters;  // NEW - applied filters
 
     // Getters and setters
     public int getPage() {
@@ -52,6 +55,14 @@ public class ProjectQueryRequestDTO {
 
     public void setSortDir(String sortDir) {
         this.sortDir = sortDir;
+    }
+
+    public java.util.List<FilterCriteria> getFilters() {
+        return filters;
+    }
+
+    public void setFilters(java.util.List<FilterCriteria> filters) {
+        this.filters = filters;
     }
 }
 
