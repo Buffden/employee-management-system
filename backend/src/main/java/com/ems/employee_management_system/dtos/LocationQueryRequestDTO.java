@@ -1,10 +1,13 @@
 package com.ems.employee_management_system.dtos;
 
+import java.util.List;
+
 public class LocationQueryRequestDTO {
     private int page = 0;
     private int size = 20;
     private String sortBy;
     private String sortDir = "ASC";
+    private List<FilterCriteria> filters;  // NEW - applied filters
 
     public LocationQueryRequestDTO() {
     }
@@ -46,6 +49,14 @@ public class LocationQueryRequestDTO {
 
     public void setSortDir(String sortDir) {
         this.sortDir = sortDir;
+    }
+
+    public List<FilterCriteria> getFilters() {
+        return filters;
+    }
+
+    public void setFilters(List<FilterCriteria> filters) {
+        this.filters = filters;
     }
 }
 

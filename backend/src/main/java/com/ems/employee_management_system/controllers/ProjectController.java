@@ -93,7 +93,14 @@ public class ProjectController {
                     queryRequest.getSize(), 
                     queryRequest.getSortBy(), 
                     queryRequest.getSortDir());
-            Page<Project> projectPage = projectService.getAll(pageable);
+            
+            // Apply filters if present, otherwise get all
+            Page<Project> projectPage;
+            if (queryRequest.getFilters() != null && !queryRequest.getFilters().isEmpty()) {
+                projectPage = projectService.getAll(pageable, queryRequest.getFilters());
+            } else {
+                projectPage = projectService.getAll(pageable);
+            }
             
             // Build filters array with departments and statuses for reusable table filtering
             // IMPORTANT: Filters should ALWAYS contain ALL possible values, independent of pagination
