@@ -268,8 +268,8 @@ public class DepartmentService {
 
     private String summarizeFilters(List<FilterCriteria> filters) {
         return filters.stream()
-                .map(f -> String.format("%s %s %s", f.getField(), f.getOperator(), f.getValues()))
-                .collect(Collectors.joining(" | "));
+                .map(f -> String.format("%s %s", f.getField(), f.getValues()))
+                .collect(Collectors.joining("; "));
     }
 
     /**
