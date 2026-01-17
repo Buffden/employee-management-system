@@ -25,7 +25,7 @@ export const locationListConfig: TableConfig = {
     addButtonTooltip: 'This feature is only available for System Admins and HR Managers',
     allowCustomize: true,
     allowExport: true,
-    allowFiltering: false, // Allow filtering on location table
+    allowFiltering: true, // Allow filtering on location table
     defaultSortColumn: 'name', // Default sort by location name
     defaultSortDirection: SortDirection.ASC, // Default sort direction
     noDataInfo: {

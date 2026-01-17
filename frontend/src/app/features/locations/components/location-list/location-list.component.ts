@@ -8,7 +8,7 @@ import { locationListConfig } from './location-list.config';
 import { HttpClient } from '@angular/common/http';
 import { Router } from '@angular/router';
 import { Location } from '../../../../shared/models/location.model';
-import { PaginatedResponse } from '../../../../shared/models/paginated-response.model';
+import { PaginatedResponse, FilterOption } from '../../../../shared/models/paginated-response.model';
 import { MatDialog, MatDialogRef } from '@angular/material/dialog';
 import { OverlayDialogComponent } from '../../../../shared/components/overlay-dialog/overlay-dialog.component';
 import { DialogData, overlayType } from '../../../../shared/models/dialog';
@@ -16,6 +16,7 @@ import { AuthService } from '../../../../core/services/auth.service';
 import { filter } from 'rxjs';
 import { take } from 'rxjs/operators';
 import { ConfirmationDialogComponent } from '../../../../shared/components/confirmation-dialog/confirmation-dialog.component';
+import { ActiveFilters, FilterEvent, RemoveFilterEvent } from '../../../../shared/types/filter';
 
 @Component({
   selector: 'app-location-list',
@@ -37,6 +38,8 @@ export class LocationListComponent implements OnInit, OnDestroy {
   hasPrevious = false;
   currentSortColumn = '';
   currentSortDirection = 'ASC';
+  filters: Record<string, FilterOption[]> = {}; // Store filters from paginated response
+  activeFilters: ActiveFilters[] = [];
   loading = false; // Loading state for table spinner
   private isRefreshing = false; // Guard to prevent duplicate refresh calls
   private locationAddedHandler?: () => void; // Store handler reference for cleanup
@@ -138,7 +141,7 @@ export class LocationListComponent implements OnInit, OnDestroy {
 
   loadLocations(page = 0, size = 10, sortBy?: string, sortDir = 'ASC'): void {
     this.loading = true;
-    this.locationService.queryLocations(page, size, sortBy, sortDir).subscribe({
+    this.locationService.queryLocations(page, size, sortBy, sortDir, this.activeFilters).subscribe({
       next: (response: PaginatedResponse<Location>) => {
         this.locations = response.content || [];
         this.currentPage = response.page || 0;
@@ -147,6 +150,11 @@ export class LocationListComponent implements OnInit, OnDestroy {
         this.totalPages = response.totalPages || 0;
         this.hasNext = response.hasNext ?? false;
         this.hasPrevious = response.hasPrevious ?? false;
+        
+        // Extract filters from response (e.g., for dropdown/filtering)
+        if (response.filters) {
+          this.filters = response.filters;
+        }
         
         this.tableData = this.locations?.map(loc => ({
           ...loc,
@@ -220,6 +228,52 @@ export class LocationListComponent implements OnInit, OnDestroy {
   onDeleteAction = (row: TableCellData): void => {
     const location = row as unknown as Location;
     this.openDeleteDialog(location);
+  }
+
+  onApplyFilter(filterEvent: FilterEvent): void {
+    const existingFilterIndex = this.activeFilters.findIndex(f => f.field === filterEvent.field);
+
+    if (existingFilterIndex >= 0) {
+      this.activeFilters[existingFilterIndex] = filterEvent;
+    } else {
+      this.activeFilters.push(filterEvent);
+    }
+
+    this.currentPage = 0;
+    this.loadLocations(0, this.pageSize, this.currentSortColumn, this.currentSortDirection);
+  }
+
+  onClearFilters(): void {
+    this.activeFilters = [] as ActiveFilters[];
+    this.currentPage = 0;
+    this.loadLocations(0, this.pageSize, this.currentSortColumn, this.currentSortDirection);
+  }
+
+  onRemoveFilter(event: RemoveFilterEvent): void {
+    this.activeFilters = this.activeFilters
+      .map(f => {
+        if (f.field !== event.field) {
+          return f;
+        }
+
+        if (event.value === undefined) {
+          return null;
+        }
+
+        const remainingValues = f.values.filter(v => !this.isSameFilterValue(v, event.value));
+        return remainingValues.length ? { ...f, values: remainingValues } : null;
+      })
+      .filter((f): f is ActiveFilters => f !== null);
+
+    this.currentPage = 0;
+    this.loadLocations(0, this.pageSize, this.currentSortColumn, this.currentSortDirection);
+  }
+
+  private isSameFilterValue(a: unknown, b: unknown): boolean {
+    if (a && b && typeof a === 'object' && typeof b === 'object' && 'id' in a && 'id' in b) {
+      return (a as { id: unknown }).id === (b as { id: unknown }).id;
+    }
+    return a === b;
   }
 }
 
