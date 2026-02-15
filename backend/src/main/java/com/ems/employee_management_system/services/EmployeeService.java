@@ -13,6 +13,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StopWatch;
 
 import com.ems.employee_management_system.models.Employee;
 import com.ems.employee_management_system.models.User;
@@ -49,6 +50,8 @@ public class EmployeeService {
     }
 
     public Page<Employee> getAll(Pageable pageable, List<FilterCriteria> filters) {
+        StopWatch stopWatch = new StopWatch();
+        stopWatch.start();
         logger.debug("Fetching employees with pagination: page={}, size={}", pageable.getPageNumber(), pageable.getPageSize());
         String role = securityService.getCurrentUserRole();
         UUID departmentId = securityService.getCurrentUserDepartmentId();
@@ -66,15 +69,24 @@ public class EmployeeService {
         }
 
         // If role is null, default to empty result (should not happen due to @PreAuthorize, but defensive coding)
-        if (role == null) {
-            logger.warn("User role is null, returning empty page");
-            return org.springframework.data.domain.Page.empty(pageable);
+        try {
+            if (role == null) {
+                logger.warn("User role is null, returning empty page");
+                return org.springframework.data.domain.Page.empty(pageable);
+            }
+            
+            // Apply role-based access control
+            // All authorized roles can view all employees - filters are user-applied only
+            logger.debug("Applying filter spec for {} role - using only user-applied filters", role);
+            long repoStartMs = System.currentTimeMillis();
+            Page<Employee> page = employeeRepository.findAll(spec, pageable);
+            long repoEndMs = System.currentTimeMillis();
+            logger.info("Repository time for EmployeeRepository.findAll: {} ms", repoEndMs - repoStartMs);
+            return page;
+        } finally {
+            stopWatch.stop();
+            logger.info("Service time for EmployeeService.getAll: {} ms", stopWatch.getTotalTimeMillis());
         }
-        
-        // Apply role-based access control
-        // All authorized roles can view all employees - filters are user-applied only
-        logger.debug("Applying filter spec for {} role - using only user-applied filters", role);
-        return employeeRepository.findAll(spec, pageable);
     }
 
     public List<Employee> getAll() {
