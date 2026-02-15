@@ -63,6 +63,7 @@ public class EmployeeController {
     @PostMapping
     @PreAuthorize("hasAnyRole('" + RoleConstants.SYSTEM_ADMIN + "','" + RoleConstants.HR_MANAGER + "','" + RoleConstants.DEPARTMENT_MANAGER + "','" + RoleConstants.EMPLOYEE + "')")
     public ResponseEntity<PaginatedResponseDTO<EmployeeResponseDTO>> query(@RequestBody EmployeeQueryRequestDTO queryRequest) {
+        long startTimeMs = System.currentTimeMillis();
         logger.debug("Querying employees with pagination: page={}, size={}, sortBy={}, sortDir={}", 
                 queryRequest.getPage(), queryRequest.getSize(), queryRequest.getSortBy(), queryRequest.getSortDir());
         
@@ -121,6 +122,9 @@ public class EmployeeController {
         } catch (Exception e) {
             logger.error("Error querying employees: {}", e.getMessage(), e);
             throw new RuntimeException("Failed to query employees: " + e.getMessage(), e);
+        } finally {
+            long endTimeMs = System.currentTimeMillis();
+            logger.info("Controller time for POST /api/employees: {} ms", endTimeMs - startTimeMs);
         }
     }
 
