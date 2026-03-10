@@ -3,6 +3,12 @@ services:
     image: buffden/ems-backend:${IMAGE_TAG}
     container_name: ems-backend
 
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "3"
+
     # Docker Compose will read variables from .env automatically
     environment:
       SPRING_PROFILE: ${SPRING_PROFILE}
@@ -46,6 +52,11 @@ services:
     image: redis:7-alpine
     container_name: ems-redis
     command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "20m"
+        max-file: "2"
     volumes:
       - redis_data:/data
     networks:
@@ -60,6 +71,12 @@ services:
   gateway:
     image: buffden/ems-gateway:${IMAGE_TAG}
     container_name: ems-gateway
+
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "100m"
+        max-file: "5"
 
     ports:
       - "80:80"
