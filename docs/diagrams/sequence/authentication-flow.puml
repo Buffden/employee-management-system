@@ -10,37 +10,51 @@ title Authentication Flow - Sequence Diagram
 actor "User" as User
 participant "Angular Frontend" as Frontend
 participant "Auth Service" as AuthService
-participant "Nginx Gateway" as Gateway
+participant "Nginx Gateway\n(Rate Limiter)" as Gateway
 participant "Auth Controller" as Controller
 participant "User Repository" as UserRepo
 database "PostgreSQL" as DB
+database "Redis\n(Rate Limit State)" as Redis
 
 == User Login ==
 User -> Frontend: 1. Enter username and password
 Frontend -> Frontend: 2. Validate input (client-side)
 Frontend -> Gateway: 3. POST /api/auth/login\n{username, password}
-Gateway -> Controller: 4. Forward request
 
-Controller -> AuthService: 5. authenticate(username, password)
-AuthService -> UserRepo: 6. findByUsername(username)
-UserRepo -> DB: 7. SELECT * FROM users WHERE username = ?
-DB --> UserRepo: 8. User data
-UserRepo --> AuthService: 9. User entity
+Gateway -> Gateway: 4a. Check IP blocklist
+alt Blocked IP
+    Gateway --> Frontend: HTTP 444 (no response / connection dropped)
+end
 
-AuthService -> AuthService: 10. Verify password (BCrypt)
-AuthService -> AuthService: 11. Generate JWT token
-AuthService --> Controller: 12. AuthResponseDTO\n{token, user}
+Gateway -> Redis: 4b. Check auth rate limit\n(token bucket: 10r/min per IP)
+alt Rate limit exceeded
+    Redis --> Gateway: limit hit
+    Gateway --> Frontend: HTTP 429 Too Many Requests\nRetry-After: 60s
+end
+Redis --> Gateway: within limit — proceed
 
-Controller --> Gateway: 13. HTTP 200 OK
-Gateway --> Frontend: 14. Response with token
-Frontend -> Frontend: 15. Store token in localStorage
-Frontend --> User: 16. Redirect to dashboard
+Gateway -> Controller: 5. Forward request
+
+Controller -> AuthService: 6. authenticate(username, password)
+AuthService -> UserRepo: 7. findByUsername(username)
+UserRepo -> DB: 8. SELECT * FROM users WHERE username = ?
+DB --> UserRepo: 9. User data
+UserRepo --> AuthService: 10. User entity
+
+AuthService -> AuthService: 11. Verify password (BCrypt)
+AuthService -> AuthService: 12. Generate JWT token
+AuthService --> Controller: 13. AuthResponseDTO\n{token, user}
+
+Controller --> Gateway: 14. HTTP 200 OK
+Gateway --> Frontend: 15. Response with token
+Frontend -> Frontend: 16. Store token in localStorage
+Frontend --> User: 17. Redirect to dashboard
 
 == Token Validation & Authorization ==
-User -> Frontend: 17. Navigate to protected route
-Frontend -> Frontend: 18. Get token from localStorage
-Frontend -> Gateway: 19. GET /api/employees\nAuthorization: Bearer {token}
-Gateway -> Gateway: 20. Forward to Backend
+User -> Frontend: 18. Navigate to protected route
+Frontend -> Frontend: 19. Get token from localStorage
+Frontend -> Gateway: 20. GET /api/employees\nAuthorization: Bearer {token}
+Gateway -> Gateway: 21. Forward to Backend
 
 participant "JwtAuthenticationFilter" as JwtFilter
 participant "SecurityService" as SecurityService
