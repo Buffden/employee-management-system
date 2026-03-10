@@ -20,7 +20,8 @@ package "Employee Management System" #LightYellow {
   [Nginx Gateway] as Gateway
   [Spring Boot API] as API
   database "PostgreSQL Database" as DB
-  
+  database "Redis" as Redis
+
   note right of Web
     **Technology:** Angular 19, TypeScript
     **Port:** 80
@@ -31,16 +32,19 @@ package "Employee Management System" #LightYellow {
     - Dashboard
     - Project Management
   end note
-  
+
   note right of Gateway
     **Technology:** Nginx
-    **Purpose:** API Gateway, routing
+    **Purpose:** API Gateway, routing, security
     **Features:**
-    - Request routing
-    - API proxying
+    - IP blocklist (return 444)
+    - Rate limiting (auth: 10r/m, api: 20r/s)
+    - Connection limiting (10 per IP)
+    - Request routing & API proxying
     - Static file serving
+    - TLS termination
   end note
-  
+
   note right of API
     **Technology:** Java 17, Spring Boot 3.4
     **Port:** 8080
@@ -51,7 +55,7 @@ package "Employee Management System" #LightYellow {
     - Dashboard metrics
     - Project/Task management
   end note
-  
+
   note right of DB
     **Technology:** PostgreSQL 15
     **Port:** 5432
@@ -61,13 +65,25 @@ package "Employee Management System" #LightYellow {
     - Department data
     - Project/Task data
   end note
+
+  note right of Redis
+    **Technology:** Redis 7
+    **Port:** 6379
+    **Purpose:** Distributed rate limiting
+    **Features:**
+    - Token bucket per IP
+    - Auth: 10 req/min
+    - API: 100 req/min
+    - 1hr TTL on auth keys
+  end note
 }
 
 User --> Web : Uses
 Web --> Gateway : Served by
-Gateway --> API : Proxies API requests
+Gateway --> API : Proxies API requests\n(after rate limit check)
 API --> DB : Reads/Writes
 Gateway --> Web : Serves static files
+API --> Redis : Rate limit state
 
 GitHub --> Web : CI/CD
 GitHub --> API : CI/CD
