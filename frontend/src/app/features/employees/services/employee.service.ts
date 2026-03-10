@@ -20,9 +20,9 @@ export class EmployeeService {
     }
 
     // POST query employees with pagination
-    queryEmployees(page = 0, size = 20, sortBy?: string, sortDir = 'ASC'): Observable<PaginatedResponse<Employee>> {
+    queryEmployees(page = 0, size = 20, sortBy?: string, sortDir = 'ASC', filters?: unknown[]): Observable<PaginatedResponse<Employee>> {
         // Build query request - only include sortBy if it has a value
-        const queryRequest: Record<string, string | number> = {
+        const queryRequest: Record<string, unknown> = {
             page: page,
             size: size,
             sortDir: sortDir || 'ASC'
@@ -31,6 +31,10 @@ export class EmployeeService {
         // Only include sortBy if it's provided and not empty
         if (sortBy && sortBy.trim().length > 0) {
             queryRequest['sortBy'] = sortBy.trim();
+        }
+
+        if (filters && filters.length > 0) {
+            queryRequest['filters'] = filters;
         }
 
         return this.http.post<PaginatedResponse<Employee>>(this.apiUrl, queryRequest).pipe(

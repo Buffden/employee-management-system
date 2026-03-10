@@ -17,6 +17,7 @@ import { AuthService } from '../../../../core/services/auth.service';
 import { filter } from 'rxjs';
 import { take } from 'rxjs/operators';
 import { ConfirmationDialogComponent } from '../../../../shared/components/confirmation-dialog/confirmation-dialog.component';
+import { ActiveFilters, FilterEvent, RemoveFilterEvent } from '../../../../shared/types/filter';
 
 @Component({
   selector: 'app-employee-list',
@@ -36,8 +37,9 @@ export class EmployeeListComponent implements OnInit, OnDestroy {
   totalPages = 0;
   currentSortColumn = '';
   currentSortDirection = 'ASC';
-  filters: Record<string, FilterOption[]> = {}; // Store filters from paginated response
-  loading = false; // Loading state for table spinner
+  filters: Record<string, FilterOption[]> = {};
+  activeFilters: ActiveFilters[] = [];  
+  loading = false;
   private isRefreshing = false; // Guard to prevent duplicate refresh calls
   private employeeAddedHandler?: () => void; // Store handler reference for cleanup
 
@@ -192,7 +194,7 @@ export class EmployeeListComponent implements OnInit, OnDestroy {
 
   loadEmployees(page = 0, size = 10, sortBy?: string, sortDir = 'ASC'): void {
     this.loading = true;
-    this.employeeService.queryEmployees(page, size, sortBy, sortDir).subscribe({
+    this.employeeService.queryEmployees(page, size, sortBy, sortDir, this.activeFilters).subscribe({
       next: (response: PaginatedResponse<Employee>) => {
         this.employees = response.content || [];
         this.currentPage = response.page;
@@ -266,5 +268,51 @@ export class EmployeeListComponent implements OnInit, OnDestroy {
   onDeleteSuccess(): void {
     // Refresh the employee list after successful delete
     this.loadEmployees(this.currentPage, this.pageSize, this.currentSortColumn, this.currentSortDirection);
+  }
+
+  onApplyFilter(filterEvent: FilterEvent): void {
+    const existingFilterIndex = this.activeFilters.findIndex(f => f.field === filterEvent.field);
+
+    if (existingFilterIndex >= 0) {
+      this.activeFilters[existingFilterIndex] = filterEvent;
+    } else {
+      this.activeFilters.push(filterEvent);
+    }
+
+    this.currentPage = 0;
+    this.loadEmployees(0, this.pageSize, this.currentSortColumn, this.currentSortDirection);
+  }
+
+  onClearFilters(): void {
+    this.activeFilters = [] as ActiveFilters[];
+    this.currentPage = 0;
+    this.loadEmployees(0, this.pageSize, this.currentSortColumn, this.currentSortDirection);
+  }
+
+  onRemoveFilter(event: RemoveFilterEvent): void {
+    this.activeFilters = this.activeFilters
+      .map(f => {
+        if (f.field !== event.field) {
+          return f;
+        }
+
+        if (event.value === undefined) {
+          return null;
+        }
+
+        const remainingValues = f.values.filter(v => !this.isSameFilterValue(v, event.value));
+        return remainingValues.length ? { ...f, values: remainingValues } : null;
+      })
+      .filter((f): f is ActiveFilters => Boolean(f));
+
+    this.currentPage = 0;
+    this.loadEmployees(0, this.pageSize, this.currentSortColumn, this.currentSortDirection);
+  }
+
+  private isSameFilterValue(a: unknown, b: unknown): boolean {
+    if (a && b && typeof a === 'object' && typeof b === 'object' && 'id' in a && 'id' in b) {
+      return (a as { id: unknown }).id === (b as { id: unknown }).id;
+    }
+    return a === b;
   }
 }

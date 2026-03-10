@@ -10,11 +10,14 @@ import org.springframework.transaction.annotation.Transactional;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 
 import com.ems.employee_management_system.constants.Constants;
+import com.ems.employee_management_system.dtos.FilterCriteria;
 import com.ems.employee_management_system.models.Location;
 import com.ems.employee_management_system.repositories.LocationRepository;
 import com.ems.employee_management_system.security.SecurityService;
+import com.ems.employee_management_system.utils.FilterBuilder;
 
 @Service
 public class LocationService {
@@ -33,6 +36,39 @@ public class LocationService {
         // Location is read-only for all roles, so use filtered method for consistency
         String role = securityService.getCurrentUserRole();
         return locationRepository.findAllFilteredByRole(role, pageable);
+    }
+
+    /**
+     * Get locations with filters applied
+     * Applies user-provided filters
+     * 
+     * @param pageable Pagination info
+     * @param filters List of FilterCriteria to apply
+     * @return Page of locations matching filters
+     */
+    public Page<Location> getAll(Pageable pageable, List<FilterCriteria> filters) {
+        logger.debug("Fetching locations with filters and pagination: page={}, size={}, filterCount={}", 
+                pageable.getPageNumber(), pageable.getPageSize(), filters != null ? filters.size() : 0);
+        String role = securityService.getCurrentUserRole();
+
+        // Build specification from filters
+        Specification<Location> spec = Specification.where(null);
+        
+        // Apply user-provided filters
+        if (filters != null && !filters.isEmpty()) {
+            for (FilterCriteria filter : filters) {
+                spec = spec.and(FilterBuilder.buildSpecification(filter));
+            }
+            logger.debug("Applied {} user-provided filters", filters.size());
+        }
+
+        // Apply role-based access control
+        if (role == null) {
+            logger.warn("User role is null, returning empty page");
+            return org.springframework.data.domain.Page.empty(pageable);
+        }
+        
+        return locationRepository.findAll(spec, pageable);
     }
 
     public List<Location> getAll() {

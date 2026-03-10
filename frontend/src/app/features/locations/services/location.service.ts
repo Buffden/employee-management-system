@@ -5,6 +5,7 @@ import { Location } from "../../../shared/models/location.model";
 import { PaginatedResponse } from "../../../shared/models/paginated-response.model";
 import { Injectable } from "@angular/core";
 import { environment } from "../../../../environments/environment";
+import { ActiveFilters } from "../../../shared/types/filter";
 
 @Injectable({
     providedIn: 'root',
@@ -20,9 +21,9 @@ export class LocationService {
     }
 
     // POST query locations with pagination
-    queryLocations(page = 0, size = 20, sortBy?: string, sortDir = 'ASC'): Observable<PaginatedResponse<Location>> {
+    queryLocations(page = 0, size = 20, sortBy?: string, sortDir = 'ASC', filters?: ActiveFilters[]): Observable<PaginatedResponse<Location>> {
         // Build query request - only include sortBy if it has a value
-        const queryRequest: Record<string, string | number> = {
+        const queryRequest: Record<string, unknown> = {
             page: page,
             size: size,
             sortDir: sortDir || 'ASC'
@@ -31,6 +32,9 @@ export class LocationService {
         // Only include sortBy if it's provided and not empty
         if (sortBy && sortBy.trim().length > 0) {
             queryRequest['sortBy'] = sortBy.trim();
+        }
+        if (filters && filters.length > 0) {
+            queryRequest['filters'] = filters;
         }
 
         return this.http.post<PaginatedResponse<Location>>(this.apiUrl, queryRequest).pipe(

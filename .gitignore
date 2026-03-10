@@ -14,3 +14,6 @@ deployment/.env
 # OS
 .DS_Store
 Thumbs.db
+
+# Data seed scripts (local/test variations - tracked files have V prefix)
+backend/src/main/resources/db/seed/*.sql

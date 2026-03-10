@@ -14,5 +14,6 @@ public class AuthResponseDTO {
     private String refreshToken;
     private UserDTO user;
     private Long expiresIn; // seconds
+    private String message; // Optional message (e.g., for errors, rate limits)
 }
 

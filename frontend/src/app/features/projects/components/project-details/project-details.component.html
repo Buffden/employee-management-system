@@ -319,12 +319,18 @@
         <div class="sidebar-item">
           <span class="sidebar-label">Assigned To</span>
           <div class="sidebar-value">
-            <span *ngIf="item.assignedTo">
-              {{ item.assignedTo.firstName }} {{ item.assignedTo.lastName }}
-            </span>
-            <span *ngIf="!item.assignedTo">
-              {{ item.assignedToId || 'Unassigned' }}
-            </span>
+            <a *ngIf="item.assignedTo?.id" 
+               [routerLink]="['/employees', item.assignedTo!.id]" 
+               class="clickable-link">
+              {{ item.assignedTo!.firstName }} {{ item.assignedTo!.lastName }}
+            </a>
+            <a *ngIf="!item.assignedTo?.id && item.assignedToId" 
+               [routerLink]="['/employees', item.assignedToId]" 
+               class="clickable-link">
+              <span *ngIf="item.assignedTo">{{ item.assignedTo.firstName }} {{ item.assignedTo.lastName }}</span>
+              <span *ngIf="!item.assignedTo">View Employee</span>
+            </a>
+            <span *ngIf="!item.assignedTo?.id && !item.assignedToId">Unassigned</span>
           </div>
         </div>
 

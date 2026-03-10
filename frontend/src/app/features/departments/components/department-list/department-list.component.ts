@@ -1,25 +1,28 @@
 import { Component, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { SharedModule } from '../../../../shared/shared.module';
-import { TableComponent } from '../../../../shared/components/table/table.component';
-import { TableCellData, FormMode, ColumnType } from '../../../../shared/models/table';
-import { DepartmentService } from '../../services/department.service';
-import { departmentListConfig } from './department-list.config';
+import { FormsModule } from '@angular/forms';
 import { HttpClient } from '@angular/common/http';
 import { Router } from '@angular/router';
-import { Department } from '../../../../shared/models/department.model';
-import { PaginatedResponse, FilterOption } from '../../../../shared/models/paginated-response.model';
 import { MatDialog, MatDialogRef } from '@angular/material/dialog';
+import { filter, take } from 'rxjs/operators';
+
+import { SharedModule } from '../../../../shared/shared.module';
+import { TableComponent } from '../../../../shared/components/table/table.component';
 import { OverlayDialogComponent } from '../../../../shared/components/overlay-dialog/overlay-dialog.component';
+import { ConfirmationDialogComponent } from '../../../../shared/components/confirmation-dialog/confirmation-dialog.component';
+import { TableCellData, FormMode, ColumnType } from '../../../../shared/models/table';
+import { Department } from '../../../../shared/models/department.model';
+import { DepartmentService } from '../../services/department.service';
+import { departmentListConfig } from './department-list.config';
 import { DialogData, overlayType } from '../../../../shared/models/dialog';
 import { AuthService } from '../../../../core/services/auth.service';
-import { filter, take } from 'rxjs/operators';
-import { ConfirmationDialogComponent } from '../../../../shared/components/confirmation-dialog/confirmation-dialog.component';
+import { PaginatedResponse, FilterOption } from '../../../../shared/models/paginated-response.model';
+import { ActiveFilters, FilterEvent, RemoveFilterEvent } from '../../../../shared/types/filter';
 
 @Component({
   selector: 'app-department-list',
   standalone: true,
-  imports: [CommonModule, SharedModule, TableComponent],
+  imports: [CommonModule, SharedModule, TableComponent, FormsModule],
   providers: [DepartmentService, HttpClient],
   templateUrl: './department-list.component.html',
   styleUrls: ['./department-list.component.css'],
@@ -34,23 +37,17 @@ export class DepartmentListComponent implements OnInit, OnDestroy {
   totalPages = 0;
   currentSortColumn = '';
   currentSortDirection = 'ASC';
-  filters: Record<string, FilterOption[]> = {}; // Store filters from paginated response
-  loading = false; // Loading state for table spinner
-  private isRefreshing = false; // Guard to prevent duplicate refresh calls
-  private departmentAddedHandler?: () => void; // Store handler reference for cleanup
-
-  // Custom handler for link clicks - uses config to determine navigation target
-  onDepartmentNameClick = (row: TableCellData, colKey: string) => {
-    // Find the column config for this column key
+  filters: Record<string, FilterOption[]> = {};
+  activeFilters: ActiveFilters[] = [];
+  loading = false;
+  private isRefreshing = false;
+  private departmentAddedHandler?: () => void;
+  onDepartmentNameClick = (row: TableCellData, colKey: string): void => {
     const column = this.tableConfig.columns.find(col => col.key === colKey);
-    
     if (column && column.type === ColumnType.LINK && column.navigationTarget && column.navigationIdKey) {
-      // Get the ID from the row using the navigationIdKey
       const rowData = row as unknown as Record<string, unknown>;
       const navigationId = rowData[column.navigationIdKey] as string | undefined;
-      
       if (navigationId) {
-        // Navigate based on the navigationTarget from config
         this.router.navigate([`/${column.navigationTarget}s`, navigationId]);
       }
     }
@@ -68,22 +65,15 @@ export class DepartmentListComponent implements OnInit, OnDestroy {
   }
 
   ngOnInit(): void {
-    // Enable action buttons for admins and HR managers
     this.tableConfig.displayActionButtons = this.canEditDepartment();
-    
-    // Load with default sort from config
     if (this.tableConfig.defaultSortColumn) {
       this.currentSortColumn = this.tableConfig.defaultSortColumn;
       this.currentSortDirection = this.tableConfig.defaultSortDirection === 'desc' ? 'DESC' : 'ASC';
     }
     this.loadDepartments(this.currentPage, this.pageSize, this.currentSortColumn, this.currentSortDirection);
-    
-    // Listen only for add operations from table component (edit/delete handled by afterClosed())
-    // Store handler reference so we can remove it later
     this.departmentAddedHandler = () => {
       this.loadDepartments(this.currentPage, this.pageSize, this.currentSortColumn, this.currentSortDirection);
     };
-    
     globalThis.window.addEventListener('departmentAdded', this.departmentAddedHandler);
   }
 
@@ -99,34 +89,29 @@ export class DepartmentListComponent implements OnInit, OnDestroy {
           mode: FormMode.EDIT
         },
         returnToPage: 'departments',
-        filters: this.filters // Pass filters to form component (e.g., locations for department form)
+        filters: this.filters
       } as DialogData
     });
 
-    // Use take(1) to ensure the subscription only fires once
-    dialogRef.afterClosed().pipe(
-      filter(result => !!result && result?.content && 'id' in result.content),
-      take(1)
-    ).subscribe(() => {
-      // Guard to prevent duplicate refresh calls
-      if (this.isRefreshing) {
-        return;
-      }
-      this.isRefreshing = true;
-      
-      // Refresh the department list after update or delete
-      this.loadDepartments(this.currentPage, this.pageSize, this.currentSortColumn, this.currentSortDirection);
-      
-      // Reset flag after a short delay to allow the refresh to complete
-      setTimeout(() => {
-        this.isRefreshing = false;
-      }, 500);
-    });
+    dialogRef.afterClosed()
+      .pipe(
+        filter(result => !!result && result?.content && 'id' in result.content),
+        take(1)
+      )
+      .subscribe(() => {
+        if (this.isRefreshing) {
+          return;
+        }
+        this.isRefreshing = true;
+        this.loadDepartments(this.currentPage, this.pageSize, this.currentSortColumn, this.currentSortDirection);
+
+        setTimeout(() => {
+          this.isRefreshing = false;
+        }, 500);
+      });
   }
 
-
   ngOnDestroy(): void {
-    // Clean up event listener to prevent memory leaks and duplicate calls
     if (this.departmentAddedHandler) {
       globalThis.window.removeEventListener('departmentAdded', this.departmentAddedHandler);
       this.departmentAddedHandler = undefined;
@@ -135,21 +120,19 @@ export class DepartmentListComponent implements OnInit, OnDestroy {
 
   loadDepartments(page = 0, size = 10, sortBy?: string, sortDir = 'ASC'): void {
     this.loading = true;
-    this.departmentService.queryDepartments(page, size, sortBy, sortDir).subscribe({
+
+    this.departmentService.queryDepartments(page, size, sortBy, sortDir, this.activeFilters).subscribe({
       next: (response: PaginatedResponse<Department>) => {
-        console.log('Department query response:', response);
         this.departments = response.content || [];
         this.currentPage = response.page || 0;
         this.pageSize = response.size || 10;
         this.totalElements = response.totalElements || 0;
         this.totalPages = response.totalPages || 0;
-        
-        // Extract filters from response (e.g., locations for dropdown/filtering)
+
         if (response.filters) {
           this.filters = response.filters;
-          // Store filters to pass to form component (avoids redundant API calls)
         }
-        
+
         this.tableData = this.departments?.map(dept => ({
           ...dept,
           id: dept.id,
@@ -163,17 +146,16 @@ export class DepartmentListComponent implements OnInit, OnDestroy {
           performanceMetric: dept.performanceMetric || 0,
           departmentHeadId: dept.departmentHeadId || '',
           departmentHeadName: dept.departmentHeadName || 'Not assigned',
-          // Fill in required TableCellData fields
           startDate: '',
           endDate: '',
           status: '',
           projectManager: '',
           totalEmployees: 0
         }));
+
         this.loading = false;
       },
       error: () => {
-        // Error handled by global error handler or service
         this.loading = false;
       }
     });
@@ -182,17 +164,14 @@ export class DepartmentListComponent implements OnInit, OnDestroy {
   onSortChange(event: { active: string; direction: string }): void {
     this.currentSortColumn = event.active;
     this.currentSortDirection = event.direction === 'ASC' || event.direction === 'asc' ? 'ASC' : 'DESC';
-    // Reset to first page when sorting changes
     this.currentPage = 0;
     this.loadDepartments(this.currentPage, this.pageSize, this.currentSortColumn, this.currentSortDirection);
   }
 
   onPageChange(event: { pageIndex: number; pageSize: number }): void {
-    // Reset to first page if page size changed
     const pageSizeChanged = this.pageSize !== event.pageSize;
     this.currentPage = pageSizeChanged ? 0 : event.pageIndex;
     this.pageSize = event.pageSize;
-    // Use current sort settings when loading
     this.loadDepartments(this.currentPage, this.pageSize, this.currentSortColumn, this.currentSortDirection);
   }
 
@@ -209,29 +188,76 @@ export class DepartmentListComponent implements OnInit, OnDestroy {
       }
     });
 
-    dialogRef.afterClosed().pipe(take(1)).subscribe(result => {
-      if (result && department.id) {
-        this.departmentService.deleteDepartment(department.id).subscribe({
-          next: () => {
-            this.loadDepartments(this.currentPage, this.pageSize, this.currentSortColumn, this.currentSortDirection);
-          },
-          error: (error: unknown) => {
-            console.error('Error deleting department:', error);
-            alert('Failed to delete department. Please try again.');
-          }
-        });
-      }
-    });
+    dialogRef.afterClosed()
+      .pipe(take(1))
+      .subscribe(result => {
+        if (result && department.id) {
+          this.departmentService.deleteDepartment(department.id).subscribe({
+            next: () => {
+              this.loadDepartments(this.currentPage, this.pageSize, this.currentSortColumn, this.currentSortDirection);
+            },
+            error: (error: unknown) => {
+              console.error('Error deleting department:', error);
+              alert('Failed to delete department. Please try again.');
+            }
+          });
+        }
+      });
   }
 
-  // Handler methods for table component
   onEditAction = (row: TableCellData): void => {
     const department = row as unknown as Department;
     this.openEditDialog(department);
-  }
+  };
 
   onDeleteAction = (row: TableCellData): void => {
     const department = row as unknown as Department;
     this.openDeleteDialog(department);
+  };
+
+  onApplyFilter(filterEvent: FilterEvent): void {
+    const existingFilterIndex = this.activeFilters.findIndex(f => f.field === filterEvent.field);
+
+    if (existingFilterIndex >= 0) {
+      this.activeFilters[existingFilterIndex] = filterEvent;
+    } else {
+      this.activeFilters.push(filterEvent);
+    }
+
+    this.currentPage = 0;
+    this.loadDepartments(0, this.pageSize, this.currentSortColumn, this.currentSortDirection);
+  }
+
+  onClearFilters(): void {
+    this.activeFilters = [] as ActiveFilters[];
+    this.currentPage = 0;
+    this.loadDepartments(0, this.pageSize, this.currentSortColumn, this.currentSortDirection);
+  }
+
+  onRemoveFilter(event: RemoveFilterEvent): void {
+    this.activeFilters = this.activeFilters
+      .map(f => {
+        if (f.field !== event.field) {
+          return f;
+        }
+
+        if (event.value === undefined) {
+          return null;
+        }
+
+        const remainingValues = f.values.filter(v => !this.isSameFilterValue(v, event.value));
+        return remainingValues.length ? { ...f, values: remainingValues } : null;
+      })
+      .filter((f): f is ActiveFilters => Boolean(f));
+
+    this.currentPage = 0;
+    this.loadDepartments(0, this.pageSize, this.currentSortColumn, this.currentSortDirection);
+  }
+
+  private isSameFilterValue(a: unknown, b: unknown): boolean {
+    if (a && b && typeof a === 'object' && typeof b === 'object' && 'id' in a && 'id' in b) {
+      return (a as { id: unknown }).id === (b as { id: unknown }).id;
+    }
+    return a === b;
   }
 }

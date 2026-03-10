@@ -8,24 +8,49 @@
             <div *ngIf="tableConfig.allowGenericButtons"
                  class="generic-buttons">
                 <div [ngClass]="{'left-generic-buttons': true, 'generic-buttons--no-data': noData()}">
-                    <button class="buttons"
-                            *ngIf="tableConfig.allowCustomize">Customize Table**</button>
+                    <button class="action-button"
+                            *ngIf="tableConfig.allowCustomize">
+                        <span class="button-icon">
+                            <mat-icon fontIcon="tune"></mat-icon>
+                        </span>
+                        <span class="button-text">Customize Columns</span>
+                    </button>
+                    <app-filter-dialog
+
+                                [filters]="filters"
+                                [activeFilters]="activeFilters"
+                                [allowFiltering]="tableConfig.allowFiltering ?? false"
+                                (applyFilter)="onApplyFilter($event)"
+                                (clearFilters)="onClearFilters()"
+                                (removeFilter)="onRemoveFilter($event)"> 
+                    </app-filter-dialog>
                 </div>
                 <div class="right-generic-buttons">
-                    <button class="buttons"
+                    <button class="action-button action-button--add"
                             *ngIf="tableConfig.allowAddButton"
                             [disabled]="!canAddItem()"
                             [matTooltip]="getAddButtonTooltip()"
                             [matTooltipDisabled]="canAddItem()"
-                            [ngClass]="{'buttons--disabled': !canAddItem()}"
-                            (click)="onAddClick()">{{tableConfig.additionCardTitle}} + </button>
-                    <button class="buttons"
-                            [ngClass]="{'generic-buttons--no-data': noData()}"
-                            *ngIf="tableConfig.allowExport">Export Table</button>
+                            [ngClass]="{'action-button--disabled': !canAddItem()}"
+                            (click)="onAddClick()">
+                        <span class="button-icon">
+                            <mat-icon fontIcon="add"></mat-icon>
+                        </span>
+                        <span class="button-text">{{tableConfig.additionCardTitle}}</span>
+                    </button>
+                    <button class="action-button"
+                            [ngClass]="{'action-button--disabled': noData()}">
+                        <span class="button-icon">
+                            <mat-icon *ngIf="tableConfig.allowExport && !noData()" fontIcon="file_download"></mat-icon>
+                            <mat-icon *ngIf="!tableConfig.allowExport || noData()" fontIcon="file_download_off"></mat-icon>
+                        </span>
+                        <span class="button-text">Export</span>
+                    </button>
                 </div>
             </div>
             <!-- Loading Spinner -->
-            <div *ngIf="loading" class="table-loading-overlay">
+            <div *ngIf="loading"
+                 class="table-loading-overlay">
                 <mat-spinner diameter="50"></mat-spinner>
                 <p class="loading-text">Loading...</p>
             </div>
@@ -50,11 +75,13 @@
                             <ng-container [ngSwitch]="col.type">
                                 <!-- Text -->
                                 <span class="td-content"
-                                      *ngSwitchCase="'text'">{{ row[col.key] !== null && row[col.key] !== undefined && row[col.key] !== '' ? row[col.key] : '-' }}</span>
+                                      *ngSwitchCase="'text'">{{ row[col.key] !== null && row[col.key] !== undefined &&
+                                    row[col.key] !== '' ? row[col.key] : '-' }}</span>
 
                                 <!-- Number -->
                                 <span class="td-content td-number"
-                                      *ngSwitchCase="'number'">{{ row[col.key] !== null && row[col.key] !== undefined && row[col.key] !== '' ? row[col.key] : '-' }}</span>
+                                      *ngSwitchCase="'number'">{{ row[col.key] !== null && row[col.key] !== undefined &&
+                                    row[col.key] !== '' ? row[col.key] : '-' }}</span>
 
                                 <!-- Email -->
                                 <span class="td-content td-email"
@@ -71,7 +98,8 @@
                                 <!-- department -->
                                 <span class="td-content td-department"
                                       *ngSwitchCase="'department'">
-                                    {{ (row[col.key]?.firstName || row[col.key]?.lastName) ? (row[col.key]?.firstName + ' ' + row[col.key]?.lastName) : '-' }}
+                                    {{ (row[col.key]?.firstName || row[col.key]?.lastName) ? (row[col.key]?.firstName +
+                                    ' ' + row[col.key]?.lastName) : '-' }}
                                 </span>
 
                                 <!-- Currency -->
@@ -84,6 +112,9 @@
                                 <span class="td-content td-link"
                                       *ngSwitchCase="'link'">
                                     <a (click)="handleLinkClick(row, col.key, $event)"
+                                       (keydown.enter)="handleLinkClick(row, col.key, $event)"
+                                       (keydown.space)="handleLinkClick(row, col.key, $event)"
+                                       tabindex="0"
                                        style="cursor: pointer; color: #0052cc; text-decoration: none;">
                                         {{ row[col.key] }}
                                     </a>
@@ -92,14 +123,14 @@
                                 <!-- Action Buttons -->
                                 <div class="td-content td-actions"
                                      *ngSwitchCase="'actionButtons'">
-                                    <button mat-icon-button 
+                                    <button mat-icon-button
                                             (click)="onEditAction(row)"
                                             title="Edit"
                                             aria-label="Edit"
                                             class="action-btn action-btn--edit">
                                         <mat-icon>edit</mat-icon>
                                     </button>
-                                    <button mat-icon-button 
+                                    <button mat-icon-button
                                             (click)="onDeleteAction(row)"
                                             title="Delete"
                                             aria-label="Delete"
@@ -111,7 +142,8 @@
                                 <!-- Default -->
                                 <span class="td-content td-default"
                                       *ngSwitchDefault>
-                                    {{ row[col.key] !== null && row[col.key] !== undefined && row[col.key] !== '' ? row[col.key] : '-' }}
+                                    {{ row[col.key] !== null && row[col.key] !== undefined && row[col.key] !== '' ?
+                                    row[col.key] : '-' }}
                                 </span>
                             </ng-container>
 

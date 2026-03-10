@@ -1,4 +1,5 @@
 <div class="container">
+  <!-- Table Section -->
   <app-table 
     [inputData]="tableData" 
     [tableConfig]="tableConfig"
@@ -12,7 +13,11 @@
     [deleteActionHandler]="onDeleteAction"
     [returnToPage]="'departments'"
     [filters]="filters"
+    [activeFilters]="activeFilters"
     (sortChange)="onSortChange($event)"
-    (pageChange)="onPageChange($event)">
+    (pageChange)="onPageChange($event)"
+    (applyFilter)="onApplyFilter($event)"
+    (clearFilters)="onClearFilters()"
+    (removeFilter)="onRemoveFilter($event)">
   </app-table>
 </div>

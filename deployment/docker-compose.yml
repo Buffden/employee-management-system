@@ -41,7 +41,7 @@ services:
       # Database SSL mode (default: disable for dev, require for production)
       - DB_SSL_MODE=${DB_SSL_MODE:-disable}
       # Spring profile (default: dev for local development)
-      - SPRING_PROFILE=${SPRING_PROFILE:-dev}
+      - SPRING_PROFILES_ACTIVE=${SPRING_PROFILE:-dev}
       # Application configuration from .env (REQUIRED - no defaults)
       - JWT_SECRET_KEY=${JWT_SECRET_KEY}
       - CORS_ALLOWED_ORIGINS=${CORS_ALLOWED_ORIGINS}
@@ -50,9 +50,14 @@ services:
       - EMAIL_SENDGRID_API_KEY=${EMAIL_SENDGRID_API_KEY:-}
       - EMAIL_SENDGRID_FROM_EMAIL=${EMAIL_SENDGRID_FROM_EMAIL:-}
       - EMAIL_SENDGRID_FROM_NAME=${EMAIL_SENDGRID_FROM_NAME:-Employee Management System}
+      # Redis configuration
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
     # No port exposure - only accessible via nginx/gateway
     depends_on:
       postgres:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     networks:
       - ems-network
@@ -62,7 +67,22 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 40s
+      start_period: 60s
+
+  redis:
+    image: redis:7-alpine
+    container_name: ems-redis
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    volumes:
+      - redis_data:/data
+    networks:
+      - ems-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
 
   gateway:
     build:
@@ -84,9 +104,12 @@ services:
       interval: 30s
       timeout: 5s
       retries: 3
+      start_period: 30s
 
 volumes:
   postgres_data:
+    driver: local
+  redis_data:
     driver: local
 
 networks:

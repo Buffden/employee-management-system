@@ -6,13 +6,14 @@ import java.util.UUID;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import com.ems.employee_management_system.models.Location;
 import com.ems.employee_management_system.enums.UserRole;
 
-public interface LocationRepository extends JpaRepository<Location, UUID> {
+public interface LocationRepository extends JpaRepository<Location, UUID>, JpaSpecificationExecutor<Location> {
     Optional<Location> findByName(String name);
     
     @Query("SELECT COUNT(e) FROM Employee e WHERE e.location.id = :locationId")

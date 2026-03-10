@@ -2,12 +2,15 @@ package com.ems.employee_management_system.services;
 
 import java.util.List;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
+import com.ems.employee_management_system.dtos.FilterCriteria;
 import com.ems.employee_management_system.models.Employee;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -16,6 +19,7 @@ import com.ems.employee_management_system.repositories.DepartmentRepository;
 import com.ems.employee_management_system.repositories.UserRepository;
 import com.ems.employee_management_system.security.SecurityService;
 import com.ems.employee_management_system.constants.RoleConstants;
+import com.ems.employee_management_system.utils.FilterBuilder;
 
 @Service
 public class DepartmentService {
@@ -51,6 +55,53 @@ public class DepartmentService {
         
         // For other roles (e.g., DEPARTMENT_MANAGER), use role-based filtering with relationships
         return departmentRepository.findAllFilteredByRole(role, departmentId, pageable);
+    }
+
+    /**
+     * Get departments with filters applied
+     * Applies user-provided filters AND role-based filtering
+     * 
+     * @param pageable Pagination info
+     * @param filters List of FilterCriteria to apply
+     * @return Page of departments matching filters
+     */
+    public Page<Department> getAll(Pageable pageable, List<FilterCriteria> filters) {
+        logger.debug("Fetching departments with filters and pagination: page={}, size={}, filterCount={}", 
+                pageable.getPageNumber(), pageable.getPageSize(), filters != null ? filters.size() : 0);
+        String role = securityService.getCurrentUserRole();
+        UUID departmentId = securityService.getCurrentUserDepartmentId();
+
+        if (filters == null || filters.isEmpty()) {
+            logger.info("Filter trace: no filters received (role={}, departmentId={})", role, departmentId);
+        } else {
+            logger.info("Filter trace: {} filters received (role={}, departmentId={}) => {}",
+                    filters.size(), role, departmentId, summarizeFilters(filters));
+        }
+
+        // Build specification from filters
+        Specification<Department> spec = Specification.where(null);
+        
+        // Apply user-provided filters
+        if (filters != null && !filters.isEmpty()) {
+            for (FilterCriteria filter : filters) {
+                spec = spec.and(FilterBuilder.buildSpecification(filter));
+            }
+            logger.debug("Applied {} user-provided filters", filters.size());
+        }
+        
+        // Apply role-based access control
+        if ("SYSTEM_ADMIN".equals(role) || "HR_MANAGER".equals(role) || "EMPLOYEE".equals(role)) {
+            logger.debug("Applying role-based spec for {} role", role);
+            return departmentRepository.findAll(spec, pageable);
+        }
+
+        // For DEPARTMENT_MANAGER, can only view/filter their own department
+        if ("DEPARTMENT_MANAGER".equals(role) && departmentId != null) {
+            logger.info("Filter trace: enforcing department restriction for DEPARTMENT_MANAGER -> {}", departmentId);
+            spec = spec.and((root, query, cb) -> cb.equal(root.get("id"), departmentId));
+        }
+
+        return departmentRepository.findAll(spec, pageable);
     }
 
     public List<Department> getAll() {
@@ -213,6 +264,12 @@ public class DepartmentService {
         
         logger.info("Department saved successfully with id: {}", saved.getId());
         return saved;
+    }
+
+    private String summarizeFilters(List<FilterCriteria> filters) {
+        return filters.stream()
+                .map(f -> String.format("%s %s", f.getField(), f.getValues()))
+                .collect(Collectors.joining("; "));
     }
 
     /**

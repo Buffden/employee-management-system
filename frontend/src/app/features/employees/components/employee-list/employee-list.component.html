@@ -13,6 +13,11 @@
     [returnToPage]="'employees'"
     [filters]="filters"
     (sortChange)="onSortChange($event)"
-    (pageChange)="onPageChange($event)">
+    (pageChange)="onPageChange($event)"
+    [activeFilters]="activeFilters"
+    (pageChange)="onPageChange($event)"
+    (applyFilter)="onApplyFilter($event)"
+    (clearFilters)="onClearFilters()"
+    (removeFilter)="onRemoveFilter($event)">
   </app-table>
 </div>

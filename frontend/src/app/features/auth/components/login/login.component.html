@@ -68,14 +68,20 @@
           <span *ngIf="!loading">Sign In</span>
           <span *ngIf="loading">Signing in...</span>
         </button>
+
+        <!-- Demo Employee Login Button -->
+        <button 
+          mat-stroked-button 
+          type="button"
+          class="full-width"
+          (click)="loginAsDemoEmployee()"
+          [disabled]="loading"
+          style="margin-top: 10px;">
+          <mat-icon>person</mat-icon>
+          <span>Login as Demo Employee</span>
+        </button>
       </form>
     </mat-card-content>
-
-    <mat-card-footer>
-      <div class="login-footer">
-        <p>Default credentials: <strong>admin / admin123</strong></p>
-      </div>
-    </mat-card-footer>
   </mat-card>
 </div>
 
