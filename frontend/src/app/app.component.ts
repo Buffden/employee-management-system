@@ -2,6 +2,7 @@ import { Component, OnInit, Inject, PLATFORM_ID } from '@angular/core';
 import { RouterOutlet, Router } from '@angular/router';
 import { HeaderComponent } from "./features/header/header.component";
 import { AuthService } from './core/services/auth.service';
+import { GtagService } from './core/services/gtag.service';
 import { isPlatformBrowser } from '@angular/common';
 
 @Component({
@@ -16,6 +17,7 @@ export class AppComponent implements OnInit {
   constructor(
     private readonly authService: AuthService,
     private readonly router: Router,
+    private readonly gtagService: GtagService,
     @Inject(PLATFORM_ID) private readonly platformId: object
   ) {}
 

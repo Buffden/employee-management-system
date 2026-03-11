@@ -28,6 +28,7 @@ A full-stack monorepo application for managing employees, departments, projects,
 - [Features](#features)
 - [Tech Stack](#tech-stack)
 - [Security Features](#security-features)
+- [Analytics](#analytics)
 - [Architecture](#architecture)
 - [Prerequisites](#prerequisites)
 - [Getting Started](#getting-started)
@@ -67,6 +68,7 @@ The following features are currently under development and will be available in 
 ### Production Features
 - **Automated CI/CD**: GitHub Actions pipeline for testing and deployment
 - **Health Monitoring**: Container health checks and application logs
+- **Analytics**: Google Analytics integration with automatic SPA route tracking and path normalization
 - **SSL/TLS**: Secure HTTPS configuration
 - **Database Backups**: Automated backup strategy for AWS RDS
 - **Scalability**: Container-based architecture ready for horizontal scaling
@@ -91,6 +93,25 @@ The following features are currently under development and will be available in 
 - **Zero Cost**: Complete implementation at $0/month
 
 **Documentation**: See [Rate Limiting Quick Start](docs/RATE_LIMITING_QUICK_START.md)
+
+## Analytics
+
+### Google Analytics Integration
+
+The application integrates **Google Analytics** with automatic SPA route tracking:
+
+- **Automatic Route Tracking**: All page navigations tracked automatically using RxJS Router events
+- **Smart Path Normalization**: Detail pages with UUIDs normalized to section-level tracking (e.g., `/employees/uuid` → `/employees`)
+- **Custom Event Tracking**: Track form submissions, button clicks, and user interactions
+- **User Identification**: Authenticated users tracked by unique ID for cohort analysis
+- **Zero Configuration**: Works out of the box once GA script is added
+
+**Reports**: View real-time analytics in Google Analytics Dashboard
+- Pages and Screens: Reports → Engagement → Pages and Screens
+- Custom Events: Reports → Engagement → Events
+- Real-Time: Reports → Real-Time → Overview
+
+**Implementation**: See [Google Analytics SPA Guide](docs/google-analytics-spa-routing-guide.md) and [GtagService README](frontend/src/app/core/services/GTAG_SERVICE_README.md)
 
 ## Tech Stack
 
@@ -355,7 +376,9 @@ frontend/src/app/
 ├── core/                 # Core services
 │   └── services/
 │       ├── api.service.ts
-│       └── auth.service.ts
+│       ├── auth.service.ts
+│       ├── gtag.service.ts          # Google Analytics tracking
+│       └── GTAG_SERVICE_README.md   # GA implementation guide
 ├── shared/               # Shared components
 │   ├── components/       # Reusable components
 │   ├── models/           # TypeScript interfaces
