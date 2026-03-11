@@ -3,9 +3,17 @@ import { Router, NavigationEnd } from '@angular/router';
 import { isPlatformBrowser } from '@angular/common';
 import { filter } from 'rxjs/operators';
 
+declare global {
+  interface Window {
+    gtag?: (command: string, ...args: unknown[]) => void;
+  }
+}
+
 @Injectable({ providedIn: 'root' })
 export class GtagService {
-  private gtag = (window as any).gtag;
+  private get gtag(): ((command: string, ...args: unknown[]) => void) | undefined {
+    return typeof window !== 'undefined' ? window.gtag : undefined;
+  }
 
   constructor(
     private router: Router,
@@ -49,7 +57,7 @@ export class GtagService {
     }
   }
 
-  event(eventName: string, eventData?: any): void {
+  event(eventName: string, eventData?: Record<string, unknown>): void {
     if (this.gtag) {
       this.gtag('event', eventName, eventData);
     }
