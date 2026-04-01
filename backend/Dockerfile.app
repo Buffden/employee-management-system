@@ -28,4 +28,4 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
 EXPOSE 8080
 
 # Spring profile can be set via SPRING_PROFILE environment variable (default: prod)
-ENTRYPOINT ["java", "-jar", "app.jar", "--spring.profiles.active=${SPRING_PROFILE:-prod}"]
+ENTRYPOINT ["java", "-jar", "app.jar"]
