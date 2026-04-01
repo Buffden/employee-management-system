@@ -46,6 +46,8 @@ services:
     environment:
       SPRING_PROFILES_ACTIVE: prod
       AWS_REGION: us-east-1
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
 
     depends_on:
       postgres:
