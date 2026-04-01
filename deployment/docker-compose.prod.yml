@@ -1,4 +1,35 @@
 services:
+  postgres:
+    image: postgres:18-alpine
+    container_name: ems-postgres
+
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "20m"
+        max-file: "2"
+
+    environment:
+      POSTGRES_DB: ${DB_NAME}
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PWD}
+
+    # No port exposure - only accessible from backend container via ems-network
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER:-postgres} || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+    networks:
+      - ems-network
+
+    restart: unless-stopped
+
   backend:
     image: buffden/ems-backend:${IMAGE_TAG}
     container_name: ems-backend
@@ -35,6 +66,10 @@ services:
       NGINX_PORT: ${NGINX_PORT}
       NGINX_SERVER_NAME: ${NGINX_SERVER_NAME}
       SSL_ENABLED: ${SSL_ENABLED}
+
+    depends_on:
+      postgres:
+        condition: service_healthy
 
     networks:
       - ems-network
@@ -117,6 +152,7 @@ volumes:
   certbot-etc:
   certbot-www:
   redis_data:
+  postgres_data:
 
 networks:
   ems-network:
