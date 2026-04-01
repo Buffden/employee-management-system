@@ -1,5 +1,8 @@
 package com.ems.employee_management_system.config;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -26,8 +29,6 @@ import com.ems.employee_management_system.constants.RoleConstants;
 
 import org.springframework.boot.actuate.autoconfigure.security.servlet.EndpointRequest;
 import org.springframework.boot.actuate.health.HealthEndpoint;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -38,6 +39,9 @@ import java.util.stream.Collectors;
 public class SecurityConfig {
     private static final Logger logger = LoggerFactory.getLogger(SecurityConfig.class);
     
+    @Value("${CORS_ALLOWED_ORIGINS}")
+    private String corsAllowedOrigins;
+
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
     private final RateLimitFilter rateLimitFilter;
     private final UserDetailsService userDetailsService;
@@ -100,16 +104,8 @@ public class SecurityConfig {
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
         
-        // Get CORS allowed origins from environment variable or system property
-        // Priority: 1) Environment variable, 2) System property (from .env)
-        String allowedOriginsEnv = System.getenv("CORS_ALLOWED_ORIGINS");
-        if (allowedOriginsEnv == null || allowedOriginsEnv.isEmpty()) {
-            allowedOriginsEnv = System.getProperty("CORS_ALLOWED_ORIGINS");
-        }
-        if (allowedOriginsEnv == null || allowedOriginsEnv.isEmpty()) {
-            logger.error("CORS_ALLOWED_ORIGINS not set! Please set it in db/.env file.");
-            throw new IllegalStateException("CORS_ALLOWED_ORIGINS environment variable must be set in db/.env");
-        }
+        // Get CORS allowed origins from Spring properties (resolved from SSM in prod, env/properties in dev)
+        String allowedOriginsEnv = corsAllowedOrigins;
         
         // Split comma-separated origins and trim whitespace
         List<String> allowedOrigins = Arrays.stream(allowedOriginsEnv.split(","))
