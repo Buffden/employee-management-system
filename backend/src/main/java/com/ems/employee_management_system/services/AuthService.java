@@ -28,7 +28,7 @@ public class AuthService {
     
     private static final Logger logger = LoggerFactory.getLogger(AuthService.class);
 
-    @Value("${app.demo.username:demoemployee}")
+    @Value("${DEMO_USERNAME:demoemployee}")
     private String demoUsername;
 
     private final UserRepository userRepository;
