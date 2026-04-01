@@ -46,7 +46,7 @@ jobs:
       - name: Configure AWS credentials (OIDC)
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: arn:aws:iam::911167927589:role/GitHubActionsSSMDeployRole
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
           aws-region: us-east-1
 
       - name: Deploy via AWS SSM
@@ -69,57 +69,34 @@ jobs:
           chmod 755 /opt/ems "$DEPLOY_DIR"
           cd "$DEPLOY_DIR"
 
+          # 1) Pull latest compose file
           COMPOSE_URL="https://raw.githubusercontent.com/Buffden/employee-management-system/main/deployment/docker-compose.prod.yml"
           curl -fsSL "$COMPOSE_URL" -o docker-compose.prod.yml
 
-          # 3) Generate .env securely (root-owned, 600)
-          umask 077
-          cat > .env <<ENV
-          IMAGE_TAG=${IMAGE_TAG}
-          SPRING_PROFILE=$(aws ssm get-parameter --name /ems/prod/SPRING_PROFILE --with-decryption --query Parameter.Value --output text)
-          DB_HOST=$(aws ssm get-parameter --name /ems/prod/DB_HOST --with-decryption --query Parameter.Value --output text)
-          DB_PORT=$(aws ssm get-parameter --name /ems/prod/DB_PORT --with-decryption --query Parameter.Value --output text)
-          DB_NAME=$(aws ssm get-parameter --name /ems/prod/DB_NAME --with-decryption --query Parameter.Value --output text)
-          DB_USER=$(aws ssm get-parameter --name /ems/prod/DB_USER --with-decryption --query Parameter.Value --output text)
-          DB_PWD=$(aws ssm get-parameter --name /ems/prod/DB_PWD --with-decryption --query Parameter.Value --output text)
-          REDIS_HOST=$(aws ssm get-parameter --name /ems/prod/REDIS_HOST --with-decryption --query Parameter.Value --output text)
-          REDIS_PORT=$(aws ssm get-parameter --name /ems/prod/REDIS_PORT --with-decryption --query Parameter.Value --output text)
-          JWT_SECRET_KEY=$(aws ssm get-parameter --name /ems/prod/JWT_SECRET_KEY --with-decryption --query Parameter.Value --output text)
-          CORS_ALLOWED_ORIGINS=$(aws ssm get-parameter --name /ems/prod/CORS_ALLOWED_ORIGINS --with-decryption --query Parameter.Value --output text)
-          FRONTEND_BASE_URL=$(aws ssm get-parameter --name /ems/prod/FRONTEND_BASE_URL --with-decryption --query Parameter.Value --output text)
-          ADMIN_CREATE=$(aws ssm get-parameter --name /ems/prod/ADMIN_CREATE --with-decryption --query Parameter.Value --output text)
-          ADMIN_USERNAME=$(aws ssm get-parameter --name /ems/prod/ADMIN_USERNAME --with-decryption --query Parameter.Value --output text)
-          ADMIN_PASSWORD=$(aws ssm get-parameter --name /ems/prod/ADMIN_PASSWORD --with-decryption --query Parameter.Value --output text)
-          ADMIN_EMAIL=$(aws ssm get-parameter --name /ems/prod/ADMIN_EMAIL --with-decryption --query Parameter.Value --output text)
-          DB_SSL_MODE=$(aws ssm get-parameter --name /ems/prod/DB_SSL_MODE --with-decryption --query Parameter.Value --output text)
-          EMAIL_SERVICE_PROVIDER=$(aws ssm get-parameter --name /ems/prod/EMAIL_SERVICE_PROVIDER --with-decryption --query Parameter.Value --output text)
-          EMAIL_SENDGRID_API_KEY=$(aws ssm get-parameter --name /ems/prod/EMAIL_SENDGRID_API_KEY --with-decryption --query Parameter.Value --output text)
-          EMAIL_SENDGRID_FROM_EMAIL=$(aws ssm get-parameter --name /ems/prod/EMAIL_SENDGRID_FROM_EMAIL --with-decryption --query Parameter.Value --output text)
-          EC2_HOST=$(aws ssm get-parameter --name /ems/prod/EC2_HOST --with-decryption --query Parameter.Value --output text)
-          NGINX_PORT=$(aws ssm get-parameter --name /ems/prod/NGINX_PORT --with-decryption --query Parameter.Value --output text)
-          NGINX_SERVER_NAME=$(aws ssm get-parameter --name /ems/prod/NGINX_SERVER_NAME --with-decryption --query Parameter.Value --output text)
-          SSL_ENABLED=$(aws ssm get-parameter --name /ems/prod/SSL_ENABLED --with-decryption --query Parameter.Value --output text)
-          ENV
+          # 2) Fetch postgres credentials from SSM into shell env vars (never written to disk)
+          export DB_NAME=$(aws ssm get-parameter --name /ems/prod/DB_NAME --with-decryption --query Parameter.Value --output text)
+          export DB_USER=$(aws ssm get-parameter --name /ems/prod/DB_USER --with-decryption --query Parameter.Value --output text)
+          export DB_PWD=$(aws ssm get-parameter --name /ems/prod/DB_PWD --with-decryption --query Parameter.Value --output text)
 
-          # 4) Login to Docker Hub using credentials from SSM (password not stored in variable)
+          # 3) Login to Docker Hub using credentials from SSM (password never stored in a variable)
           aws ssm get-parameter --name /ems/prod/DOCKER_PASSWORD --with-decryption --query Parameter.Value --output text | docker login -u buffden --password-stdin
 
-          # 5) Pull exact images for this deploy (no ambiguity)
+          # 4) Pull exact images for this deploy (no ambiguity)
           docker pull buffden/ems-backend:$IMAGE_TAG
           docker pull buffden/ems-gateway:$IMAGE_TAG
 
-          # 6) Save current running images for quick verification / rollback visibility
-          docker compose -f docker-compose.prod.yml ps --format '{{.Service}}\t{{.Image}}' > .deploy-meta.prev 2>/dev/null || true
+          # 5) Save current running images for quick verification / rollback visibility
+          IMAGE_TAG=$IMAGE_TAG docker compose -f docker-compose.prod.yml ps --format '{{.Service}}\t{{.Image}}' > .deploy-meta.prev 2>/dev/null || true
 
-          # 7) Deploy
+          # 6) Deploy (IMAGE_TAG passed inline — no .env file needed)
           docker compose -f docker-compose.prod.yml down || true
-          docker compose -f docker-compose.prod.yml up -d --pull always --force-recreate
+          IMAGE_TAG=$IMAGE_TAG docker compose -f docker-compose.prod.yml up -d --pull always --force-recreate
 
-          # 8) Verify what is running now
+          # 7) Verify what is running now
           echo "Running containers:"
-          docker compose -f docker-compose.prod.yml ps --format 'table {{.Name}}\t{{.Image}}\t{{.Status}}'
+          IMAGE_TAG=$IMAGE_TAG docker compose -f docker-compose.prod.yml ps --format 'table {{.Name}}\t{{.Image}}\t{{.Status}}'
 
-          # 9) Cleanup old images (keep last 72h)
+          # 8) Cleanup old images (keep last 72h)
           docker image prune -af --filter "until=72h"
           EOF
           )
