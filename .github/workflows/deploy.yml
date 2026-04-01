@@ -89,7 +89,8 @@ jobs:
           IMAGE_TAG=$IMAGE_TAG docker compose -f docker-compose.prod.yml ps --format '{{.Service}}\t{{.Image}}' > .deploy-meta.prev 2>/dev/null || true
 
           # 6) Deploy (IMAGE_TAG passed inline — no .env file needed)
-          docker compose -f docker-compose.prod.yml down || true
+          # Safety check: never pass -v to down — named volume postgres_data must survive deploys
+          docker compose -f docker-compose.prod.yml down
           IMAGE_TAG=$IMAGE_TAG docker compose -f docker-compose.prod.yml up -d --pull always --force-recreate
 
           # 7) Verify what is running now

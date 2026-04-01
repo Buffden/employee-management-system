@@ -76,6 +76,17 @@ export class AuthService {
   }
 
   /**
+   * Demo login — no credentials required.
+   * Calls POST /api/auth/demo and stores the returned user session.
+   */
+  demoLogin(): Observable<AuthResponse> {
+    return this.http.post<AuthResponse>(`${this.API_URL}/demo`, {}, { withCredentials: true }).pipe(
+      tap(response => this.setUser(response.user)),
+      catchError(error => throwError(() => error))
+    );
+  }
+
+  /**
    * Login user with username and password
    * Hashes password before sending to backend (username stays plain)
    */

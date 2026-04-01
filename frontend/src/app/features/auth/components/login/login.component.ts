@@ -11,7 +11,6 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 import { AuthService } from '../../../../core/services/auth.service';
 import { ForgotPasswordDialogComponent } from '../forgot-password-dialog/forgot-password-dialog.component';
-import { environment } from '../../../../../environments/environment';
 
 @Component({
   selector: 'app-login',
@@ -163,15 +162,12 @@ export class LoginComponent implements OnInit {
   loginAsDemoEmployee(): void {
     this.loading = true;
     this.errorMessage = null;
-    this.authService.login({
-      username: environment.demoUserEmail,
-      password: environment.demoUserPassword
-    }).subscribe({
+    this.authService.demoLogin().subscribe({
       next: () => {
         this.loading = false;
         this.router.navigate([this.returnUrl]);
       },
-      error: (error) => {
+      error: () => {
         this.loading = false;
         this.errorMessage = 'Failed to login as demo employee. Please try again.';
       }

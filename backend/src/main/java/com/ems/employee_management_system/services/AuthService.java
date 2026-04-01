@@ -4,6 +4,7 @@ import java.time.LocalDateTime;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -26,7 +27,10 @@ import com.ems.employee_management_system.models.RefreshToken;
 public class AuthService {
     
     private static final Logger logger = LoggerFactory.getLogger(AuthService.class);
-    
+
+    @Value("${app.demo.username:demoemployee}")
+    private String demoUsername;
+
     private final UserRepository userRepository;
     private final RefreshTokenRepository refreshTokenRepository;
     private final JWTManager jwtManager;
@@ -209,6 +213,37 @@ public class AuthService {
                 .build();
     }
     
+    /**
+     * Demo login — issues a real JWT for the demo user without requiring credentials.
+     * The demo username is configured via app.demo.username (SSM: /ems/prod/app.demo.username).
+     */
+    @Transactional
+    public AuthResponseDTO demoLogin() {
+        logger.info("Demo login requested");
+
+        User user = userRepository.findByUsername(demoUsername)
+            .orElseThrow(() -> new RuntimeException("Demo user not configured"));
+
+        if (user.getStatus() != null && user.getStatus() != UserStatus.ACTIVE) {
+            throw new RuntimeException("Demo user is not active");
+        }
+
+        user.setLastLogin(LocalDateTime.now());
+        userRepository.save(user);
+
+        String accessToken = jwtManager.generateToken(user);
+        String refreshToken = createAndStoreRefreshToken(user);
+
+        logger.info("Demo login successful for user: {}", user.getUsername());
+
+        return AuthResponseDTO.builder()
+                .token(accessToken)
+                .refreshToken(refreshToken)
+                .user(userMapper.toDTO(user))
+                .expiresIn(3600L) // 1 hour — shorter than normal 24h session
+                .build();
+    }
+
     /**
      * Logout user (token invalidation - future: implement token blacklist)
      */

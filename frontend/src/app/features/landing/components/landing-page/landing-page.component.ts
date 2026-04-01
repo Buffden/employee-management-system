@@ -6,7 +6,6 @@ import { MatCardModule } from '@angular/material/card';
 import { MatIconModule } from '@angular/material/icon';
 import { SharedModule } from '../../../../shared/shared.module';
 import { AuthService } from '../../../../core/services/auth.service';
-import { environment } from '../../../../../environments/environment';
 
 @Component({
   selector: 'app-landing-page',
@@ -41,10 +40,7 @@ export class LandingPageComponent {
   }
 
   navigateToLoginAsDemoEmployee(): void {
-    this.authService.login({
-      username: environment.demoUserEmail,
-      password: environment.demoUserPassword
-    }).subscribe({
+    this.authService.demoLogin().subscribe({
       next: () => this.router.navigate(['/dashboard']),
       error: () => this.router.navigate(['/login'])
     });
