@@ -139,6 +139,34 @@ public class AuthController {
     }
     
     /**
+     * Demo login endpoint — no credentials required.
+     * Issues a 1-hour JWT for the demo user (configured via app.demo.username in SSM).
+     * POST /api/auth/demo
+     */
+    @PostMapping("/demo")
+    public ResponseEntity<AuthResponseDTO> demoLogin(HttpServletRequest httpRequest,
+                                                     HttpServletResponse response) {
+        String clientIp = getClientIp(httpRequest);
+        if (!rateLimiterService.allowRequest("demo:" + clientIp, RateLimitPolicy.AUTH_DEMO)) {
+            logger.warn("Rate limit exceeded for demo login from IP: {}", clientIp);
+            return ResponseEntity.status(429)
+                .body(AuthResponseDTO.builder()
+                    .message("Too many demo login attempts. Please try again later.")
+                    .build());
+        }
+
+        try {
+            AuthResponseDTO responseBody = authService.demoLogin();
+            addAuthCookies(response, responseBody);
+            maybeStripTokens(httpRequest, responseBody);
+            return ResponseEntity.ok(responseBody);
+        } catch (Exception e) {
+            logger.error("Demo login failed", e);
+            return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).build();
+        }
+    }
+
+    /**
      * Refresh token endpoint
      * POST /api/auth/refresh
      */

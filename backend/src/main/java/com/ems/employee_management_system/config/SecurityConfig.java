@@ -67,7 +67,7 @@ public class SecurityConfig {
             .cors(cors -> cors.configurationSource(corsConfigurationSource()))
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
-                .requestMatchers("/api/auth/login", "/api/auth/refresh", "/api/auth/logout").permitAll()
+                .requestMatchers("/api/auth/login", "/api/auth/demo", "/api/auth/refresh", "/api/auth/logout").permitAll()
                 .requestMatchers("/api/auth/activate", "/api/auth/forgot-password", "/api/auth/reset-password").permitAll()
                 .requestMatchers("/api/auth/register").hasRole(RoleConstants.SYSTEM_ADMIN)
                 // Health endpoint is public for monitoring

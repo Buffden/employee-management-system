@@ -29,6 +29,13 @@ public class RateLimitPolicy {
         3600     // 1 hour TTL
     );
     
+    public static final RateLimitPolicy AUTH_DEMO = new RateLimitPolicy(
+        "AUTH_DEMO",
+        20,      // 20 attempts burst
+        0.33,    // ~20 per minute refill
+        3600     // 1 hour TTL
+    );
+
     public static final RateLimitPolicy API_GENERAL = new RateLimitPolicy(
         "API_GENERAL",
         100,     // 100 requests burst
