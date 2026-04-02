@@ -31,7 +31,7 @@
 }
 
 .detail-item h3 {
-  color: #666;
+  color: #64748b;
   margin-bottom: 8px;
   font-size: 14px;
 }
@@ -46,7 +46,7 @@
 }
 
 .description h3 {
-  color: #666;
+  color: #64748b;
   margin-bottom: 8px;
   font-size: 14px;
 }
@@ -70,7 +70,7 @@ table {
 
 .clickable {
   cursor: pointer;
-  color: #1976d2;
+  color: #6366f1;
 }
 
 .clickable:hover {
@@ -102,7 +102,7 @@ table {
 /* Breadcrumb styles */
 nav[mat-tab-nav-bar] {
   margin-bottom: 20px;
-  border-bottom: 1px solid #e0e0e0;
+  border-bottom: 1px solid #e2e8f0;
 }
 
 .mat-tab-link {
@@ -124,7 +124,7 @@ nav[mat-tab-nav-bar] {
 }
 
 .breadcrumb-link {
-  color: #1976d2;
+  color: #6366f1;
   text-decoration: none;
   margin-right: 8px;
 }
@@ -135,10 +135,10 @@ nav[mat-tab-nav-bar] {
 
 .breadcrumb-separator {
   margin: 0 8px;
-  color: #888;
+  color: #64748b;
 }
 
 .breadcrumb-current {
-  color: #333;
+  color: #0f172a;
   font-weight: bold;
 } 

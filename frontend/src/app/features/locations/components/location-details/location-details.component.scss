@@ -1,9 +1,9 @@
-// Jira-style Location Details Layout
+// Location Details Layout
 .location-details-container {
   max-width: 1400px;
   margin: 0 auto;
   padding: 24px;
-  background: #f4f5f7;
+  background: #f8fafc;
   min-height: 100vh;
 }
 
@@ -16,10 +16,10 @@
   padding: 8px 0;
 
   .breadcrumb-link {
-    color: #0052cc;
+    color: #6366f1;
     text-decoration: none;
     cursor: pointer;
-    
+
     &:hover {
       text-decoration: underline;
     }
@@ -27,12 +27,12 @@
 
   .breadcrumb-separator {
     margin: 0 8px;
-    color: #6b778c;
+    color: #64748b;
   }
 
   .breadcrumb-current {
     font-weight: 500;
-    color: #172b4d;
+    color: #0f172a;
   }
 }
 
@@ -46,10 +46,11 @@
 // Left Panel: Main Content
 .left-panel {
   flex: 1;
-  min-width: 0; // Prevents flex item overflow
+  min-width: 0;
   background: #ffffff;
-  border-radius: 3px;
+  border-radius: 8px;
   padding: 24px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
 }
 
 // Title Section
@@ -59,12 +60,12 @@
   justify-content: space-between;
   margin-bottom: 24px;
   padding-bottom: 16px;
-  border-bottom: 1px solid #dfe1e6;
+  border-bottom: 1px solid #e2e8f0;
 
   .location-title {
     font-size: 24px;
     font-weight: 500;
-    color: #172b4d;
+    color: #0f172a;
     margin: 0;
     flex: 1;
     line-height: 1.5;
@@ -79,7 +80,7 @@
 .section-title {
   font-size: 16px;
   font-weight: 600;
-  color: #172b4d;
+  color: #0f172a;
   margin: 0 0 12px 0;
 }
 
@@ -95,7 +96,7 @@
 
     .department-count {
       font-size: 14px;
-      color: #6b778c;
+      color: #64748b;
     }
   }
 
@@ -106,7 +107,7 @@
 
       .clickable {
         cursor: pointer;
-        color: #0052cc;
+        color: #6366f1;
 
         &:hover {
           text-decoration: underline;
@@ -120,11 +121,11 @@
   }
 
   .empty-departments {
-    background: #f4f5f7;
-    border-radius: 3px;
+    background: #f8fafc;
+    border-radius: 6px;
     padding: 32px;
     text-align: center;
-    color: #6b778c;
+    color: #64748b;
   }
 }
 
@@ -138,7 +139,7 @@
 
     .employee-count {
       font-size: 14px;
-      color: #6b778c;
+      color: #64748b;
     }
   }
 
@@ -149,7 +150,7 @@
 
       .clickable {
         cursor: pointer;
-        color: #0052cc;
+        color: #6366f1;
 
         &:hover {
           text-decoration: underline;
@@ -163,11 +164,11 @@
   }
 
   .empty-employees {
-    background: #f4f5f7;
-    border-radius: 3px;
+    background: #f8fafc;
+    border-radius: 6px;
     padding: 32px;
     text-align: center;
-    color: #6b778c;
+    color: #64748b;
   }
 }
 
@@ -176,19 +177,20 @@
   width: 300px;
   flex-shrink: 0;
   background: #ffffff;
-  border-radius: 3px;
+  border-radius: 8px;
   padding: 16px;
   position: sticky;
   top: 24px;
   max-height: calc(100vh - 48px);
   overflow-y: auto;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
 }
 
 .sidebar-section {
   .sidebar-title {
     font-size: 14px;
     font-weight: 600;
-    color: #172b4d;
+    color: #0f172a;
     margin: 0 0 16px 0;
     text-transform: uppercase;
     letter-spacing: 0.5px;
@@ -198,7 +200,7 @@
 .sidebar-item {
   margin-bottom: 16px;
   padding-bottom: 16px;
-  border-bottom: 1px solid #dfe1e6;
+  border-bottom: 1px solid #e2e8f0;
 
   &:last-child {
     border-bottom: none;
@@ -210,7 +212,7 @@
     display: block;
     font-size: 12px;
     font-weight: 600;
-    color: #6b778c;
+    color: #64748b;
     text-transform: uppercase;
     margin-bottom: 6px;
     letter-spacing: 0.5px;
@@ -218,7 +220,7 @@
 
   .sidebar-value {
     font-size: 14px;
-    color: #172b4d;
+    color: #0f172a;
     word-break: break-word;
 
     mat-chip {
@@ -240,4 +242,5 @@
     max-height: none;
   }
 }
+
 

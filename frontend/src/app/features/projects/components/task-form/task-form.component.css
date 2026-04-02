@@ -19,7 +19,7 @@ mat-form-field {
   align-items: center;
   margin-top: 24px;
   padding-top: 16px;
-  border-top: 1px solid #dfe1e6;
+  border-top: 1px solid #e2e8f0;
 }
 
 .left-actions {
@@ -34,12 +34,12 @@ mat-form-field {
 .error-message {
   margin-top: 8px;
   padding: 12px;
-  background-color: #fff4e6;
-  border-left: 4px solid #ff5630;
+  background-color: #fef2f2;
+  border-left: 4px solid #ef4444;
   border-radius: 3px;
 }
 
 .error-message mat-error {
-  color: #de350b;
+  color: #ef4444;
   font-size: 14px;
 }

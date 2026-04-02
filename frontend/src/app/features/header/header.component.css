@@ -3,9 +3,9 @@
   justify-content: space-between;
   align-items: center;
   padding: 1rem 2rem;
-  background-color: #002855;
+  background-color: #0f0a1e;
   color: #ffffff;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
   position: sticky;
   top: 0;
   z-index: 1000;
@@ -34,7 +34,7 @@
 .navbar-buttons {
   display: flex;
   align-items: center;
-  gap: 2rem; /* Space between links and profile icon */
+  gap: 2rem;
 }
 
 .nav-links {
@@ -47,22 +47,22 @@
 
 .nav-links li a {
   text-decoration: none;
-  color: #ffffff;
+  color: rgba(255, 255, 255, 0.65);
   font-size: 1rem;
   font-weight: 500;
   padding: 0.5rem 0;
-  border-bottom: 2px solid transparent; /* Space for active state */
-  transition: all 0.3s ease-in-out;
+  border-bottom: 2px solid transparent;
+  transition: all 0.2s ease;
 }
 
 .nav-links li a.active {
-  border-bottom: 2px solid #00b4d8;
-  color: #00b4d8;
+  border-bottom: 2px solid #10b981;
+  color: #10b981;
 }
 
 .nav-links li a:hover {
-  color: #00b4d8;
-  border-bottom: 2px solid #00b4d8;
+  color: #10b981;
+  border-bottom: 2px solid #10b981;
 }
 
 .user-section,
@@ -72,7 +72,7 @@
   gap: 1rem;
   margin-left: 1rem;
   padding-left: 1rem;
-  border-left: 1px solid rgba(255, 255, 255, 0.2);
+  border-left: 1px solid rgba(255, 255, 255, 0.15);
 }
 
 .auth-buttons {
@@ -100,11 +100,11 @@
   color: #ffffff;
   padding: 8px 16px;
   border-radius: 4px;
-  transition: background-color 0.3s ease-in-out;
+  transition: background-color 0.2s ease;
 }
 
 .my-profile-button:hover {
-  background-color: rgba(255, 255, 255, 0.1);
+  background-color: rgba(255, 255, 255, 0.08);
 }
 
 .my-profile-button mat-icon:first-of-type {
@@ -134,7 +134,7 @@
 }
 
 .mat-icon.active {
-  color: #00b4d8;
+  color: #10b981;
 }
 
 @media (max-width: 768px) {
@@ -167,7 +167,7 @@
     flex-direction: column;
     align-items: flex-start;
     border-left: none;
-    border-top: 1px solid rgba(255, 255, 255, 0.2);
+    border-top: 1px solid rgba(255, 255, 255, 0.15);
     padding-left: 0;
     padding-top: 1rem;
     margin-left: 0;

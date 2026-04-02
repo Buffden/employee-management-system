@@ -1,9 +1,9 @@
-/* General Overlay Styling */
+/* General Overlay */
 .overlay-container {
     display: flex;
     flex-direction: column;
-    background-color: #f9f9f9;
-    border: 1px solid #ddd;
+    background-color: #f8fafc;
+    border: 1px solid #e2e8f0;
     box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
     padding: 16px;
     font-family: Arial, sans-serif;
@@ -14,7 +14,7 @@
 
 .overlay-main-title-header {
     font-size: large;
-    background-color: #002855
+    background-color: #0f0a1e;
 }
 
 .overlay-title {
@@ -61,11 +61,11 @@
     height: 100%;
 }
 
-/* Circular placeholder for profile picture */
+/* Profile picture placeholder */
 .profile-picture-placeholder {
     width: 100%;
     height: 100%;
-    background-color: #d9f2d9;
+    background-color: #d1fae5;
     border-radius: 50%;
     position: relative;
     display: flex;
@@ -75,12 +75,11 @@
     overflow: hidden;
 }
 
-/* Add a ring on hover */
 .profile-picture-placeholder:hover {
-    box-shadow: 0 0 0 4px #4caf50;
+    box-shadow: 0 0 0 4px #10b981;
 }
 
-/* Edit overlay (hidden by default) */
+/* Edit overlay */
 .edit-overlay {
     position: absolute;
     top: 0;
@@ -89,7 +88,6 @@
     height: 100%;
     border-radius: 50%;
     background-color: rgba(0, 0, 0, 0.5);
-    /* Semi-transparent overlay */
     display: flex;
     align-items: center;
     justify-content: center;
@@ -97,17 +95,15 @@
     transition: opacity 0.3s ease;
 }
 
-/* Show the overlay on hover */
 .profile-picture-placeholder:hover .edit-overlay {
     opacity: 1;
 }
 
-/* Edit icon styling */
+/* Edit icon */
 .edit-icon {
     font-size: 20px;
     color: white;
-    background-color: #4caf50;
-    /* Green background for the icon */
+    background-color: #10b981;
     border-radius: 50%;
     padding: 5px;
     position: absolute;
@@ -118,7 +114,6 @@
     transition: transform 0.2s ease;
 }
 
-/* Icon hover effect */
 .edit-icon:hover {
     transform: scale(1.2);
 }
@@ -128,11 +123,11 @@
     border: none;
     font-size: 16px;
     font-weight: bold;
-    color: #333;
+    color: #0f172a;
     cursor: pointer;
 }
 
-/* Main Content Section */
+/* Main Content */
 .overlay-content {
     display: flex;
     gap: 16px;
@@ -148,8 +143,7 @@
 }
 
 .line-chart-placeholder {
-    /* flex: 1; */
-    background-color: #e0e0e0;
+    background-color: #e2e8f0;
     border-radius: 8px;
     display: flex;
     align-items: center;
@@ -173,7 +167,7 @@
 .icon-placeholder {
     width: 50px;
     height: 50px;
-    background-color: #d9f2d9;
+    background-color: #d1fae5;
     margin: 0 auto;
     border-radius: 50%;
 }
@@ -186,7 +180,7 @@
 
 .stars-placeholder {
     font-size: 16px;
-    color: #ffc107;
+    color: #f59e0b;
 }
 
 /* Right Column */
@@ -200,7 +194,7 @@
 .pie-chart-placeholder,
 .bar-chart-placeholder {
     flex: 1;
-    background-color: #e0e0e0;
+    background-color: #e2e8f0;
     border-radius: 8px;
     display: flex;
     align-items: center;
@@ -215,34 +209,34 @@
 }
 
 .text-placeholder {
-    background-color: #f0f0f0;
+    background-color: #f1f5f9;
     border-radius: 4px;
     margin: 0;
     gap: 2px;
     text-align: left;
-    color: #5c5b5b;
+    color: #64748b;
     padding: 2px 10px;
 }
 
 .text-placeholder-key {
-    color: rgb(32, 31, 31);
+    color: #0f172a;
 }
 
 .text-placeholder:hover {
-    background-color: #c3c1c1;
-    color: white;
+    background-color: #e2e8f0;
+    color: #0f172a;
 }
 
-/* Footer Section */
+/* Footer */
 .overlay-footer {
     display: flex;
     justify-content: flex-end;
     align-items: center;
     gap: 16px;
     padding: 10px 20px;
-    background-color: #f9f9f9;
+    background-color: #f8fafc;
     border-radius: 0 0 8px 8px;
-    border-top: 1px solid #ddd;
+    border-top: 1px solid #e2e8f0;
 }
 
 .btn {
@@ -254,24 +248,24 @@
 }
 
 .edit-btn {
-    background-color: #4caf50;
+    background-color: #10b981;
     color: white;
 }
 
 .edit-btn:hover {
-    background-color: #45a049;
+    background-color: #059669;
 }
 
 .fire-btn {
-    background-color: #f44336;
+    background-color: #ef4444;
     color: white;
 }
 
 .fire-btn:hover {
-    background-color: #d32f2f;
+    background-color: #dc2626;
 }
 
-/* Content wrapper for forms */
+/* Content wrapper */
 .td-content {
     width: 100%;
     max-height: 100%;

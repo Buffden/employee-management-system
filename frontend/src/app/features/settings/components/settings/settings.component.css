@@ -14,7 +14,7 @@
   gap: 0.75rem;
   font-size: 2rem;
   font-weight: 600;
-  color: #002855;
+  color: #0f172a;
   margin: 0 0 0.5rem 0;
 }
 
@@ -22,11 +22,11 @@
   font-size: 2rem;
   width: 2rem;
   height: 2rem;
-  color: #00b4d8;
+  color: #10b981;
 }
 
 .subtitle {
-  color: #666;
+  color: #64748b;
   font-size: 1rem;
   margin: 0;
 }
@@ -52,14 +52,14 @@
   gap: 0.75rem;
   font-size: 1.25rem;
   font-weight: 600;
-  color: #002855;
+  color: #0f172a;
 }
 
 .settings-card mat-card-title mat-icon {
   font-size: 1.5rem;
   width: 1.5rem;
   height: 1.5rem;
-  color: #00b4d8;
+  color: #10b981;
 }
 
 .settings-card mat-card-content {
@@ -86,12 +86,12 @@
 
 .info-item .label {
   font-weight: 500;
-  color: #666;
+  color: #64748b;
   min-width: 100px;
 }
 
 .info-item .value {
-  color: #002855;
+  color: #0f172a;
   font-weight: 500;
 }
 
