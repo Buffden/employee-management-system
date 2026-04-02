@@ -102,8 +102,6 @@ services:
 
     volumes:
       - /etc/ssl/cloudflare:/etc/ssl/cloudflare:ro
-      - certbot-etc:/etc/letsencrypt:ro
-      - certbot-www:/var/www/certbot:ro
 
     depends_on:
       backend:
@@ -114,27 +112,7 @@ services:
 
     restart: unless-stopped
 
-  certbot:
-    image: certbot/certbot:latest
-    container_name: ems-certbot
-
-    volumes:
-      - certbot-etc:/etc/letsencrypt
-      - certbot-www:/var/www/certbot
-
-    entrypoint: >
-      /bin/sh -c "trap exit TERM;
-      while :; do certbot renew;
-      sleep 12h & wait $${!}; done;"
-
-    networks:
-      - ems-network
-
-    restart: unless-stopped
-
 volumes:
-  certbot-etc:
-  certbot-www:
   redis_data:
   postgres_data:
     name: ems_postgres_data
