@@ -21,6 +21,12 @@
   align-items: center;
 }
 
+@supports (height: 100dvh) {
+  .hero-section {
+    height: 100dvh;
+  }
+}
+
 /* soft ambient glow */
 .hero-section::before {
   content: '';
@@ -361,34 +367,57 @@
 @media (max-width: 900px) {
   .hero-inner {
     grid-template-columns: 1fr;
-    gap: 0;
+    gap: 28px;
   }
 
   .hero-graphic {
     display: none;
   }
+
+  .hero-description {
+    max-width: 100%;
+  }
 }
 
 @media (max-width: 640px) {
   .hero-section {
-    padding: 80px 20px 60px;
+    height: auto;
+    min-height: 100svh;
+    padding: 88px 20px 56px;
+    align-items: flex-start;
   }
 
   .hero-title {
-    font-size: 2.75rem;
+    font-size: 2.35rem;
+    line-height: 1.12;
+    margin-bottom: 1rem;
+  }
+
+  .hero-badge {
+    margin-bottom: 1.1rem;
+  }
+
+  .hero-description {
+    font-size: 0.98rem;
+    line-height: 1.65;
+    margin-bottom: 1.75rem;
   }
 
   .features-section {
-    padding: 72px 20px;
+    padding: 64px 20px;
   }
 
   .features-list {
     grid-template-columns: 1fr;
-    gap: 36px;
+    gap: 28px;
   }
 
   .features-title {
     font-size: 1.75rem;
+  }
+
+  .features-header {
+    margin-bottom: 44px;
   }
 
   .cta-inner h2 {
@@ -398,11 +427,24 @@
   .hero-actions,
   .cta-actions {
     flex-direction: column;
-    align-items: flex-start;
+    align-items: stretch;
+    width: 100%;
+  }
+
+  .hero-actions .btn-signin,
+  .hero-actions .btn-demo,
+  .cta-actions .btn-signin-dark,
+  .cta-actions .btn-demo-light {
+    width: 100%;
+    justify-content: center;
   }
 
   .cta-actions {
     align-items: center;
+  }
+
+  .cta-section {
+    padding: 72px 20px;
   }
 }
 
@@ -436,8 +478,7 @@
   width: 32px;
   height: 32px;
   object-fit: contain;
-  filter: brightness(0) invert(1);
-  opacity: 0.85;
+  opacity: 1;
 }
 
 .footer-brand-name {
@@ -483,5 +524,16 @@
     flex-direction: column;
     align-items: flex-start;
     gap: 20px;
+  }
+
+  .footer-links {
+    width: 100%;
+    gap: 8px;
+  }
+
+  .footer-link {
+    width: 100%;
+    justify-content: flex-start;
+    padding: 8px 0;
   }
 }

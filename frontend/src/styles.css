@@ -9,9 +9,9 @@ body { margin: 0; font-family: Roboto, "Helvetica Neue", sans-serif; }
    ============================================================ */
 :root {
   /* Brand */
-  --color-purple:       #6366f1;   /* primary brand / buttons */
-  --color-purple-dark:  #4f46e5;   /* hover */
-  --color-purple-deep:  #3730a3;   /* active */
+  --color-purple:       #667eea;   /* primary brand / buttons */
+  --color-purple-dark:  #5568e0;   /* hover */
+  --color-purple-deep:  #444ecf;   /* active */
   --color-purple-light: #818cf8;   /* accents, badges */
   --color-purple-pale:  #ede9fe;   /* chip bg, icon wrappers */
 

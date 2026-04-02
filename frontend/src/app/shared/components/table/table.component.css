@@ -47,7 +47,7 @@
   align-items: center;
   gap: 8px;
   padding: 10px 20px;
-  background: #6366f1;
+  background: #667eea;
   color: white;
   border: none;
   border-radius: 10px;
@@ -55,31 +55,31 @@
   font-size: 14px;
   cursor: pointer;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  box-shadow: 0 4px 6px rgba(99, 102, 241, 0.2), 0 1px 3px rgba(0, 0, 0, 0.08);
+  box-shadow: 0 4px 6px rgba(102, 126, 234, 0.35), 0 1px 3px rgba(0, 0, 0, 0.08);
 }
 
 .action-button:hover {
-  background: #4f46e5;
+  background: #5568e0;
   transform: translateY(-2px);
-  box-shadow: 0 6px 12px rgba(99, 102, 241, 0.3), 0 3px 6px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 6px 12px rgba(102, 126, 234, 0.5), 0 3px 6px rgba(0, 0, 0, 0.1);
 }
 
 .action-button:active {
-  background: #3730a3;
+  background: #444ecf;
   transform: translateY(0);
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1), 0 1px 2px rgba(0, 0, 0, 0.08);
 }
 
 .action-button--add {
-  background: #6366f1;
+  background: #667eea;
 }
 
 .action-button--add:hover {
-  background: #4f46e5;
+  background: #5568e0;
 }
 
 .action-button--add:active {
-  background: #3730a3;
+  background: #444ecf;
 }
 
 .action-button--disabled {
@@ -331,15 +331,15 @@ td.sticky-column-right {
 }
 
 .td-actions .action-btn--edit {
-  color: #6366f1;
+  color: #667eea;
 }
 
 .td-actions .action-btn--edit:hover {
-  background-color: rgba(99, 102, 241, 0.1);
+  background-color: rgba(102, 126, 234, 0.12);
 }
 
 .td-actions .action-btn--delete {
-  color: #94a3b8;
+  color: #ef4444;
 }
 
 .td-actions .action-btn--delete:hover {
