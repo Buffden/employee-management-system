@@ -3,7 +3,7 @@
   max-height: calc(100vh - 200px);
   overflow-y: auto;
   overflow-x: hidden;
-  background-color: #f9f9f9;
+  background-color: #f8fafc;
 }
 
 mat-form-field {
@@ -19,7 +19,7 @@ mat-form-field {
   margin-top: 20px;
   position: sticky;
   bottom: 0;
-  background-color: #f9f9f9;
+  background-color: #f8fafc;
   padding-top: 10px;
   padding-bottom: 10px;
   z-index: 10;

@@ -2,3 +2,38 @@
 
 html, body { height: 100%; }
 body { margin: 0; font-family: Roboto, "Helvetica Neue", sans-serif; }
+
+/* ============================================================
+   Design System — Color Tokens
+   Blue · Purple · Black · Green
+   ============================================================ */
+:root {
+  /* Brand */
+  --color-purple:       #6366f1;   /* primary brand / buttons */
+  --color-purple-dark:  #4f46e5;   /* hover */
+  --color-purple-deep:  #3730a3;   /* active */
+  --color-purple-light: #818cf8;   /* accents, badges */
+  --color-purple-pale:  #ede9fe;   /* chip bg, icon wrappers */
+
+  /* Accent */
+  --color-green:        #10b981;   /* nav active, CTAs, success */
+  --color-green-dark:   #059669;   /* hover */
+  --color-green-pale:   #d1fae5;   /* success bg, placeholders */
+
+  /* Blue */
+  --color-blue:         #3b82f6;   /* links, email */
+  --color-blue-pale:    #dbeafe;   /* chip bg */
+
+  /* Neutrals */
+  --color-black:        #0f0a1e;   /* dark header / hero */
+  --color-text:         #0f172a;   /* primary text */
+  --color-text-muted:   #64748b;   /* secondary text */
+  --color-bg:           #f8fafc;   /* page background */
+  --color-surface:      #ffffff;   /* cards / panels */
+  --color-border:       #e2e8f0;   /* borders / dividers */
+
+  /* Semantic */
+  --color-error:        #ef4444;
+  --color-error-bg:     #fef2f2;
+  --color-warning:      #f59e0b;
+}

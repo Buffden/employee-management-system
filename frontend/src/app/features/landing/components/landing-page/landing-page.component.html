@@ -1,109 +1,158 @@
 <div class="landing-container">
+
   <!-- Hero Section -->
   <section class="hero-section">
-    <div class="hero-content">
-      <h1 class="hero-title">Employee Management System</h1>
-      <p class="hero-subtitle">
-        Streamline your workforce management with our comprehensive solution
-      </p>
-      <p class="hero-intro">
-        Your all-in-one solution for employee management, department organization, and project tracking. Built for modern organizations that value efficiency and collaboration.
-      </p>
-      <div class="hero-buttons" *ngIf="!isAuthenticated">
-        <button mat-stroked-button class="cta-button" (click)="navigateToLoginAsDemoEmployee()">
-          <mat-icon>login</mat-icon>
-          login as Demo Employee
-        </button>
-        <button mat-stroked-button class="cta-button" (click)="navigateToLogin()">
-          <mat-icon>login</mat-icon>
-          Sign In
-        </button>
+    <div class="hero-inner">
+      <div class="hero-text">
+        <span class="hero-badge">Employee Management</span>
+        <h1 class="hero-title">Your team,<br><em>organized.</em></h1>
+        <p class="hero-description">
+          A single workspace for employee records, department structure, and project tracking.
+          Clear, fast, and built for the people running it.
+        </p>
+        <div class="hero-actions" *ngIf="!isAuthenticated">
+          <button mat-raised-button class="btn-signin" (click)="navigateToLogin()">
+            Sign In
+          </button>
+          <button mat-button class="btn-demo" (click)="navigateToLoginAsDemoEmployee()">
+            <mat-icon>play_circle_outline</mat-icon>
+            Try the demo
+          </button>
+        </div>
+        <div class="hero-actions" *ngIf="isAuthenticated">
+          <button mat-raised-button class="btn-signin" routerLink="/dashboard">
+            <mat-icon>dashboard</mat-icon>
+            Go to Dashboard
+          </button>
+        </div>
       </div>
-      <div class="hero-buttons" *ngIf="isAuthenticated">
-        <button mat-raised-button color="primary" class="cta-button" routerLink="/dashboard">
-          <mat-icon>dashboard</mat-icon>
-          Go to Dashboard
-        </button>
+
+      <div class="hero-graphic" aria-hidden="true">
+        <div class="graphic-card graphic-card--top">
+          <div class="graphic-row">
+            <span class="graphic-dot graphic-dot--green"></span>
+            <span class="graphic-label">Engineering</span>
+          </div>
+          <div class="graphic-bar graphic-bar--wide"></div>
+          <div class="graphic-bar graphic-bar--medium"></div>
+        </div>
+        <div class="graphic-card graphic-card--mid">
+          <div class="graphic-row">
+            <span class="graphic-dot graphic-dot--blue"></span>
+            <span class="graphic-label">Project Alpha</span>
+          </div>
+          <div class="graphic-bar graphic-bar--medium"></div>
+          <div class="graphic-bar graphic-bar--narrow"></div>
+        </div>
+        <div class="graphic-card graphic-card--bottom">
+          <div class="graphic-row">
+            <span class="graphic-dot graphic-dot--violet"></span>
+            <span class="graphic-label">12 Members</span>
+          </div>
+          <div class="graphic-bar graphic-bar--wide"></div>
+          <div class="graphic-bar graphic-bar--narrow"></div>
+        </div>
       </div>
     </div>
   </section>
 
   <!-- Features Section -->
   <section class="features-section">
-    <h2 class="section-title">Why Choose Our Platform?</h2>
-    <div class="features-grid">
-      <mat-card class="feature-card">
-        <mat-card-header>
-          <mat-icon class="feature-icon">people</mat-icon>
-          <mat-card-title>Employee Management</mat-card-title>
-        </mat-card-header>
-        <mat-card-content>
-          <p>Comprehensive employee profiles with detailed information, performance tracking, and organizational hierarchy.</p>
-        </mat-card-content>
-      </mat-card>
+    <div class="features-inner">
+      <div class="features-header">
+        <h2 class="features-title">Built for the work you actually do</h2>
+        <p class="features-lead">
+          Not a bloated HR suite. A focused tool that keeps your org structure clear and your team data honest.
+        </p>
+      </div>
 
-      <mat-card class="feature-card">
-        <mat-card-header>
-          <mat-icon class="feature-icon">business</mat-icon>
-          <mat-card-title>Department Organization</mat-card-title>
-        </mat-card-header>
-        <mat-card-content>
-          <p>Organize your workforce into departments with budget tracking, performance metrics, and resource allocation.</p>
-        </mat-card-content>
-      </mat-card>
+      <div class="features-list">
+        <div class="feature-item">
+          <div class="feature-icon-wrap">
+            <mat-icon>people</mat-icon>
+          </div>
+          <div class="feature-body">
+            <h3>Everyone accounted for</h3>
+            <p>Profiles, roles, department assignments, reporting lines — in one place. No one falls through the cracks.</p>
+          </div>
+        </div>
 
-      <mat-card class="feature-card">
-        <mat-card-header>
-          <mat-icon class="feature-icon">assignment</mat-icon>
-          <mat-card-title>Project Management</mat-card-title>
-        </mat-card-header>
-        <mat-card-content>
-          <p>Track projects, assign tasks, monitor progress, and manage team collaboration all in one place.</p>
-        </mat-card-content>
-      </mat-card>
+        <div class="feature-item">
+          <div class="feature-icon-wrap">
+            <mat-icon>account_tree</mat-icon>
+          </div>
+          <div class="feature-body">
+            <h3>Structure that makes sense</h3>
+            <p>Group your team into departments, assign leads, and track budgets without building org charts in slides.</p>
+          </div>
+        </div>
 
-      <mat-card class="feature-card">
-        <mat-card-header>
-          <mat-icon class="feature-icon">security</mat-icon>
-          <mat-card-title>Role-Based Access</mat-card-title>
-        </mat-card-header>
-        <mat-card-content>
-          <p>Secure access control with role-based permissions ensuring data security and proper authorization.</p>
-        </mat-card-content>
-      </mat-card>
+        <div class="feature-item">
+          <div class="feature-icon-wrap">
+            <mat-icon>task_alt</mat-icon>
+          </div>
+          <div class="feature-body">
+            <h3>Projects tied to the right people</h3>
+            <p>Assign projects to teams, track progress, and see who's actually carrying the load — not just who's listed.</p>
+          </div>
+        </div>
 
-      <mat-card class="feature-card">
-        <mat-card-header>
-          <mat-icon class="feature-icon">analytics</mat-icon>
-          <mat-card-title>Analytics & Reports</mat-card-title>
-        </mat-card-header>
-        <mat-card-content>
-          <p>Get insights into your workforce with detailed analytics, performance reports, and data visualization.</p>
-        </mat-card-content>
-      </mat-card>
-
-      <mat-card class="feature-card">
-        <mat-card-header>
-          <mat-icon class="feature-icon">cloud</mat-icon>
-          <mat-card-title>Cloud-Based Solution</mat-card-title>
-        </mat-card-header>
-        <mat-card-content>
-          <p>Access your data from anywhere, anytime with our secure cloud-based infrastructure.</p>
-        </mat-card-content>
-      </mat-card>
+        <div class="feature-item">
+          <div class="feature-icon-wrap">
+            <mat-icon>lock_person</mat-icon>
+          </div>
+          <div class="feature-body">
+            <h3>Access that fits the role</h3>
+            <p>Admins see everything. Employees see what's theirs. No configuration headaches, no accidental data exposure.</p>
+          </div>
+        </div>
+      </div>
     </div>
   </section>
 
   <!-- CTA Section -->
   <section class="cta-section" *ngIf="!isAuthenticated">
-    <div class="cta-content">
-      <h2 class="cta-title">Ready to Get Started?</h2>
-      <p class="cta-subtitle">Login to access your employee management system</p>
-      <button mat-raised-button color="primary" class="cta-button-large" (click)="navigateToLogin()">
-        <mat-icon>login</mat-icon>
-        Login
-      </button>
+    <div class="cta-inner">
+      <h2>Ready to get started?</h2>
+      <p>Log in or try the demo — no setup needed.</p>
+      <div class="cta-actions">
+        <button mat-raised-button class="btn-signin-dark" (click)="navigateToLogin()">
+          Sign In
+        </button>
+        <button mat-button class="btn-demo-light" (click)="navigateToLoginAsDemoEmployee()">
+          <mat-icon>play_circle_outline</mat-icon>
+          Try the demo
+        </button>
+      </div>
     </div>
   </section>
-</div>
 
+  <!-- Footer -->
+  <footer class="footer">
+    <div class="footer-inner">
+      <div class="footer-brand">
+        <img src="assets/images/logo/ems-logo.png" alt="EMS Logo" class="footer-logo" />
+        <span class="footer-brand-name">EMS</span>
+      </div>
+      <div class="footer-links">
+        <a href="https://portfolio.buffden.com/" target="_blank" rel="noopener noreferrer" class="footer-link">
+          <mat-icon>person</mat-icon>
+          Portfolio
+        </a>
+        <a href="mailto:work.harshwardhanpatil@gmail.com" class="footer-link">
+          <mat-icon>mail</mat-icon>
+          Email
+        </a>
+        <a href="https://github.com/buffden" target="_blank" rel="noopener noreferrer" class="footer-link">
+          <mat-icon>code</mat-icon>
+          GitHub
+        </a>
+        <a href="https://www.linkedin.com/in/harshwardhanpatil23" target="_blank" rel="noopener noreferrer" class="footer-link">
+          <mat-icon>work</mat-icon>
+          LinkedIn
+        </a>
+      </div>
+    </div>
+  </footer>
+
+</div>
