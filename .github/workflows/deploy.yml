@@ -99,6 +99,11 @@ jobs:
 
           # 8) Cleanup old images (keep last 72h)
           docker image prune -af --filter "until=72h"
+
+          # 9) Cleanup anonymous volumes not attached to any running container
+          # Named volumes (ems_postgres_data, redis_data) are protected because
+          # containers are running at this point and hold references to them
+          docker volume prune -f
           EOF
           )
 
