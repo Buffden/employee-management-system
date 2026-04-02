@@ -18,7 +18,7 @@
   align-items: center;
   gap: 8px;
   padding: 10px 20px;
-  background: #6366f1;
+  background: #667eea;
   color: white;
   border: none;
   border-radius: 10px;
@@ -26,17 +26,17 @@
   font-size: 14px;
   cursor: pointer;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  box-shadow: 0 4px 6px rgba(99, 102, 241, 0.2), 0 1px 3px rgba(0, 0, 0, 0.08);
+  box-shadow: 0 4px 6px rgba(102, 126, 234, 0.35), 0 1px 3px rgba(0, 0, 0, 0.08);
 }
 
 .action-button:hover {
-  background: #4f46e5;
+  background: #5568e0;
   transform: translateY(-2px);
-  box-shadow: 0 6px 12px rgba(99, 102, 241, 0.3), 0 3px 6px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 6px 12px rgba(102, 126, 234, 0.5), 0 3px 6px rgba(0, 0, 0, 0.1);
 }
 
 .action-button:active {
-  background: #3730a3;
+  background: #444ecf;
   transform: translateY(0);
 }
 
@@ -157,13 +157,13 @@
 }
 
 .btn-primary {
-  background-color: #6366f1;
+  background-color: #10b981;
   color: white;
 }
 
 .btn-primary:hover:not(:disabled) {
-  background-color: #4f46e5;
-  box-shadow: 0 2px 8px rgba(99, 102, 241, 0.35);
+  background-color: #059669;
+  box-shadow: 0 2px 8px rgba(16, 185, 129, 0.35);
 }
 
 .btn-primary:disabled {
