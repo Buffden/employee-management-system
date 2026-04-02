@@ -65,7 +65,7 @@ The postgres service exists in the compose file but has the following gaps that 
 
 | Fix | Why |
 | --- | --- |
-| Add `postgres_data` to the `volumes:` section at the bottom | Without this Docker treats the volume as anonymous — data is lost on every `docker compose down` |
+| Add `postgres_data` with explicit `name:` to the `volumes:` section at the bottom | Without this Docker treats the volume as anonymous — data is lost on every `docker compose down`. The explicit `name: ems_postgres_data` also prevents the volume name from changing if the compose project directory is ever renamed. |
 | Add `depends_on: postgres: condition: service_healthy` to `backend` | Backend connects on startup; without this it can crash-loop if postgres isn't ready |
 | Remove `SPRING_PROFILE`, `DB_HOST`, `DB_PORT` from postgres env | These are app env vars, not postgres container vars — they have no effect on postgres and are misleading |
 | Upgrade image from `postgres:15-alpine` to `postgres:18-alpine` | Must match the RDS version (18.1) for `pg_dump`/`pg_restore` compatibility |
@@ -115,15 +115,19 @@ backend:
       condition: service_healthy
 ```
 
-And `postgres_data` added to the `volumes:` section:
+And `postgres_data` added to the `volumes:` section with an explicit name:
 
 ```yaml
 volumes:
   certbot-etc:
   certbot-www:
   redis_data:
-  postgres_data:        # ← add this
+  postgres_data:
+    name: ems_postgres_data   # ← explicit name prevents Docker from treating it as anonymous
 ```
+
+> **Why `name: ems_postgres_data` matters:**
+> Without declaring `postgres_data` in the top-level `volumes:` section, Docker treats it as an anonymous volume scoped to the container. Anonymous volumes are deleted automatically when `docker compose down` removes the container — causing data loss on every deployment. Adding the explicit `name:` also makes the volume name fixed and independent of the compose project directory name, so it survives even if the deployment path on EC2 ever changes.
 
 ---
 
@@ -341,6 +345,20 @@ sudo docker start ems-backend
 > sudo docker exec -i ems-postgres pg_restore -U ems_prod_admin -d ems_db --no-acl --no-owner --exit-on-error < /path/to/file.dump
 > ```
 
+#### Step 3.4 — Clean up the old orphaned volume
+
+If `postgres_data` was previously deployed **without** the `name: ems_postgres_data` declaration, Docker will have created an old anonymous volume named `deployment_postgres_data`. After confirming the restore succeeded and the app is healthy, delete it:
+
+```bash
+sudo docker volume ls | grep postgres
+```
+
+```bash
+sudo docker volume rm deployment_postgres_data
+```
+
+> **Why this happens:** Adding `name: ems_postgres_data` to the top-level volumes section causes Docker to create a brand new volume with that name on the next deploy. Any data restored into the old `deployment_postgres_data` volume will not carry over — you must run the restore again (Step 3.3) after the first deploy that introduces the `name:` field. This is a one-time migration cost.
+
 ---
 
 ### Phase 4 — Verify Everything Works
@@ -463,7 +481,7 @@ docker compose up -d    ← recreates containers but NOT volumes
                               │
                               ▼
                     postgres_data volume
-                    /var/lib/docker/volumes/deployment_postgres_data/
+                    /var/lib/docker/volumes/ems_postgres_data/
                               │
                     persists across:
                     ✓ docker compose up/down
