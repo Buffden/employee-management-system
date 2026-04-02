@@ -1,8 +1,7 @@
 # EMS Certificate Migration — Let's Encrypt to Cloudflare Origin Certificate
 
 **Created:** 2026-04-02
-**Status:** In progress — EIP assigned, cert migration pending
-**Urgency:** Current Let's Encrypt cert expires **May 20, 2026** (47 days)
+**Status:** ✅ Complete — Cloudflare Origin Certificate active as of 2026-04-02
 
 ---
 
@@ -56,15 +55,15 @@ Browser → Cloudflare (proxy) → EC2 Nginx → Spring Boot
 | --- | --- |
 | EC2 instance | ems-prod-app (t2.micro, us-east-1e) |
 | **EIP** | Elastic IP assigned ✅ 2026-04-02 |
-| Cert issuer | Let's Encrypt (E8) |
+| Cert issuer | Cloudflare Origin Certificate ✅ |
 | Domain | ems.buffden.com |
-| Valid from | Feb 19, 2026 |
-| Expires | **May 20, 2026** |
-| Cert path on EC2 | `/etc/letsencrypt/live/ems.buffden.com/fullchain.pem` |
-| Key path on EC2 | `/etc/letsencrypt/live/ems.buffden.com/privkey.pem` |
-| Certbot container | `ems-certbot` (running, consuming RAM) |
-| Cloudflare SSL mode | Full (Strict) — must stay this way |
-| Cloudflare DNS (pending) | Update `ems` A record → your EIP |
+| Valid from | Apr 2, 2026 |
+| Expires | Mar 29, 2041 (15 years) |
+| Cert path on EC2 | `/etc/ssl/cloudflare/ems.pem` |
+| Key path on EC2 | `/etc/ssl/cloudflare/ems.key` |
+| Certbot container | Removed ✅ |
+| Cloudflare SSL mode | Full (Strict) ✅ |
+| Cloudflare DNS | EIP assigned and DNS updated ✅ |
 
 ---
 
@@ -252,7 +251,101 @@ ems-redis      Up X minutes (healthy)
 
 ---
 
-### Step 6 — Clean Up Route 53 (Optional)
+### Step 6 — Remove Let's Encrypt Cert from EC2
+
+Once the Cloudflare cert has been stable for a day or two, clean up the old Let's Encrypt files
+from the EC2. They are no longer used (Certbot container is gone, no renewal will happen) and
+will expire silently on May 20, 2026 anyway.
+
+```bash
+aws ssm start-session --target <your-ec2-instance-id>
+```
+
+Inside the session:
+
+```bash
+# Confirm Cloudflare cert is still serving correctly before deleting
+echo | openssl s_client -connect localhost:443 -servername ems.buffden.com 2>/dev/null \
+  | openssl x509 -noout -issuer -dates
+# issuer should show: O=CloudFlare, Inc.
+
+# Delete Let's Encrypt files
+sudo rm -rf /etc/letsencrypt
+```
+
+---
+
+### Step 7 — Lock EC2 Security Group to Cloudflare IPs
+
+With the Cloudflare Origin Cert in place, the EC2 no longer needs to accept direct traffic from
+the internet on ports 80/443. Restricting inbound rules to Cloudflare's IP ranges means that even
+if someone discovers your origin IP, they cannot connect directly — all traffic must pass through
+Cloudflare's proxy.
+
+**Remove the open rules:**
+
+```bash
+aws ec2 revoke-security-group-ingress \
+  --group-id <your-sg-id> \
+  --protocol tcp --port 80 --cidr 0.0.0.0/0
+
+aws ec2 revoke-security-group-ingress \
+  --group-id <your-sg-id> \
+  --protocol tcp --port 443 --cidr 0.0.0.0/0
+```
+
+**Add Cloudflare IP ranges only:**
+
+```bash
+for cidr in \
+  173.245.48.0/20 103.21.244.0/22 103.22.200.0/22 103.31.4.0/22 \
+  141.101.64.0/18 108.162.192.0/18 190.93.240.0/20 188.114.96.0/20 \
+  197.234.240.0/22 198.41.128.0/17 162.158.0.0/15 104.16.0.0/13 \
+  104.24.0.0/14 172.64.0.0/13 131.0.72.0/22; do
+  aws ec2 authorize-security-group-ingress \
+    --group-id <your-sg-id> \
+    --protocol tcp --port 80 --cidr "$cidr"
+  aws ec2 authorize-security-group-ingress \
+    --group-id <your-sg-id> \
+    --protocol tcp --port 443 --cidr "$cidr"
+done
+```
+
+> Cloudflare publishes its current IP ranges at `https://www.cloudflare.com/ips-v4` —
+> update the security group if these ranges ever change.
+
+> SSM access is unaffected — SSM uses outbound HTTPS from the instance, no inbound port needed.
+
+**Verify** — after applying, a direct connection to the origin IP should be refused:
+
+```bash
+curl -v https://<your-eip> --resolve ems.buffden.com:<your-eip> --max-time 5
+# Should time out or be refused — only Cloudflare can connect
+```
+
+---
+
+### Step 7 — Switch Cloudflare SSL Mode to Full (Strict)
+
+**This is not optional** — Full (Strict) must be enabled once the Cloudflare Origin Certificate
+is confirmed working.
+
+| Mode | What Cloudflare does with the origin cert |
+| --- | --- |
+| Full | Connects to origin over HTTPS but **accepts any cert** — expired, self-signed, even fake |
+| **Full (Strict)** | Connects to origin over HTTPS and **validates the cert is genuine** |
+
+Without Full (Strict), a man-in-the-middle between Cloudflare and the EC2 could present a fake
+certificate and Cloudflare would silently accept it — meaning login credentials and JWT tokens
+would pass through the attacker undetected. The Cloudflare Origin Certificate was specifically
+designed to satisfy Full (Strict).
+
+1. Go to Cloudflare Dashboard → `buffden.com` → **SSL/TLS** → **Overview**
+2. Change mode from **Full** → **Full (Strict)**
+
+---
+
+### Step 8 — Clean Up Route 53 (Optional)
 
 The Route 53 A record for `ems.buffden.com` is dead config — Cloudflare is the authoritative
 DNS and Route 53 records for this domain are never queried. Safe to delete:
@@ -309,13 +402,16 @@ Do not delete it until the Cloudflare cert has been stable for at least a few da
 
 ## Post-Migration Checklist
 
-- [ ] Cloudflare Origin Certificate generated (15-year validity)
-- [ ] Cert and key uploaded to `/etc/ssl/cloudflare/` on EC2
-- [ ] Nginx config updated to use new cert paths
-- [ ] `/etc/ssl/cloudflare` volume mounted in `ems-gateway` container
-- [ ] `nginx -t` passes, `nginx -s reload` applied
-- [ ] `https://ems.buffden.com` loads correctly in browser
-- [ ] `ems-certbot` container removed from `docker-compose.yml`
+- [x] Cloudflare Origin Certificate generated (15-year validity) ✅ 2026-04-02
+- [x] Cert and key uploaded to `/etc/ssl/cloudflare/` on EC2 ✅ 2026-04-02
+- [x] Nginx config updated to use new cert paths ✅ 2026-04-02
+- [x] `/etc/ssl/cloudflare` volume mounted in `ems-gateway` container ✅ 2026-04-02
+- [x] `nginx -t` passes, `nginx -s reload` applied ✅ 2026-04-02
+- [x] `https://ems.buffden.com` loads correctly — issuer confirms `Cloudflare` ✅ 2026-04-02
+- [x] `ems-certbot` container removed from `docker-compose.yml` ✅ 2026-04-02
 - [x] EIP assigned to EMS instance ✅ 2026-04-02
-- [ ] Cloudflare DNS A record updated to new EIP
+- [x] Cloudflare DNS A record updated to new EIP ✅ 2026-04-02
+- [x] EC2 security group ports 80/443 restricted to Cloudflare IP ranges only ✅ 2026-04-02
+- [x] Cloudflare SSL mode switched to Full (Strict) ✅ 2026-04-02
+- [ ] Let's Encrypt files removed from EC2 (`/etc/letsencrypt`) — safe to do anytime
 - [ ] Route 53 stale A record deleted (optional cleanup)
