@@ -101,6 +101,7 @@ services:
       - "443:443"
 
     volumes:
+      - /etc/ssl/cloudflare:/etc/ssl/cloudflare:ro
       - certbot-etc:/etc/letsencrypt:ro
       - certbot-www:/var/www/certbot:ro
 
