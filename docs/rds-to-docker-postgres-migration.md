@@ -364,6 +364,21 @@ sudo docker volume rm deployment_postgres_data
 
 > **Why this happens:** Adding `name: ems_postgres_data` to the top-level volumes section causes Docker to create a brand new volume with that name on the next deploy. Any data restored into the old `deployment_postgres_data` volume will not carry over — you must run the restore again (Step 3.3) after the first deploy that introduces the `name:` field. This is a one-time migration cost.
 
+#### Step 3.5 — Confirm postgres is using the volume on next restart
+
+After the restore, trigger a deployment and check the first line of postgres logs:
+
+```bash
+sudo docker logs ems-postgres 2>&1 | head -5
+```
+
+**Expected (good):** `database system was shut down at ...` — postgres found existing data in the volume and skipped initialization.
+
+**Bad:** `The files belonging to this database system will be owned by user "postgres"` — postgres ran `initdb` and wiped the data directory.
+
+> **Note — first `initdb` after the `PGDATA` fix is expected:**
+> Before adding `PGDATA: /var/lib/postgresql/data`, postgres:18-alpine defaulted to writing data at `/var/lib/postgresql/18/docker` inside the ephemeral container layer. The volume at `/var/lib/postgresql/data` was always bypassed and remained empty. On the first deploy after the PGDATA fix, postgres correctly checks the volume, finds it empty, and runs `initdb` to initialize it. This is normal. Once the dump is restored into the volume (Step 3.3), all subsequent restarts will find existing data and skip `initdb` permanently.
+
 ---
 
 ### Phase 4 — Verify Everything Works
@@ -395,11 +410,7 @@ Expected: Flyway logs like `Successfully validated 3 migrations` and HikariCP lo
 #### Step 4.3 — Verify data integrity
 
 ```bash
-# Run via SSM — compare row counts with what RDS had
-source /opt/ems/deployment/.env
-docker exec ems-postgres psql -U "$DB_USER" -d "$DB_NAME" -c "ANALYZE;"
-docker exec ems-postgres psql -U "$DB_USER" -d "$DB_NAME" -c \
-  "SELECT tablename, n_live_tup FROM pg_stat_user_tables ORDER BY n_live_tup DESC;"
+sudo docker exec ems-postgres psql -U ems_prod_admin -d ems_db -c "SELECT relname, n_live_tup AS rows FROM pg_stat_user_tables ORDER BY n_live_tup DESC;"
 ```
 
 ---
