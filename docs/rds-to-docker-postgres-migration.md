@@ -66,6 +66,7 @@ The postgres service exists in the compose file but has the following gaps that 
 | Fix | Why |
 | --- | --- |
 | Add `postgres_data` with explicit `name:` to the `volumes:` section at the bottom | Without this Docker treats the volume as anonymous — data is lost on every `docker compose down`. The explicit `name: ems_postgres_data` also prevents the volume name from changing if the compose project directory is ever renamed. |
+| **Add `PGDATA: /var/lib/postgresql/data` to postgres environment** | **postgres:18-alpine defaults `PGDATA` to `/var/lib/postgresql/18/docker` inside the container, which does NOT match the volume mount path `/var/lib/postgresql/data`. Without this, postgres writes all data into the ephemeral container layer — the volume is mounted but never used, and all data is lost on every container restart.** |
 | Add `depends_on: postgres: condition: service_healthy` to `backend` | Backend connects on startup; without this it can crash-loop if postgres isn't ready |
 | Remove `SPRING_PROFILE`, `DB_HOST`, `DB_PORT` from postgres env | These are app env vars, not postgres container vars — they have no effect on postgres and are misleading |
 | Upgrade image from `postgres:15-alpine` to `postgres:18-alpine` | Must match the RDS version (18.1) for `pg_dump`/`pg_restore` compatibility |
@@ -88,6 +89,7 @@ postgres:
     POSTGRES_DB: ${DB_NAME}
     POSTGRES_USER: ${DB_USER}
     POSTGRES_PASSWORD: ${DB_PWD}
+    PGDATA: /var/lib/postgresql/data   # ← critical: must match volume mount path
 
   volumes:
     - postgres_data:/var/lib/postgresql/data
@@ -104,6 +106,9 @@ postgres:
 
   restart: unless-stopped
 ```
+
+> **Why `PGDATA` must be set explicitly:**
+> `postgres:18-alpine` sets its internal default `PGDATA` to `/var/lib/postgresql/18/docker`, not `/var/lib/postgresql/data`. When the volume is mounted at `/var/lib/postgresql/data` but postgres writes to `/var/lib/postgresql/18/docker`, the two paths never overlap — the volume is present but unused. Every container restart triggers a fresh `initdb`, wiping all data. Setting `PGDATA: /var/lib/postgresql/data` explicitly aligns postgres with the volume mount and makes data persist correctly.
 
 And the `backend` service needs:
 

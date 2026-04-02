@@ -13,6 +13,7 @@ services:
       POSTGRES_DB: ${DB_NAME}
       POSTGRES_USER: ${DB_USER}
       POSTGRES_PASSWORD: ${DB_PWD}
+      PGDATA: /var/lib/postgresql/data
       # DB_NAME, DB_USER, DB_PWD are exported as shell env vars in deploy.yml (never written to disk)
 
     # No port exposure - only accessible from backend container via ems-network
