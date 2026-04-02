@@ -290,74 +290,56 @@ git push origin main
 The deploy pipeline (`deploy.yml`) will:
 
 1. Pull updated `docker-compose.prod.yml` to EC2
-2. Read updated SSM params → write new `.env` with `DB_HOST=postgres`, `DB_SSL_MODE=disable`
+2. Fetch `DB_HOST=postgres` and `DB_SSL_MODE=disable` from SSM as shell env vars (no `.env` file is written to disk — do not reference `/opt/ems/deployment/.env` in restore scripts)
 3. Run `docker compose up -d` → starts `ems-postgres` container (empty database)
 4. Start `ems-backend` which connects to `ems-postgres`
 5. Flyway runs all 3 migrations automatically on the empty database
 
 At this point the backend is running against **an empty Docker postgres**. Users will see the app but with no data. This is expected — data restore happens next.
 
-#### Step 3.3 — Restore the RDS dump into Docker postgres
+#### Step 3.3 — Restore the dump into Docker postgres
 
-Run via SSM immediately after deploy completes:
+> **What actually worked (verified):**
+> The dump was found at `/opt/ems/db/ems_dump.sql` in plain SQL format (not custom format).
+> Use `psql` to restore it — not `pg_restore` (which is for custom-format dumps only).
+> Use explicit credential values instead of `source .env` since the deploy pipeline does not write a `.env` file.
+
+Connect to EC2 via SSM session and run these commands one by one:
 
 ```bash
-REMOTE_SCRIPT=$(cat <<'EOF'
-set -euo pipefail
-
-source /opt/ems/deployment/.env
-
-echo "Stopping backend to prevent writes during restore..."
-docker stop ems-backend
-
-echo "Dropping existing schema (Flyway created it empty)..."
-docker exec ems-postgres psql -U "$DB_USER" -d "$DB_NAME" -c "
-  DROP SCHEMA public CASCADE;
-  CREATE SCHEMA public;
-  GRANT ALL ON SCHEMA public TO $DB_USER;
-"
-
-echo "Restoring dump into Docker postgres..."
-docker exec -i ems-postgres pg_restore \
-  -U "$DB_USER" \
-  -d "$DB_NAME" \
-  --no-acl \
-  --no-owner \
-  --exit-on-error \
-  < /tmp/ems-rds-backup.dump
-
-echo "Verifying row counts..."
-docker exec ems-postgres psql -U "$DB_USER" -d "$DB_NAME" -c "ANALYZE;"
-docker exec ems-postgres psql -U "$DB_USER" -d "$DB_NAME" -c "
-  SELECT schemaname, tablename, n_live_tup AS rows
-  FROM pg_stat_user_tables
-  ORDER BY n_live_tup DESC;
-"
-
-echo "Restarting backend..."
-docker start ems-backend
-
-echo "Restore complete."
-EOF
-)
-
-ENCODED_SCRIPT="$(printf "%s" "$REMOTE_SCRIPT" | base64 | tr -d '\n')"
-COMMAND_ID=$(aws ssm send-command \
-  --instance-ids i-03a61b7b515af53b7 \
-  --document-name "AWS-RunShellScript" \
-  --region us-east-1 \
-  --parameters "commands=echo ${ENCODED_SCRIPT} | base64 --decode | bash" \
-  --query "Command.CommandId" --output text)
-
-echo "Command ID: $COMMAND_ID"
-sleep 90
-aws ssm get-command-invocation \
-  --command-id "$COMMAND_ID" \
-  --instance-id i-03a61b7b515af53b7 \
-  --region us-east-1 \
-  --query "{Status:Status,Output:StandardOutputContent,Error:StandardErrorContent}" \
-  --output json
+# 1. Stop backend to prevent writes during restore
+sudo docker stop ems-backend
 ```
+
+```bash
+# 2. Find the dump file (confirm location)
+sudo find /tmp /home /opt -name "*.dump" -o -name "*.sql" 2>/dev/null
+```
+
+```bash
+# 3. Drop the empty Flyway-created schema
+sudo docker exec ems-postgres psql -U ems_prod_admin -d ems_db -c "DROP SCHEMA public CASCADE; CREATE SCHEMA public; GRANT ALL ON SCHEMA public TO ems_prod_admin;"
+```
+
+```bash
+# 4. Restore the plain SQL dump (adjust path if dump is in a different location)
+sudo docker exec -i ems-postgres psql -U ems_prod_admin -d ems_db < /opt/ems/db/ems_dump.sql
+```
+
+```bash
+# 5. Verify row counts
+sudo docker exec ems-postgres psql -U ems_prod_admin -d ems_db -c "SELECT relname, n_live_tup AS rows FROM pg_stat_user_tables ORDER BY n_live_tup DESC;"
+```
+
+```bash
+# 6. Restart backend
+sudo docker start ems-backend
+```
+
+> **Note:** If the dump is in custom format (`.dump`), use `pg_restore` instead of `psql`:
+> ```bash
+> sudo docker exec -i ems-postgres pg_restore -U ems_prod_admin -d ems_db --no-acl --no-owner --exit-on-error < /path/to/file.dump
+> ```
 
 ---
 
