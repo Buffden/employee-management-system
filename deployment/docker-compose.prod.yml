@@ -135,6 +135,7 @@ volumes:
   certbot-www:
   redis_data:
   postgres_data:
+    name: ems_postgres_data
 
 networks:
   ems-network:
