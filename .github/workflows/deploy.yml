@@ -104,6 +104,9 @@ jobs:
           # Named volumes (ems_postgres_data, redis_data) are protected because
           # containers are running at this point and hold references to them
           docker volume prune -f
+
+          # 10) Remove Docker Hub credentials from disk — login is only needed during pull
+          docker logout
           EOF
           )
 
