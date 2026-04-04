@@ -55,14 +55,16 @@ jobs:
           INSTANCE_ID=$(aws ssm get-parameter \
             --name /ems/cicd/INSTANCE_ID \
             --with-decryption \
-            --query Parameter.Value --output text)
+            --query Parameter.Value --output text 2>/dev/null) \
+            || { echo "Failed to fetch instance ID from SSM"; exit 1; }
           echo "::add-mask::$INSTANCE_ID"
           echo "INSTANCE_ID=$INSTANCE_ID" >> "$GITHUB_ENV"
 
           STATE=$(aws ec2 describe-instances \
             --instance-ids "$INSTANCE_ID" \
             --query "Reservations[0].Instances[0].State.Name" \
-            --output text)
+            --output text 2>/dev/null) \
+            || { echo "Failed to describe instance state"; exit 1; }
 
           if [[ "$STATE" == "stopping" ]]; then
             aws ec2 wait instance-stopped --instance-ids "$INSTANCE_ID"
@@ -110,9 +112,9 @@ jobs:
           curl -fsSL "$COMPOSE_URL" -o docker-compose.prod.yml
 
           # 2) Fetch postgres credentials from SSM into shell env vars (never written to disk)
-          export DB_NAME=$(aws ssm get-parameter --name /ems/prod/DB_NAME --with-decryption --query Parameter.Value --output text)
-          export DB_USER=$(aws ssm get-parameter --name /ems/prod/DB_USER --with-decryption --query Parameter.Value --output text)
-          export DB_PWD=$(aws ssm get-parameter --name /ems/prod/DB_PWD --with-decryption --query Parameter.Value --output text)
+          export DB_NAME=$(aws ssm get-parameter --name /ems/prod/DB_NAME --with-decryption --query Parameter.Value --output text 2>/dev/null) || { echo "Failed to fetch DB_NAME"; exit 1; }
+          export DB_USER=$(aws ssm get-parameter --name /ems/prod/DB_USER --with-decryption --query Parameter.Value --output text 2>/dev/null) || { echo "Failed to fetch DB_USER"; exit 1; }
+          export DB_PWD=$(aws ssm get-parameter --name /ems/prod/DB_PWD --with-decryption --query Parameter.Value --output text 2>/dev/null) || { echo "Failed to fetch DB_PWD"; exit 1; }
 
           # 3) Login to Docker Hub using credentials from SSM (password never stored in a variable)
           aws ssm get-parameter --name /ems/prod/DOCKER_PASSWORD --with-decryption --query Parameter.Value --output text | docker login -u buffden --password-stdin
