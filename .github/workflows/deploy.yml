@@ -49,52 +49,17 @@ jobs:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
           aws-region: us-east-1
 
-      - name: Prepare EC2
-        id: prepare
+      - name: Deploy via AWS SSM
+        shell: bash
         run: |
           set -euo pipefail
+
           INSTANCE_ID=$(aws ssm get-parameter \
             --name /ems/cicd/INSTANCE_ID \
             --with-decryption \
             --query Parameter.Value --output text 2>/dev/null) \
             || { echo "Failed to fetch instance ID from SSM"; exit 1; }
           echo "::add-mask::$INSTANCE_ID"
-          echo "INSTANCE_ID=$INSTANCE_ID" >> "$GITHUB_ENV"
-
-          STATE=$(aws ec2 describe-instances \
-            --instance-ids "$INSTANCE_ID" \
-            --query "Reservations[0].Instances[0].State.Name" \
-            --output text 2>/dev/null) \
-            || { echo "Failed to describe instance state"; exit 1; }
-
-          if [[ "$STATE" == "stopping" ]]; then
-            aws ec2 wait instance-stopped --instance-ids "$INSTANCE_ID" 2>/dev/null
-            STATE="stopped"
-          fi
-
-          if [[ "$STATE" == "stopped" ]]; then
-            echo "was_stopped=true" >> "$GITHUB_OUTPUT"
-            aws ec2 start-instances --instance-ids "$INSTANCE_ID" 2>/dev/null
-            aws ec2 wait instance-running --instance-ids "$INSTANCE_ID" 2>/dev/null
-            DEADLINE=$((SECONDS + 120))
-            until aws ssm describe-instance-information \
-              --filters "Key=InstanceIds,Values=$INSTANCE_ID" \
-              --query "InstanceInformationList[0].PingStatus" \
-              --output text 2>/dev/null | grep -q "Online"; do
-              (( SECONDS >= DEADLINE )) && { echo "SSM agent timed out"; exit 1; }
-              sleep 5
-            done
-          elif [[ "$STATE" == "running" ]]; then
-            echo "was_stopped=false" >> "$GITHUB_OUTPUT"
-          else
-            echo "Instance is in unexpected state: $STATE"
-            exit 1
-          fi
-
-      - name: Deploy via AWS SSM
-        shell: bash
-        run: |
-          set -euo pipefail
 
           IMAGE_TAG="${{ github.sha }}"
 
@@ -166,9 +131,3 @@ jobs:
 
             sleep 10
           done
-
-      - name: Stop EC2 if started by workflow
-        if: always() && steps.prepare.outputs.was_stopped == 'true'
-        run: |
-          aws ec2 stop-instances --instance-ids "$INSTANCE_ID" 2>/dev/null \
-            || echo "Failed to stop instance"
