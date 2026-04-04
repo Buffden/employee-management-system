@@ -49,12 +49,48 @@ jobs:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
           aws-region: us-east-1
 
+      - name: Ensure EC2 is running
+        run: |
+          set -euo pipefail
+          INSTANCE_ID=$(aws ssm get-parameter \
+            --name /ems/cicd/INSTANCE_ID \
+            --with-decryption \
+            --query Parameter.Value --output text)
+          echo "::add-mask::$INSTANCE_ID"
+          echo "INSTANCE_ID=$INSTANCE_ID" >> "$GITHUB_ENV"
+
+          STATE=$(aws ec2 describe-instances \
+            --instance-ids "$INSTANCE_ID" \
+            --query "Reservations[0].Instances[0].State.Name" \
+            --output text)
+
+          if [[ "$STATE" == "stopping" ]]; then
+            aws ec2 wait instance-stopped --instance-ids "$INSTANCE_ID"
+            STATE="stopped"
+          fi
+
+          if [[ "$STATE" == "stopped" ]]; then
+            aws ec2 start-instances --instance-ids "$INSTANCE_ID"
+            aws ec2 wait instance-running --instance-ids "$INSTANCE_ID"
+            DEADLINE=$((SECONDS + 120))
+            until aws ssm describe-instance-information \
+              --filters "Key=InstanceIds,Values=$INSTANCE_ID" \
+              --query "InstanceInformationList[0].PingStatus" \
+              --output text 2>/dev/null | grep -q "Online"; do
+              (( SECONDS >= DEADLINE )) && { echo "SSM agent timed out"; exit 1; }
+              sleep 5
+            done
+          elif [[ "$STATE" != "running" ]]; then
+            echo "Unexpected instance state: $STATE"
+            exit 1
+          fi
+
       - name: Deploy via AWS SSM
         shell: bash
         run: |
           set -euo pipefail
 
-          INSTANCE_ID="i-03a61b7b515af53b7"
+          INSTANCE_ID="${INSTANCE_ID}"
           IMAGE_TAG="${{ github.sha }}"
 
           #
