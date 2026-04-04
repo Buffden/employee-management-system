@@ -50,6 +50,7 @@ jobs:
           aws-region: us-east-1
 
       - name: Prepare EC2
+        id: prepare
         run: |
           set -euo pipefail
           INSTANCE_ID=$(aws ssm get-parameter \
@@ -72,7 +73,7 @@ jobs:
           fi
 
           if [[ "$STATE" == "stopped" ]]; then
-            echo "WAS_STOPPED=true" >> "$GITHUB_ENV"
+            echo "was_stopped=true" >> "$GITHUB_OUTPUT"
             aws ec2 start-instances --instance-ids "$INSTANCE_ID" 2>/dev/null
             aws ec2 wait instance-running --instance-ids "$INSTANCE_ID" 2>/dev/null
             DEADLINE=$((SECONDS + 120))
@@ -84,7 +85,7 @@ jobs:
               sleep 5
             done
           elif [[ "$STATE" == "running" ]]; then
-            echo "WAS_STOPPED=false" >> "$GITHUB_ENV"
+            echo "was_stopped=false" >> "$GITHUB_OUTPUT"
           else
             echo "Instance is in unexpected state: $STATE"
             exit 1
@@ -167,7 +168,7 @@ jobs:
           done
 
       - name: Stop EC2 if started by workflow
-        if: always() && env.WAS_STOPPED == 'true'
+        if: always() && steps.prepare.outputs.was_stopped == 'true'
         run: |
           aws ec2 stop-instances --instance-ids "$INSTANCE_ID" 2>/dev/null \
             || echo "Failed to stop instance"
