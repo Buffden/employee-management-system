@@ -17,3 +17,8 @@ Thumbs.db
 
 # Data seed scripts (local/test variations - tracked files have V prefix)
 backend/src/main/resources/db/seed/*.sql
+
+# Cloudflare Worker
+cloudflare/ems-worker/node_modules/
+cloudflare/ems-worker/package-lock.json
+.wrangler/

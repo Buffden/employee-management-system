@@ -1,0 +1,12 @@
+name               = "ems-fallback"
+main               = "src/index.js"
+compatibility_date = "2025-01-01"
+
+routes = [
+  { pattern = "ems.buffden.com/*", zone_name = "buffden.com" }
+]
+
+[[rules]]
+type        = "Text"
+globs       = ["**/*.html", "**/*.css"]
+fallthrough = false
