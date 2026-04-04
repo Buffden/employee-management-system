@@ -49,7 +49,7 @@ jobs:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
           aws-region: us-east-1
 
-      - name: Ensure EC2 is running
+      - name: Prepare EC2
         run: |
           set -euo pipefail
           INSTANCE_ID=$(aws ssm get-parameter \
@@ -67,13 +67,14 @@ jobs:
             || { echo "Failed to describe instance state"; exit 1; }
 
           if [[ "$STATE" == "stopping" ]]; then
-            aws ec2 wait instance-stopped --instance-ids "$INSTANCE_ID"
+            aws ec2 wait instance-stopped --instance-ids "$INSTANCE_ID" 2>/dev/null
             STATE="stopped"
           fi
 
           if [[ "$STATE" == "stopped" ]]; then
-            aws ec2 start-instances --instance-ids "$INSTANCE_ID"
-            aws ec2 wait instance-running --instance-ids "$INSTANCE_ID"
+            echo "WAS_STOPPED=true" >> "$GITHUB_ENV"
+            aws ec2 start-instances --instance-ids "$INSTANCE_ID" 2>/dev/null
+            aws ec2 wait instance-running --instance-ids "$INSTANCE_ID" 2>/dev/null
             DEADLINE=$((SECONDS + 120))
             until aws ssm describe-instance-information \
               --filters "Key=InstanceIds,Values=$INSTANCE_ID" \
@@ -82,8 +83,10 @@ jobs:
               (( SECONDS >= DEADLINE )) && { echo "SSM agent timed out"; exit 1; }
               sleep 5
             done
-          elif [[ "$STATE" != "running" ]]; then
-            echo "Unexpected instance state: $STATE"
+          elif [[ "$STATE" == "running" ]]; then
+            echo "WAS_STOPPED=false" >> "$GITHUB_ENV"
+          else
+            echo "Instance is in unexpected state: $STATE"
             exit 1
           fi
 
@@ -92,12 +95,8 @@ jobs:
         run: |
           set -euo pipefail
 
-          INSTANCE_ID="${INSTANCE_ID}"
           IMAGE_TAG="${{ github.sha }}"
 
-          #
-          # Build the remote script
-          #
           REMOTE_SCRIPT=$(cat <<'EOF'
           set -euo pipefail
 
@@ -107,43 +106,25 @@ jobs:
           chmod 755 /opt/ems "$DEPLOY_DIR"
           cd "$DEPLOY_DIR"
 
-          # 1) Pull latest compose file
           COMPOSE_URL="https://raw.githubusercontent.com/Buffden/employee-management-system/main/deployment/docker-compose.prod.yml"
           curl -fsSL "$COMPOSE_URL" -o docker-compose.prod.yml
 
-          # 2) Fetch postgres credentials from SSM into shell env vars (never written to disk)
           export DB_NAME=$(aws ssm get-parameter --name /ems/prod/DB_NAME --with-decryption --query Parameter.Value --output text 2>/dev/null) || { echo "Failed to fetch DB_NAME"; exit 1; }
           export DB_USER=$(aws ssm get-parameter --name /ems/prod/DB_USER --with-decryption --query Parameter.Value --output text 2>/dev/null) || { echo "Failed to fetch DB_USER"; exit 1; }
           export DB_PWD=$(aws ssm get-parameter --name /ems/prod/DB_PWD --with-decryption --query Parameter.Value --output text 2>/dev/null) || { echo "Failed to fetch DB_PWD"; exit 1; }
 
-          # 3) Login to Docker Hub using credentials from SSM (password never stored in a variable)
-          aws ssm get-parameter --name /ems/prod/DOCKER_PASSWORD --with-decryption --query Parameter.Value --output text | docker login -u buffden --password-stdin
+          aws ssm get-parameter --name /ems/prod/DOCKER_PASSWORD --with-decryption --query Parameter.Value --output text 2>/dev/null | docker login -u buffden --password-stdin
 
-          # 4) Pull exact images for this deploy (no ambiguity)
           docker pull buffden/ems-backend:$IMAGE_TAG
           docker pull buffden/ems-gateway:$IMAGE_TAG
 
-          # 5) Save current running images for quick verification / rollback visibility
           IMAGE_TAG=$IMAGE_TAG docker compose -f docker-compose.prod.yml ps --format '{{.Service}}\t{{.Image}}' > .deploy-meta.prev 2>/dev/null || true
 
-          # 6) Deploy (IMAGE_TAG passed inline — no .env file needed)
-          # Safety check: never pass -v to down — named volume postgres_data must survive deploys
           docker compose -f docker-compose.prod.yml down
           IMAGE_TAG=$IMAGE_TAG docker compose -f docker-compose.prod.yml up -d --pull always --force-recreate
 
-          # 7) Verify what is running now
-          echo "Running containers:"
-          IMAGE_TAG=$IMAGE_TAG docker compose -f docker-compose.prod.yml ps --format 'table {{.Name}}\t{{.Image}}\t{{.Status}}'
-
-          # 8) Cleanup old images (keep last 72h)
           docker image prune -af --filter "until=72h"
-
-          # 9) Cleanup anonymous volumes not attached to any running container
-          # Named volumes (ems_postgres_data, redis_data) are protected because
-          # containers are running at this point and hold references to them
           docker volume prune -f
-
-          # 10) Remove Docker Hub credentials from disk — login is only needed during pull
           docker logout
           EOF
           )
@@ -156,9 +137,8 @@ jobs:
             --comment "Deploy EMS via SSM" \
             --parameters "commands=export IMAGE_TAG=${IMAGE_TAG} && echo ${ENCODED_SCRIPT} | base64 --decode | bash" \
             --query "Command.CommandId" \
-            --output text)
-
-          echo "SSM Command ID: $COMMAND_ID"
+            --output text 2>/dev/null) \
+            || { echo "Failed to send SSM command"; exit 1; }
 
           DEADLINE=$((SECONDS + 900))
           while true; do
@@ -174,19 +154,20 @@ jobs:
             fi
 
             if [[ "$STATUS" == "Failed" || "$STATUS" == "Cancelled" || "$STATUS" == "TimedOut" ]]; then
-              echo "Deployment failed. Error output:"
-              aws ssm get-command-invocation \
-                --command-id "$COMMAND_ID" \
-                --instance-id "$INSTANCE_ID" \
-                --query "StandardErrorContent" \
-                --output text || true
+              echo "Deployment failed with status: $STATUS"
               exit 1
             fi
 
             if (( SECONDS >= DEADLINE )); then
-              echo "Deployment timed out after 15 minutes. Check SSM Command ID: $COMMAND_ID"
+              echo "Deployment timed out after 15 minutes"
               exit 1
             fi
 
             sleep 10
           done
+
+      - name: Stop EC2 if started by workflow
+        if: always() && env.WAS_STOPPED == 'true'
+        run: |
+          aws ec2 stop-instances --instance-ids "$INSTANCE_ID" 2>/dev/null \
+            || echo "Failed to stop instance"
