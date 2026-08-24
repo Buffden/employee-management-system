@@ -1,10 +1,10 @@
 name: Deploy Cloudflare Worker
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - 'cloudflare/ems-worker/**'
+  # push:
+  #   branches: [main]
+  #   paths:
+  #     - 'cloudflare/ems-worker/**'
   workflow_dispatch:
 
 jobs:
