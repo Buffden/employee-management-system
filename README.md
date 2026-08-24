@@ -1,7 +1,8 @@
 # Employee Management System
 
-> **Project Status: Completed & Deployed**  
-> This project is fully developed, tested, and deployed to production. The application is live and operational with comprehensive features, security implementations, and CI/CD automation.
+> **Project Status: Sunset**
+> This application has been retired and is no longer running in production. The codebase remains available as a reference and portfolio project.
+> Visit the developer's portfolio: [buffden.com](https://buffden.com)
 
 A full-stack monorepo application for managing employees, departments, projects, and tasks. Built with Spring Boot and Angular, featuring a modern UI and RESTful API architecture.
 
@@ -11,16 +12,14 @@ A full-stack monorepo application for managing employees, departments, projects,
 
 | Component | Status | Details |
 |-----------|--------|---------|
-| **Production Environment** | Live | Deployed on AWS EC2 with automated CI/CD |
-| **CI/CD Pipeline** | Active | Automated testing and deployment via GitHub Actions |
-| **Database** | Running | AWS RDS PostgreSQL with automated backups |
-| **Security** | Protected | Multi-layer DDoS protection (Nginx + Redis + CloudFlare) |
-| **Monitoring** | Active | Health checks and logging enabled |
-| **SSL/TLS** | Secured | HTTPS with automated certificate management |
+| **Production Environment** | Sunset | AWS EC2 instance decommissioned |
+| **CI/CD Pipeline** | Disabled | GitHub Actions workflows retired |
+| **Database** | Decommissioned | AWS RDS PostgreSQL instance shut down |
+| **CDN / DNS** | Redirecting | `ems.buffden.com` shows sunset notice → [buffden.com](https://buffden.com) |
+| **Lambda Scheduler** | Disabled | Night scheduler EventBridge rule removed |
 
-**Last Deployment**: Automated via GitHub Actions on merge to `main` branch  
-**Infrastructure**: Docker containers orchestrated with Docker Compose  
-**Deployment Strategy**: Blue-green deployment with zero downtime
+**Sunset Date**: August 2026
+**Portfolio**: [buffden.com](https://buffden.com)
 
 ## Table of Contents
 
@@ -699,8 +698,8 @@ This project is developed as a demonstration of full-stack development capabilit
 
 ---
 
-**Project Status**: **Completed and Deployed**  
-**Last Updated**: January 2026  
+**Project Status**: **Sunset (August 2026)**
+**Portfolio**: [buffden.com](https://buffden.com)
 **Maintained by**: Buffden
 
 ---
