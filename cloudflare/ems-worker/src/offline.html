@@ -3,21 +3,35 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>EMS — Offline for Maintenance</title>
+    <meta http-equiv="refresh" content="8;url=https://buffden.com" />
+    <title>EMS — Application Sunset</title>
     <link rel="stylesheet" href="/offline.css" />
   </head>
   <body>
     <div class="card">
-      <div class="icon">🌙</div>
+      <div class="icon">&#x1F4CB;</div>
       <h1>Employee Management System</h1>
-      <p>This site is currently offline for scheduled maintenance.</p>
-      <div class="hours">Available Mon–Fri &middot; 7 AM – 11 PM CDT</div>
-      <p>
+      <p>This application has been sunset and is no longer available.</p>
+      <div class="sunset-notice">
+        Thank you to everyone who used and supported this project.
+      </div>
+      <p class="redirect-note">Redirecting you to my portfolio in <span id="countdown">8</span>s&hellip;</p>
+      <a class="cta" href="https://buffden.com">Visit buffden.com</a>
+      <p class="built-by">
         Built by
-        <a href="https://portfolio.buffden.com" target="_blank">Harshwardhan Patil</a>
+        <a href="https://buffden.com" target="_blank">Harshwardhan Patil</a>
         &middot;
         <a href="https://github.com/Buffden" target="_blank">GitHub</a>
       </p>
     </div>
+    <script>
+      var s = 8;
+      var el = document.getElementById('countdown');
+      var t = setInterval(function () {
+        s--;
+        el.textContent = s;
+        if (s <= 0) { clearInterval(t); window.location.href = 'https://buffden.com'; }
+      }, 1000);
+    </script>
   </body>
 </html>
