@@ -37,7 +37,7 @@ p {
   margin-bottom: 1rem;
 }
 
-.hours {
+.sunset-notice {
   display: inline-block;
   background: #1e293b;
   border: 1px solid #334155;
@@ -45,7 +45,35 @@ p {
   padding: 0.75rem 1.5rem;
   margin: 1rem 0;
   font-size: 0.875rem;
-  color: #7dd3fc;
+  color: #fbbf24;
+}
+
+.redirect-note {
+  font-size: 0.875rem;
+  color: #64748b;
+  margin-bottom: 1.5rem;
+}
+
+.cta {
+  display: inline-block;
+  background: #38bdf8;
+  color: #0f172a;
+  font-weight: 600;
+  padding: 0.65rem 1.75rem;
+  border-radius: 6px;
+  text-decoration: none;
+  margin-bottom: 1.75rem;
+  transition: background 0.2s;
+}
+
+.cta:hover {
+  background: #7dd3fc;
+  text-decoration: none;
+}
+
+.built-by {
+  font-size: 0.8rem;
+  color: #475569;
 }
 
 a {
