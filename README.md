@@ -6,8 +6,6 @@
 
 A full-stack monorepo application for managing employees, departments, projects, and tasks. Built with Spring Boot and Angular, featuring a modern UI and RESTful API architecture.
 
-![Landing Page](frontend/src/assets/images/screenshots/landing-page.png)
-
 ## Deployment Status
 
 | Component | Status | Details |
